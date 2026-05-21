@@ -1,3 +1,424 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Altius Contact — Performance Sales</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --yellow: #F5C800; --yellow-light: #fffbe6; --yellow-dark: #A08200;
+      --green: #1D9E75; --blue: #378ADD; --purple: #7F77DD;
+      --amber: #BA7517; --red: #E24B4A;
+      --bg: #f5f5f3; --surface: #ffffff; --border: #e4e2db;
+      --text: #1a1a18; --muted: #666662; --light: #f0efea;
+    }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    /* HEADER NOIR ALTIUS */
+    .header { background: #1a1a18; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; height: 60px; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 16px rgba(0,0,0,.25); }
+    .logo { display: flex; align-items: center; gap: 12px; }
+    .logo-icon { width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .logo-texts { display: flex; flex-direction: column; }
+    .logo-name { color: #fff; font-weight: 700; font-size: 15px; letter-spacing: .01em; }
+    .logo-sub { color: var(--yellow); font-size: 11px; font-weight: 400; }
+    .sync-badge { font-size: 11px; padding: 4px 12px; border-radius: 20px; }
+    .sync-ok { background: rgba(245,200,0,.12); color: var(--yellow); border: 1px solid rgba(245,200,0,.25); }
+    .sync-loading { background: rgba(255,255,255,.08); color: #bbb; border: 1px solid rgba(255,255,255,.12); }
+    .sync-err { background: rgba(226,75,74,.2); color: #ff8080; border: 1px solid rgba(226,75,74,.3); }
+
+    /* NAV avec accent jaune */
+    .nav { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 24px; display: flex; overflow-x: auto; }
+    .nb { font-size: 13px; padding: 14px 18px; border: none; background: none; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; font-family: inherit; transition: all .15s; }
+    .nb:hover { color: var(--text); }
+    .nb.on { color: #1a1a18; border-bottom-color: var(--yellow); font-weight: 600; }
+
+    .main { padding: 24px; max-width: 1200px; margin: 0 auto; }
+    .pg { display: none; } .pg.on { display: block; }
+
+    /* KPI CARDS */
+    .kgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 20px; }
+    .kcard { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+    .kcard.accent { border-left: 3px solid var(--yellow); }
+    .klabel { font-size: 11px; color: var(--muted); margin-bottom: 5px; }
+    .kval { font-size: 26px; font-weight: 700; }
+    .ksub { font-size: 11px; color: var(--muted); margin-top: 3px; }
+
+    /* TOP 3 */
+    .top3-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin-bottom: 20px; }
+    @media(max-width:600px){ .top3-grid { grid-template-columns: 1fr; } }
+    .top3-card { border-radius: 12px; padding: 14px 16px; display: flex; align-items: center; gap: 12px; border: 1px solid var(--border); background: var(--surface); }
+    .top3-card.gold { border-color: #F5C800; background: linear-gradient(135deg,#fffbe6,#fff5b8); }
+    .top3-card.silver { border-color: #b0b0b0; background: linear-gradient(135deg,#f8f8f8,#ececec); }
+    .top3-card.bronze { border-color: #cd7f32; background: linear-gradient(135deg,#fdf6ee,#fae8d4); }
+    .top3-medal { font-size: 28px; flex-shrink: 0; }
+    .top3-info { flex: 1; min-width: 0; }
+    .top3-name { font-size: 13px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .top3-proj { font-size: 11px; color: var(--muted); margin-top: 1px; }
+    .top3-score { font-size: 22px; font-weight: 800; flex-shrink: 0; }
+
+    /* ALERTES RANG D */
+    .alert-d { background: #fff5f5; border: 1px solid #ffd0d0; border-radius: 10px; padding: 12px 16px; margin-bottom: 8px; display: flex; align-items: center; gap: 12px; }
+    .alert-d-icon { font-size: 20px; flex-shrink: 0; }
+    .alert-d-info { flex: 1; }
+    .alert-d-name { font-size: 13px; font-weight: 600; }
+    .alert-d-detail { font-size: 11px; color: #8c1a1a; margin-top: 2px; }
+    .alert-d-score { font-size: 20px; font-weight: 800; color: #E24B4A; flex-shrink: 0; }
+    .section-bar-yellow { border-left: 3px solid var(--yellow); padding-left: 10px; margin-bottom: 12px; display:flex; align-items:center; justify-content:space-between; }
+    .section-bar-red { border-left: 3px solid var(--red); padding-left: 10px; margin-bottom: 12px; }
+
+    /* PROJETS */
+    .pgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin-bottom: 20px; }
+    .pcard { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px; transition: box-shadow .15s; }
+    .pcard:hover { box-shadow: 0 2px 12px rgba(0,0,0,.08); }
+    .pname { font-size: 13px; font-weight: 600; margin-bottom: 8px; }
+    .pscore { font-size: 24px; font-weight: 700; }
+    .pbar { height: 5px; border-radius: 3px; background: var(--light); margin: 6px 0; overflow: hidden; }
+    .pbar-fill { height: 100%; border-radius: 3px; }
+    .pmeta { font-size: 11px; color: var(--muted); display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
+
+    .pill { display: inline-block; font-size: 11px; padding: 3px 10px; border-radius: 20px; font-weight: 600; }
+    .sS{background:#dcfff2;color:#0a6b45}.sA{background:#dceeff;color:#0a4d8c}
+    .sB{background:#ede8ff;color:#3b2a8c}.sC{background:#fff3dc;color:#7a4e00}.sD{background:#ffe8e8;color:#8c1a1a}
+    .badge-ok{background:#dcfff2;color:#0a6b45;font-size:11px;padding:2px 8px;border-radius:20px}
+    .badge-off{background:#ffe8e8;color:#8c1a1a;font-size:11px;padding:2px 8px;border-radius:20px}
+
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px 20px; margin-bottom: 16px; }
+    .twrap { overflow-x: auto; }
+    .tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .tbl th { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); font-weight: 500; white-space: nowrap; }
+    .tbl td { padding: 9px 10px; border-bottom: 1px solid #f0efea; vertical-align: middle; }
+    .tbl tr:last-child td { border-bottom: none; }
+    .tbl tr:hover td { background: #fafaf8; }
+    .av { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; }
+    .nc { display: flex; align-items: center; gap: 8px; }
+    .sb { display: flex; align-items: center; gap: 6px; }
+    .sb-bg { width: 55px; height: 5px; background: var(--light); border-radius: 3px; overflow: hidden; }
+    .sb-fill { height: 100%; border-radius: 3px; }
+
+    .btn { padding: 8px 18px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); font-size: 13px; cursor: pointer; color: var(--text); transition: all .15s; font-family: inherit; }
+    .btn:hover { background: var(--light); }
+    .btn.prim { background: #1a1a18; color: #fff; border-color: #1a1a18; }
+    .btn.prim:hover { background: #333; }
+    .btn.yellow { background: var(--yellow); color: #1a1a18; border-color: var(--yellow); font-weight: 600; }
+    .btn.yellow:hover { background: #e6ba00; }
+    .btn.red { border-color: var(--red); color: #8c1a1a; }
+    .btn.red:hover { background: #ffe8e8; }
+    .btn.green { border-color: var(--green); color: #0a6b45; }
+    .btn.green:hover { background: #dcfff2; }
+    .abtn { background: none; border: 1px solid var(--border); border-radius: 6px; padding: 4px 10px; font-size: 12px; cursor: pointer; color: var(--muted); transition: all .15s; font-family: inherit; }
+    .abtn:hover { background: var(--light); color: var(--text); }
+    .abtn.red:hover { background: #ffe8e8; color: #8c1a1a; border-color: var(--red); }
+
+    .stitle { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .07em; margin-bottom: 12px; }
+    .fbrow { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; align-items: center; }
+    .fb { font-size: 11px; padding: 5px 12px; border-radius: 20px; border: 1px solid var(--border); background: var(--surface); color: var(--muted); cursor: pointer; font-family: inherit; transition: all .15s; }
+    .fb.on, .fb:hover { background: #1a1a18; color: #fff; border-color: #1a1a18; }
+
+    .chip { display: inline-flex; align-items: center; gap: 6px; background: var(--light); border: 1px solid var(--border); border-radius: 8px; padding: 5px 12px; font-size: 13px; margin: 3px; }
+    .chip button { background: none; border: none; cursor: pointer; color: var(--muted); font-size: 14px; line-height: 1; padding: 0; }
+    .chip button:hover { color: var(--red); }
+
+    .fgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media(max-width: 480px) { .fgrid { grid-template-columns: 1fr; } }
+    .flabel { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+    .frow { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; flex-wrap: wrap; }
+    input[type=text], input[type=month], input[type=number], select { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; font-family: inherit; background: var(--surface); color: var(--text); outline: none; transition: border-color .15s; }
+    input:focus, select:focus { border-color: var(--yellow); }
+
+    .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.5); display: none; align-items: flex-start; justify-content: center; z-index: 999; padding: 48px 16px; overflow-y: auto; }
+    .overlay.on { display: flex; }
+    .modal { background: var(--surface); border-radius: 14px; border: 1px solid var(--border); padding: 24px; width: 100%; max-width: 520px; margin: auto; box-shadow: 0 8px 40px rgba(0,0,0,.18); }
+    .modal.wide { max-width: 620px; }
+    .mhdr { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .mhdr h3 { font-size: 16px; font-weight: 700; }
+    .xbtn { background: none; border: none; cursor: pointer; color: var(--muted); font-size: 20px; line-height: 1; }
+    .xbtn:hover { color: var(--text); }
+    .alert-err { background: #ffe8e8; color: #8c1a1a; padding: 8px 12px; border-radius: 8px; font-size: 12px; margin-bottom: 12px; display: none; }
+
+    .twocol { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media(max-width: 600px) { .twocol { grid-template-columns: 1fr; } }
+    .chart-box { position: relative; width: 100%; height: 200px; }
+    .score-input { width: 68px !important; padding: 5px 7px !important; }
+    .score-select { width: 65px !important; padding: 5px 6px !important; }
+    @media(max-width: 600px) { .main { padding: 12px; } .header { padding: 0 14px; } .nav { padding: 0 14px; } }
+
+    /* TIMELINE */
+    .timeline { position: relative; padding-left: 24px; }
+    .timeline::before { content:''; position:absolute; left:8px; top:0; bottom:0; width:2px; background:var(--border); }
+    .tl-item { position: relative; margin-bottom: 16px; }
+    .tl-item::before { content:''; position:absolute; left:-20px; top:4px; width:10px; height:10px; border-radius:50%; background:var(--yellow); border:2px solid #fff; box-shadow:0 0 0 2px var(--yellow); }
+    .tl-item.past::before { background: var(--muted); box-shadow:0 0 0 2px var(--muted); }
+    .tl-date { font-size:11px; color:var(--muted); margin-bottom:2px; }
+    .tl-proj { font-size:14px; font-weight:600; color:var(--text); }
+    .tl-duration { font-size:11px; color:var(--muted); margin-top:2px; }
+
+    /* FICHE */
+    .fiche-header { display:flex; align-items:center; gap:14px; margin-bottom:20px; padding-bottom:16px; border-bottom:1px solid var(--border); }
+    .fiche-av { width:52px; height:52px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:18px; font-weight:700; flex-shrink:0; }
+    .fiche-name { font-size:17px; font-weight:700; }
+    .fiche-sub { font-size:12px; color:var(--muted); margin-top:2px; }
+    .stat-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:16px; }
+    .stat-box { background:var(--light); border-radius:8px; padding:10px 12px; }
+    .stat-box-label { font-size:11px; color:var(--muted); margin-bottom:3px; }
+    .stat-box-val { font-size:16px; font-weight:700; }
+    .divider { border:none; border-top:1px solid var(--border); margin:14px 0; }
+
+    /* COMMENTAIRES */
+    .comment-item { background: var(--light); border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; }
+    .comment-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+    .comment-author { font-size: 11px; font-weight: 600; color: var(--text); }
+    .comment-month { font-size: 11px; color: var(--muted); }
+    .comment-text { font-size: 13px; color: var(--text); line-height: 1.4; }
+    .comment-del { background: none; border: none; cursor: pointer; color: var(--muted); font-size: 14px; padding: 0; line-height: 1; }
+    .comment-del:hover { color: var(--red); }
+    .comment-form { margin-top: 10px; }
+    .comment-form textarea { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; font-family: inherit; resize: vertical; min-height: 70px; outline: none; }
+    .comment-form textarea:focus { border-color: var(--yellow); }
+
+    /* LOGIN */
+    .login-overlay { position:fixed; inset:0; background:#1a1a18; display:flex; align-items:center; justify-content:center; z-index:9999; }
+    .login-box { background:#fff; border-radius:16px; padding:40px 36px; width:100%; max-width:380px; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,.4); }
+    .login-logo { margin-bottom:20px; }
+    .login-title { font-size:22px; font-weight:700; color:#1a1a18; margin-bottom:4px; }
+    .login-sub { font-size:13px; color:#888; margin-bottom:28px; }
+    .login-input { width:100%; padding:12px 14px; border:1px solid #e0e0e0; border-radius:8px; font-size:14px; font-family:inherit; outline:none; margin-bottom:12px; text-align:center; letter-spacing:3px; }
+    .login-input:focus { border-color:#F5C800; }
+    .login-btn { width:100%; padding:12px; background:#1a1a18; color:#fff; border:none; border-radius:8px; font-size:14px; font-weight:700; cursor:pointer; font-family:inherit; transition:background .15s; }
+    .login-btn:hover { background:#333; }
+    .login-err { color:#E24B4A; font-size:12px; margin-top:8px; display:none; }
+    .login-hint { font-size:11px; color:#bbb; margin-top:16px; }
+
+    /* COMPTES */
+    .role-badge { display:inline-block; font-size:11px; padding:2px 10px; border-radius:20px; font-weight:600; }
+    .role-patron { background:#1a1a18; color:#F5C800; }
+    .role-chef { background:#dceeff; color:#0a4d8c; }
+    .role-qualite { background:#ede8ff; color:#3b2a8c; }
+    .role-teamlead { background:#dcfff2; color:#0a6b45; }
+
+    /* NOTIFICATIONS */
+    .notif-bell { position:relative; cursor:pointer; background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.2); border-radius:6px; padding:5px 10px; color:#fff; font-size:13px; margin-right:8px; }
+    .notif-bell:hover { background:rgba(255,255,255,.2); }
+    .notif-badge { position:absolute; top:-6px; right:-6px; background:#E24B4A; color:#fff; border-radius:50%; width:18px; height:18px; font-size:10px; font-weight:700; display:flex; align-items:center; justify-content:center; }
+    .notif-panel { position:fixed; top:68px; right:16px; width:340px; max-height:480px; background:var(--surface); border:1px solid var(--border); border-radius:12px; box-shadow:0 8px 32px rgba(0,0,0,.15); z-index:999; display:none; overflow-y:auto; }
+    .notif-panel.open { display:block; }
+    .notif-header { display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-bottom:1px solid var(--border); }
+    .notif-title { font-size:14px; font-weight:700; }
+    .notif-clear { font-size:11px; color:var(--muted); cursor:pointer; background:none; border:none; font-family:inherit; }
+    .notif-clear:hover { color:var(--red); }
+    .notif-item { display:flex; align-items:flex-start; gap:10px; padding:12px 16px; border-bottom:1px solid #f5f5f5; }
+    .notif-item:last-child { border-bottom:none; }
+    .notif-item.unread { background:#fffbe6; }
+    .notif-icon { font-size:18px; flex-shrink:0; margin-top:1px; }
+    .notif-content { flex:1; }
+    .notif-msg { font-size:13px; color:var(--text); line-height:1.4; }
+    .notif-time { font-size:11px; color:var(--muted); margin-top:3px; }
+    .notif-empty { padding:24px; text-align:center; color:var(--muted); font-size:13px; }
+
+    /* CALENDRIER */
+    .cal-event { padding:8px 12px; border-radius:8px; margin-bottom:6px; border-left:3px solid; }
+    .cal-event.upcoming { background:#fffbe6; border-color:#F5C800; }
+    .cal-event.today { background:#dcfff2; border-color:#1D9E75; }
+    .cal-event.past { background:#f5f5f5; border-color:#ccc; opacity:.7; }
+    .cal-event-title { font-size:13px; font-weight:600; }
+    .cal-event-meta { font-size:11px; color:var(--muted); margin-top:2px; }
+    .cal-day { font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; margin:14px 0 6px; }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">
+    <div class="logo-icon">
+      <svg width="38" height="38" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <polygon points="10,88 30,12 42,12 26,88" fill="#ffffff"/>
+        <polygon points="58,12 72,12 90,88 72,88" fill="#ffffff"/>
+        <polygon points="28,62 36,38 60,38 52,62" fill="#F5C800"/>
+      </svg>
+    </div>
+    <div class="logo-texts">
+      <div class="logo-name">ALTIUS Contact</div>
+      <div class="logo-sub" id="subtitle">Connexion...</div>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px">
+    <button onclick="window._exportPDF()" style="background:var(--yellow);color:#1a1a18;border:none;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">📄 Export PDF</button>
+    <div style="display:flex;align-items:center;gap:6px">
+      <button class="notif-bell" id="notif-bell" onclick="window.toggleNotifPanel()" title="Notifications">
+        🔔 <span id="notif-count" class="notif-badge" style="display:none">0</span>
+      </button>
+      <span class="sync-badge sync-loading" id="syncbadge">⏳ Connexion...</span>
+    </div>
+  </div>
+</div>
+
+<div class="nav">
+  <button class="nb on" onclick="goPage('overview',this)">📋 Tableau de bord</button>
+  <button class="nb" onclick="goPage('agents',this)">👥 Agents</button>
+  <button class="nb" onclick="goPage('mois',this)">📅 Mois & Scores</button>
+  <button class="nb" onclick="goPage('projets',this)">🏢 Projets</button>
+  <button class="nb" onclick="goPage('archives',this)">Archives</button>
+  <button class="nb" id="cal-tab" onclick="goPage('calendrier',this)">Calendrier</button>
+  <button class="nb" onclick="goPage('teamleaders',this)">Team Leaders</button>
+  <button class="nb" id="comptes-tab" onclick="goPage('comptes',this)" style="display:none">Comptes</button>
+</div>
+
+<div class="main">
+
+  <div class="pg on" id="pg-overview">
+    <div class="kgrid" id="kgrid"></div>
+
+    <div class="section-bar-yellow">
+      <div class="stitle" style="margin-bottom:0">🏆 Top 3 agents du mois</div>
+    </div>
+    <div class="top3-grid" id="top3grid"></div>
+
+    <div id="alertes-section"></div>
+
+    <div class="stitle">Projets</div>
+    <div class="pgrid" id="pgrid"></div>
+    <div class="twocol">
+      <div class="card"><div class="stitle">Distribution des rangs</div><div class="chart-box"><canvas id="donut" role="img" aria-label="Rangs"></canvas></div></div>
+      <div class="card"><div class="stitle">Score par projet</div><div class="chart-box"><canvas id="projbar" role="img" aria-label="Score par projet"></canvas></div></div>
+    </div>
+  </div>
+
+  <div class="pg" id="pg-agents">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+      <div class="fbrow" id="rankfilter" style="margin-bottom:0"></div>
+      <button class="btn yellow" onclick="openAdd()">+ Nouvel agent</button>
+    </div>
+    <div class="card" style="padding:0;overflow:hidden">
+      <div class="twrap"><table class="tbl"><thead><tr>
+        <th>Agent</th><th>Projet actuel</th><th>Ancienneté</th><th>Score</th><th>Rang</th><th>Statut</th><th></th>
+      </tr></thead><tbody id="abody"></tbody></table></div>
+    </div>
+  </div>
+
+  <div class="pg" id="pg-mois">
+    <div class="card">
+      <div class="stitle">Mois actifs</div>
+      <div id="mchips" style="margin-bottom:12px"></div>
+      <button class="btn" onclick="openAddMonth()">+ Ajouter un mois</button>
+    </div>
+    <div class="card">
+      <div class="stitle">Saisir les scores du mois</div>
+      <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:flex-end">
+        <div><div class="flabel">Mois</div><select id="msel" onchange="renderScoreGrid()" style="width:auto"></select></div>
+        <div><div class="flabel">Projet</div><select id="psel" onchange="renderScoreGrid()" style="width:auto"></select></div>
+      </div>
+      <div class="twrap" id="sgrid"></div>
+      <div style="display:flex;justify-content:flex-end;margin-top:12px">
+        <button class="btn yellow" onclick="saveScores()">💾 Enregistrer les scores</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="stitle">Évolution mensuelle</div>
+      <div style="position:relative;width:100%;height:260px"><canvas id="trendchart" role="img" aria-label="Évolution mensuelle"></canvas></div>
+    </div>
+  </div>
+
+  <div class="pg" id="pg-projets">
+    <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
+      <button class="btn yellow" onclick="openAddProj()">+ Nouveau projet</button>
+    </div>
+    <div class="card" style="padding:0;overflow:hidden">
+      <div class="twrap"><table class="tbl"><thead><tr>
+        <th>Projet</th><th>Agents actifs</th><th>Score moyen</th><th>Rang</th><th></th>
+      </tr></thead><tbody id="pbody"></tbody></table></div>
+    </div>
+  </div>
+
+  <div class="pg" id="pg-archives">
+    <div class="card">
+      <div class="stitle" style="margin-bottom:10px">Mois verrouillés</div>
+      <div id="arc-months"></div>
+    </div>
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <div class="stitle" style="margin-bottom:0">Snapshots</div>
+        <button class="btn yellow" onclick="window.takeSnap()">Prendre une snapshot</button>
+      </div>
+      <div id="arc-snaps"></div>
+    </div>
+    <div class="card">
+      <div class="stitle" style="margin-bottom:10px">Historique complet</div>
+      <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+        <select id="hag" onchange="window.renderHist()" style="font-size:13px;width:auto"><option value="all">Tous les agents</option></select>
+        <select id="hpr" onchange="window.renderHist()" style="font-size:13px;width:auto"><option value="all">Tous les projets</option></select>
+      </div>
+      <div class="twrap" id="hist-body"></div>
+    </div>
+  </div>
+
+  <div class="pg" id="pg-teamleaders">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+      <div class="stitle" style="margin-bottom:0">Team Leaders et équipes</div>
+      <button class="btn yellow" onclick="window.openAddTL()">+ Nouveau team leader</button>
+    </div>
+    <div id="tl-body"></div>
+  </div>
+
+  <div class="pg" id="pg-comptes">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+      <div class="stitle" style="margin-bottom:0">Gestion des comptes</div>
+      <button class="btn yellow" onclick="window.openAddCompte()">+ Nouveau compte</button>
+    </div>
+    <div id="comptes-body"></div>
+  </div>
+
+  <div class="pg" id="pg-calendrier">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+      <div class="stitle" style="margin-bottom:0">Calendrier des évaluations</div>
+      <button class="btn yellow" id="add-eval-btn" onclick="window.openAddEval()">+ Planifier une évaluation</button>
+    </div>
+    <div class="twocol">
+      <div class="card">
+        <div class="stitle" style="margin-bottom:12px">À venir</div>
+        <div id="cal-upcoming"></div>
+      </div>
+      <div class="card">
+        <div class="stitle" style="margin-bottom:12px">Passées</div>
+        <div id="cal-past"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="overlay" id="ov"><div class="modal" id="mbox"></div></div>
+
+<div class="notif-panel" id="notif-panel">
+  <div class="notif-header">
+    <div class="notif-title">Notifications</div>
+    <button class="notif-clear" onclick="window.clearNotifs()">Tout effacer</button>
+  </div>
+  <div id="notif-list"></div>
+</div>
+
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-box">
+    <div class="login-logo">
+      <svg width="52" height="52" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="100" height="100" rx="16" fill="#1a1a18"/>
+        <polygon points="10,88 30,12 42,12 26,88" fill="#ffffff"/>
+        <polygon points="58,12 72,12 90,88 72,88" fill="#ffffff"/>
+        <polygon points="28,62 36,38 60,38 52,62" fill="#F5C800"/>
+      </svg>
+    </div>
+    <div class="login-title">ALTIUS Contact</div>
+    <div class="login-sub">Performance Sales Dashboard</div>
+    <input type="text" class="login-input" id="loginUser" placeholder="Nom d'utilisateur" style="letter-spacing:0;margin-bottom:8px">
+    <input type="text" class="login-input" id="loginPass" placeholder="Code d'accès secret">
+    <button class="login-btn" onclick="window._login()">Se connecter</button>
+    <div class="login-err" id="loginErr">Identifiants incorrects.</div>
+    <div class="login-hint">Utilisez vos accès Altius Contact Admin.</div>
+  </div>
+</div>
+
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
@@ -21,20 +442,29 @@ const PC=['#1D9E75','#378ADD','#7F77DD','#D85A30','#BA7517','#E24B4A','#3B6D11',
 const AVC=[['#dcfff2','#0a6b45'],['#dceeff','#0a4d8c'],['#ede8ff','#3b2a8c'],['#fff3dc','#7a4e00'],['#ffe8e8','#8c1a1a'],['#e8f5e9','#1b5e20']];
 const MLIST=['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
 
-function rank(s){return s>=95?'S':s>=80?'A':s>=65?'B':s>=50?'C':'D';}
-function col(s){return s>=95?'#1D9E75':s>=80?'#378ADD':s>=65?'#7F77DD':s>=50?'#BA7517':'#E24B4A';}
-function avc(n){let h=0;for(let c of n)h=(h*31+c.charCodeAt(0))%AVC.length;return AVC[h];}
-function ini(n){const p=n.trim().split(' ');return(p[0][0]+(p[1]?p[1][0]:'')).toUpperCase();}
-function uid(){return'id'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
+// Variables globales partagées
+let DATA = {};
+let activeTab = 'overview';
+let activeFilter = 'all';
+let donutChart = null;
+let barChart = null;
+let trendChart = null;
+let currentUser = null;
 
-function sc(perf,qual,pres,eng,avert){
-  if(!perf&&!qual)return 0;
+// Fonctions utilitaires de calcul
+window.rank = function(s){return s>=95?'S':s>=80?'A':s>=65?'B':s>=50?'C':'D';}
+window.col = function(s){return s>=95?'#1D9E75':s>=80?'#378ADD':s>=65?'#7F77DD':s>=50?'#BA7517':'#E24B4A';}
+window.avc = function(n){let h=0;for(let c of n)h=(h*31+c.charCodeAt(0))%AVC.length;return AVC[h];}
+window.ini = function(n){const p=n.trim().split(' ');return(p[0][0]+(p[1]?p[1][0]:'')).toUpperCase();}
+window.uid = function(){return'id'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
+window.sc = function(perf,qual,pres,eng,avert){
+  if(!perf && !qual) return 0;
   const r=(perf/100*.4)+(qual/100*.3)+(pres/100*.2)+((eng/5)*.1);
   const m=avert>=3?0:1-avert*.1;
   return Math.round(r*m*1000)/10;
 }
 
-function anciennete(dateEntree) {
+window.anciennete = function(dateEntree) {
   if(!dateEntree) return '—';
   const d = new Date(dateEntree + '-01');
   const now = new Date();
@@ -46,7 +476,7 @@ function anciennete(dateEntree) {
   return ans + ' an' + (ans>1?'s':'') + (m>0?' '+m+' mois':'');
 }
 
-function dureeEntreMois(debut, fin) {
+window.dureeEntreMois = function(debut, fin) {
   const parse = s => {
     const [mo, yr] = s.split(' ');
     return +('20'+yr)*12 + MLIST.indexOf(mo);
@@ -61,1030 +491,443 @@ function dureeEntreMois(debut, fin) {
   return ans + ' an' + (ans>1?'s':'') + (m>0?' '+m+' mois':'');
 }
 
+// Jeu de données par défaut de secours
 const DEF = {
-  projects:['AEC','EURO-PARE-BRISE','JAPHY','ALTERNANCE','VITALIVET','EDEN-ENERGIE','WALTER SANTÉ','ENERIX'],
-  months:['Oct 25','Nov 25','Déc 25','Jan 26','Fév 26','Mar 26'],
-  agents:[
+  projects: ['AEC','EURO-PARE-BRISE','JAPHY','ALTERNANCE','VITALIVET','EDEN-ENERGIE','WALTER SANTÉ','ENERIX'],
+  months: ['Oct 25','Nov 25','Déc 25','Jan 26','Fév 26','Mar 26'],
+  agents: [
     {id:'a1',name:'Larbi Yanis',proj:'JAPHY',active:true,dateEntree:'2019-02',projHistory:[{proj:'JAPHY',debut:'Oct 25',fin:null}],scores:{'Oct 25':{perf:140,qual:56,pres:100,eng:5,avert:0},'Mar 26':{perf:140,qual:56,pres:100,eng:5,avert:0}}},
-    {id:'a2',name:'Atek Tania',proj:'JAPHY',active:true,dateEntree:'2020-06',projHistory:[{proj:'JAPHY',debut:'Oct 25',fin:null}],scores:{'Oct 25':{perf:120,qual:100,pres:100,eng:5,avert:0}}},
-    {id:'a3',name:'Mokrane Samia',proj:'JAPHY',active:true,dateEntree:'2021-03',projHistory:[{proj:'JAPHY',debut:'Oct 25',fin:null}],scores:{'Oct 25':{perf:111,qual:85,pres:100,eng:5,avert:0}}}
+    {id:'a2',name:'Atek Tania',proj:'JAPHY',active:true,dateEntree:'2020-06',projHistory:[{proj:'JAPHY',debut:'Oct 25',fin:null}],scores:{'Oct 25':{perf:120,qual:100,pres:100,eng:5,avert:0},'Mar 26':{perf:100,qual:100,pres:100,eng:5,avert:0}}},
+    {id:'a3',name:'Mokrane Samia',proj:'JAPHY',active:true,dateEntree:'2021-03',projHistory:[{proj:'JAPHY',debut:'Oct 25',fin:null}],scores:{}}
   ],
-  teamLeaders: [],
-  comptes: [{user:'admin',pass:'1234',role:'patron',name:'Directeur'}],
-  calendar: [],
-  archives: { months: [], snapshots: [] },
-  comments: {}
+  comptes: [
+    {user:'admin',pass:'altius2026',role:'patron',name:'Directeur'},
+    {user:'chef1',pass:'chef2026',role:'chef',name:'Responsable AEC'}
+  ],
+  teamleaders: [],
+  notifications: [],
+  calendrier: []
 };
 
-let DATA = JSON.parse(JSON.stringify(DEF));
-let currentMonth = '';
-let currentFilter = 'ALL';
-let charts = {};
-let USER = null;
-
-// Initialisation de la session et des écoutes Firebase
-window.addEventListener('DOMContentLoaded', () => {
-  const cachedUser = localStorage.getItem('altius_user');
-  if(cachedUser) {
-    USER = JSON.parse(cachedUser);
-    document.getElementById('loginOverlay').style.display = 'none';
-    applyRolePermissions();
-  }
-  
-  onSnapshot(REF, (snap) => {
-    const b = document.getElementById('syncbadge');
-    if(!snap.exists()) {
-      setDoc(REF, DEF);
-      b.className = "sync-badge sync-ok"; b.textContent = "⚙️ Initialisé";
-      return;
-    }
-    DATA = snap.data();
-    // Migrations / Nettoyages si champs inexistants
-    if(!DATA.teamLeaders) DATA.teamLeaders = [];
-    if(!DATA.comptes) DATA.comptes = [{user:'admin',pass:'1234',role:'patron',name:'Directeur'}];
-    if(!DATA.calendar) DATA.calendar = [];
-    if(!DATA.archives) DATA.archives = { months: [], snapshots: [] };
-    if(!DATA.comments) DATA.comments = {};
-
-    if(!currentMonth && DATA.months.length > 0) {
-      currentMonth = DATA.months[DATA.months.length - 1];
-    }
-    
-    b.className = "sync-badge sync-ok"; b.textContent = "🟢 Synchronisé";
-    document.getElementById('subtitle').textContent = `Mois d'analyse : ${currentMonth || 'Aucun'}`;
-    initFilters();
-    syncSelects();
-    renderAll();
-  }, (err) => {
-    const b = document.getElementById('syncbadge');
-    b.className = "sync-badge sync-err"; b.textContent = "🔴 Erreur Firebase";
-    console.error(err);
-  });
-});
-
-window.checkLogin = function() {
-  const u = document.getElementById('loginUser').value.trim();
-  const p = document.getElementById('loginPass').value.trim();
-  const err = document.getElementById('loginErr');
-  
-  const match = DATA.comptes.find(c => c.user === u && c.pass === p);
-  if(match) {
-    USER = match;
-    localStorage.setItem('altius_user', JSON.stringify(USER));
-    document.getElementById('loginOverlay').style.display = 'none';
-    err.style.display = 'none';
-    applyRolePermissions();
-    renderAll();
-  } else {
-    err.style.display = 'block';
-    err.textContent = "Identifiants incorrects.";
-  }
-};
-
-window.logout = function() {
-  USER = null;
-  localStorage.removeItem('altius_user');
-  document.getElementById('loginUser').value = '';
-  document.getElementById('loginPass').value = '';
-  document.getElementById('loginOverlay').style.display = 'flex';
-};
-
-function applyRolePermissions() {
-  if(!USER) return;
-  const isPatron = USER.role === 'patron';
-  document.getElementById('comptes-tab').style.display = isPatron ? 'block' : 'none';
-  const addEvalBtn = document.getElementById('add-eval-btn');
-  if(addEvalBtn) {
-    addEvalBtn.style.display = (USER.role === 'patron' || USER.role === 'qualite') ? 'block' : 'none';
-  }
-}
-
-function initFilters() {
-  const container = document.getElementById('rankfilter');
-  if(!container) return;
-  let html = `<button class="fb ${currentFilter==='ALL'?'on':''}" onclick="window.setFilter('ALL')">Tous</button>`;
-  for(let key in RL) {
-    html += `<button class="fb ${currentFilter===key?'on':''}" onclick="window.setFilter('${key}')">${RL[key]}</button>`;
-  }
-  container.innerHTML = html;
-}
-
-window.setFilter = function(f) {
-  currentFilter = f;
-  initFilters();
-  renderAgents();
-};
-
-function syncSelects() {
-  const msel = document.getElementById('msel');
-  const psel = document.getElementById('psel');
-  if(!msel || !psel) return;
-  
-  const prevM = msel.value;
-  const prevP = psel.value;
-  
-  msel.innerHTML = DATA.months.map(m => `<option value="${m}">${m}</option>`).join('');
-  psel.innerHTML = DATA.projects.map(p => `<option value="${p}">${p}</option>`).join('');
-  
-  if(DATA.months.includes(prevM)) msel.value = prevM;
-  if(DATA.projects.includes(prevP)) psel.value = prevP;
-}
-
-function renderAll() {
-  renderOverview();
-  renderAgents();
-  renderScoreGrid();
-  renderTrendChart();
-  renderProjets();
-  window.renderHist();
-  renderTeamLeaders();
-  renderComptes();
-  renderCalendar();
-  renderArchivesSection();
-}
-
-// NAVIGATION
-window.goPage = function(id, btn) {
+// Navigation
+window.goPage = function(pageId, element) {
+  activeTab = pageId;
   document.querySelectorAll('.pg').forEach(p => p.classList.remove('on'));
   document.querySelectorAll('.nb').forEach(b => b.classList.remove('on'));
-  document.getElementById('pg-' + id).classList.add('on');
-  btn.classList.add('on');
-  if(id === 'mois') setTimeout(renderTrendChart, 100);
-};
+  
+  const targetPage = document.getElementById('pg-' + pageId);
+  if(targetPage) targetPage.classList.add('on');
+  if(element) element.classList.add('on');
+  
+  window.renderAll();
+}
 
-// VUES ET COMPOSANTS GRAPHIQUES
-function renderOverview() {
-  const activeAgents = DATA.agents.filter(a => a.active);
-  let totalScore = 0, scoredCount = 0, countD = 0;
-  let distribution = {S:0,A:0,B:0,C:0,D:0};
-  let alertsHtml = '';
+// Gestion des Modales unifiées
+window.closeModal = function() {
+  document.getElementById('ov').classList.remove('on');
+}
 
-  activeAgents.forEach(a => {
-    const s = a.scores && a.scores[currentMonth];
-    if(s) {
-      const value = sc(s.perf, s.qual, s.pres, s.eng, s.avert);
-      totalScore += value;
-      scoredCount++;
-      const r = rank(value);
-      distribution[r]++;
-      if(r === 'D') {
-        countD++;
-        alertsHtml += `
-          <div class="alert-d">
-            <div class="alert-d-icon">⚠️</div>
-            <div class="alert-d-info">
-              <div class="alert-d-name">${a.name}</div>
-              <div class="alert-d-detail">Projet: ${a.proj} — Perf: ${s.perf}%, Qualité: ${s.qual}%, Avertissements: ${s.avert}</div>
-            </div>
-            <div class="alert-d-score">${value} pts</div>
-          </div>`;
-      }
+window.openModalContent = function(html) {
+  const mbox = document.getElementById('mbox');
+  mbox.innerHTML = html;
+  document.getElementById('ov').classList.add('on');
+}
+
+// Gestion des Notifications
+window.toggleNotifPanel = function() {
+  document.getElementById('notif-panel').classList.toggle('open');
+}
+window.clearNotifs = async function() {
+  DATA.notifications = [];
+  await setDoc(REF, DATA);
+}
+
+// Authentification Simple
+window._login = function() {
+  const u = document.getElementById('loginUser').value.trim();
+  const p = document.getElementById('loginPass').value.trim();
+  const accounts = DATA.comptes || DEF.comptes;
+  
+  const found = accounts.find(a => a.user === u && a.pass === p);
+  if(found) {
+    currentUser = found;
+    document.getElementById('loginOverlay').style.display = 'none';
+    document.getElementById('subtitle').innerText = found.name + " (" + found.role.toUpperCase() + ")";
+    
+    // Restriction d'affichage selon rôle
+    if(found.role === 'patron' || found.role === 'chef') {
+      document.getElementById('comptes-tab').style.display = 'block';
+    }
+    window.renderAll();
+  } else {
+    const err = document.getElementById('loginErr');
+    err.style.display = 'block';
+  }
+}
+
+// Écoute temps réel Firebase Firestore
+const syncbadge = document.getElementById('syncbadge');
+onSnapshot(REF, (snap) => {
+  if (snap.exists()) {
+    DATA = snap.data();
+    syncbadge.className = "sync-badge sync-ok";
+    syncbadge.innerText = "⚡ Connecté";
+  } else {
+    DATA = DEF;
+    setDoc(REF, DEF);
+    syncbadge.className = "sync-badge sync-err";
+    syncbadge.innerText = "⚠️ Données locales";
+  }
+  
+  // Initialisation des sélecteurs si vide
+  if(!DATA.agents) DATA.agents = [];
+  if(!DATA.projects) DATA.projects = [];
+  if(!DATA.months) DATA.months = [];
+  if(!DATA.notifications) DATA.notifications = [];
+  if(!DATA.calendrier) DATA.calendrier = [];
+  
+  window.renderAll();
+}, (error) => {
+  console.error(error);
+  DATA = DEF;
+  syncbadge.className = "sync-badge sync-err";
+  syncbadge.innerText = "🔌 Hors ligne";
+  window.renderAll();
+});
+
+// Fonctions d'enregistrement global sur Firebase
+async function pushData() {
+  try {
+    await setDoc(REF, DATA);
+  } catch(e) {
+    alert("Erreur lors de l'enregistrement Firebase : " + e.message);
+  }
+}
+
+// Rendu global de l'application
+window.renderAll = function() {
+  if(!DATA.months || DATA.months.length === 0) return;
+  const currentMonth = DATA.months[DATA.months.length - 1];
+  
+  // Mise à jour sélecteurs de l'onglet Scores
+  const msel = document.getElementById('msel');
+  if(msel && msel.options.length === 0) {
+    DATA.months.forEach(m => msel.add(new Option(m, m)));
+    if(DATA.months.length > 0) msel.value = currentMonth;
+  }
+  const psel = document.getElementById('psel');
+  if(psel && psel.options.length === 0 && DATA.projects) {
+    DATA.projects.forEach(p => psel.add(new Option(p, p)));
+  }
+
+  // Distribution du rendu selon l'onglet actif
+  if(activeTab === 'overview') renderOverview(currentMonth);
+  if(activeTab === 'agents') renderAgentsList();
+  if(activeTab === 'mois') renderScoreGrid();
+  if(activeTab === 'projets') renderProjectsTab(currentMonth);
+  if(activeTab === 'calendrier') renderCalendrier();
+  
+  // Badge de notifications
+  const countBadge = document.getElementById('notif-count');
+  if(countBadge) {
+    const unread = (DATA.notifications || []).length;
+    if(unread > 0) {
+      countBadge.innerText = unread;
+      countBadge.style.display = 'flex';
+    } else {
+      countBadge.style.display = 'none';
+    }
+  }
+}
+
+// Rendu du Tableau de Bord
+function renderOverview(m) {
+  const agents = DATA.agents.filter(a => a.active);
+  let totalScore = 0, countScore = 0, countS = 0, countA = 0, countB = 0, countC = 0, countD = 0;
+  let top3 = [];
+
+  agents.forEach(a => {
+    if(a.scores && a.scores[m]) {
+      const s = window.sc(a.scores[m].perf, a.scores[m].qual, a.scores[m].pres, a.scores[m].eng, a.scores[m].avert);
+      totalScore += s;
+      countScore++;
+      const r = window.rank(s);
+      if(r==='S') countS++; if(r==='A') countA++; if(r==='B') countB++; if(r==='C') countC++; if(r==='D') countD++;
+      top3.push({name: a.name, proj: a.proj, score: s});
     }
   });
 
-  const avg = scoredCount ? Math.round(totalScore / scoredCount * 10) / 10 : 0;
+  const avg = countScore > 0 ? Math.round(totalScore / countScore * 10) / 10 : 0;
   
-  const kgrid = document.getElementById('kgrid');
-  if(kgrid) {
-    kgrid.innerHTML = `
-      <div class="kcard accent"><div class="klabel">Mois courant</div><div class="kval" style="font-size:20px;margin-top:6px">${currentMonth || 'Aucun'}</div></div>
-      <div class="kcard accent"><div class="klabel">Moyenne générale</div><div class="kval" style="color:${col(avg)}">${avg}</div><div class="ksub">Sur ${scoredCount} calculs</div></div>
-      <div class="kcard accent"><div class="klabel">Agents actifs</div><div class="kval">${activeAgents.length}</div><div class="ksub">Inscrits au planning</div></div>
-      <div class="kcard accent"><div class="klabel">Alerte(s) Critique(s)</div><div class="kval" style="color:${countD>0?'var(--red)':'var(--green)'}">${countD}</div><div class="ksub">Agents en Rang D</div></div>
-    `;
-  }
+  // KPI Cards
+  document.getElementById('kgrid').innerHTML = `
+    <div class="kcard accent"><div class="klabel">Mois actif</div><div class="kval" style="font-size:20px;margin-top:6px">${m}</div></div>
+    <div class="kcard"><div class="klabel">Agents Actifs</div><div class="kval">${agents.length}</div></div>
+    <div class="kcard"><div class="klabel">Moyenne Globale</div><div class="kval" style="color:${window.col(avg)}">${avg}%</div></div>
+    <div class="kcard"><div class="klabel">Élite (Rang S)</div><div class="kval" style="color:#1D9E75">${countS}</div></div>
+  `;
 
-  const alertSec = document.getElementById('alertes-section');
-  if(alertSec) {
-    alertSec.innerHTML = countD > 0 ? `<div class="stitle" style="color:var(--red)">⚠️ Alertes d'accompagnement requises</div>` + alertsHtml : '';
-  }
-
-  // TOP 3
-  const scoredList = activeAgents.map(a => {
-    const s = a.scores && a.scores[currentMonth];
-    return { name: a.name, proj: a.proj, val: s ? sc(s.perf,s.qual,s.pres,s.eng,s.avert) : -1 };
-  }).filter(x => x.val >= 0).sort((a,b) => b.val - a.val).slice(0,3);
-
-  const tgrid = document.getElementById('top3grid');
-  if(tgrid) {
-    const medals = ['🥇','🥈','🥉'];
-    const classes = ['gold','silver','bronze'];
-    tgrid.innerHTML = scoredList.length ? scoredList.map((x,i) => `
+  // Top 3 Cards
+  top3.sort((a,b) => b.score - a.score);
+  const medals = ['🥇','🥈','🥉'];
+  const classes = ['gold','silver','bronze'];
+  let t3html = '';
+  for(let i=0; i<Math.min(3, top3.length); i++) {
+    t3html += `
       <div class="top3-card ${classes[i]}">
         <div class="top3-medal">${medals[i]}</div>
         <div class="top3-info">
-          <div class="top3-name">${x.name}</div>
-          <div class="top3-proj">${x.proj}</div>
+          <div class="top3-name">${top3[i].name}</div>
+          <div class="top3-proj">${top3[i].proj}</div>
         </div>
-        <div class="top3-score">${x.val}</div>
-      </div>
-    `).join('') : '<div style="color:var(--muted);font-size:13px;padding:8px">Aucun score disponible ce mois-ci.</div>';
+        <div class="top3-score">${top3[i].score}%</div>
+      </div>`;
   }
+  document.getElementById('top3grid').innerHTML = t3html || '<div style="font-size:13px;color:var(--muted)">Aucun score enregistré.</div>';
 
-  // CHARTS
-  renderOverviewCharts(distribution);
+  // Graphiques Chart.js intégrés
+  initCharts(countS, countA, countB, countC, countD);
 }
 
-function renderOverviewCharts(dist) {
-  const donutCtx = document.getElementById('donut');
-  const barCtx = document.getElementById('projbar');
-  if(!donutCtx || !barCtx) return;
-
-  if(charts.donut) charts.donut.destroy();
-  if(charts.bar) charts.bar.destroy();
-
-  charts.donut = new Chart(donutCtx, {
+function initCharts(s, a, b, c, d) {
+  const ctxDonut = document.getElementById('donut');
+  if(!ctxDonut) return;
+  if(donutChart) donutChart.destroy();
+  donutChart = new Chart(ctxDonut, {
     type: 'doughnut',
     data: {
-      labels: Object.keys(dist),
-      datasets: [{ data: Object.values(dist), backgroundColor: Object.keys(dist).map(k=>RC[k]), borderMiterLimit:1 }]
+      labels: ['S','A','B','C','D'],
+      datasets: [{ data: [s,a,b,c,d], backgroundColor: ['#1D9E75','#378ADD','#7F77DD','#BA7517','#E24B4A'] }]
     },
-    options: { plugins: { legend: { position: 'right', labels: { boxWidth:12, font:{size:11} } } }, maintainAspectRatio: false }
-  });
-
-  // Calcul par projet
-  let pData = {};
-  DATA.projects.forEach(p => pData[p] = { sum:0, count:0 });
-  DATA.agents.filter(a=>a.active).forEach(a => {
-    const s = a.scores && a.scores[currentMonth];
-    if(s) {
-      pData[a.proj].sum += sc(s.perf,s.qual,s.pres,s.eng,s.avert);
-      pData[a.proj].count++;
-    }
-  });
-
-  const barLabels = DATA.projects.filter(p => pData[p].count > 0);
-  const barValues = barLabels.map(p => Math.round(pData[p].sum / pData[p].count * 10) / 10);
-
-  charts.bar = new Chart(barCtx, {
-    type: 'bar',
-    data: {
-      labels: barLabels,
-      datasets: [{ label: 'Moyenne', data: barValues, backgroundColor: '#378ADD', borderRadius:4 }]
-    },
-    options: { 
-      scales: { y: { max:100, grid:{display:false}, ticks:{font:{size:10}} }, x:{ ticks:{font:{size:10}} } },
-      plugins: { legend: { display:false } },
-      maintainAspectRatio: false 
-    }
+    options: { responsive: true, maintainAspectRatio: false }
   });
 }
 
-function renderAgents() {
+// Rendu de l'onglet Liste des Agents
+function renderAgentsList() {
   const tbody = document.getElementById('abody');
   if(!tbody) return;
+  tbody.innerHTML = '';
+  
+  const m = document.getElementById('msel')?.value || DATA.months[DATA.months.length-1];
 
-  let html = '';
-  const filtered = DATA.agents.filter(a => {
-    if(currentFilter === 'ALL') return true;
-    const s = a.scores && a.scores[currentMonth];
-    if(!s) return false;
-    return rank(sc(s.perf,s.qual,s.pres,s.eng,s.avert)) === currentFilter;
-  });
-
-  // Tri alphabétique
-  filtered.sort((a,b) => a.name.localeCompare(b.name));
-
-  filtered.forEach(a => {
-    const s = a.scores && a.scores[currentMonth];
-    const val = s ? sc(s.perf,s.qual,s.pres,s.eng,s.avert) : null;
-    const r = val !== null ? rank(val) : '—';
-    const c = avc(a.name);
-
-    html += `
-      <tr>
-        <td>
-          <div class="nc">
-            <div class="av" style="background:${c[0]};color:${c[1]}">${ini(a.name)}</div>
-            <div>
-              <div style="font-weight:600;color:var(--text);cursor:pointer;text-decoration:underline" onclick="window.openFiche('${a.id}')">${a.name}</div>
-              <div style="font-size:11px;color:var(--muted)">ID: ${a.id}</div>
-            </div>
-          </div>
-        </td>
-        <td><span class="pill sA" style="background:var(--light);color:var(--text);border:1px solid var(--border)">${a.proj}</span></td>
-        <td style="color:var(--muted)">${anciennete(a.dateEntree)}</td>
-        <td style="font-weight:700;font-size:15px;color:${val?col(val):'#ccc'}">${val!==null?val:'—'}</td>
-        <td>${val!==null?`<span class="pill s${r}">${RL[r]}</span>`:'<span style="color:#ccc">—</span>'}</td>
-        <td><span class="${a.active?'badge-ok':'badge-off'}">${a.active?'Actif':'Sorti'}</span></td>
-        <td style="text-align:right">
-          <button class="abtn" onclick="window.openEdit('${a.id}')">✏️ Edit</button>
-        </td>
-      </tr>
+  DATA.agents.forEach(a => {
+    let s = 0, r = 'D';
+    if(a.scores && a.scores[m]) {
+      s = window.sc(a.scores[m].perf, a.scores[m].qual, a.scores[m].pres, a.scores[m].eng, a.scores[m].avert);
+      r = window.rank(s);
+    }
+    
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><div class="nc"><div class="av" style="background:${window.avc(a.name)[0]};color:${window.avc(a.name)[1]}">${window.ini(a.name)}</div><div><b>${a.name}</b></div></div></td>
+      <td>${a.proj}</td>
+      <td>${window.anciennete(a.dateEntree)}</td>
+      <td><b>${s > 0 ? s+'%' : '—'}</b></td>
+      <td><span class="pill s${r}">${r}</span></td>
+      <td><span class="${a.active?'badge-ok':'badge-off'}">${a.active?'Actif':'Sorti'}</span></td>
+      <td><button class="abtn" onclick="window.viewAgent('${a.id}')">Fiche</button></td>
     `;
+    tbody.appendChild(tr);
   });
-
-  tbody.innerHTML = html || '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:20px">Aucun agent trouvé.</td></tr>';
 }
 
-function renderScoreGrid() {
-  const container = document.getElementById('sgrid');
-  const m = document.getElementById('msel')?.value;
-  const p = document.getElementById('psel')?.value;
-  if(!container || !m || !p) return;
+// Saisie et grille des scores de l'onglet Mois
+window.renderScoreGrid = function() {
+  const m = document.getElementById('msel').value;
+  const p = document.getElementById('psel').value;
+  const grid = document.getElementById('sgrid');
+  if(!grid) return;
 
-  const isLocked = DATA.archives?.months?.includes(m);
-  const list = DATA.agents.filter(a => a.active && a.proj === p).sort((a,b)=>a.name.localeCompare(b.name));
-
-  if(!list.length) {
-    container.innerHTML = `<div style="padding:20px;text-align:center;color:var(--muted)">Aucun agent actif positionné sur le projet ${p} pour ce mois.</div>`;
+  const filtered = DATA.agents.filter(a => a.active && a.proj === p);
+  if(filtered.length === 0) {
+    grid.innerHTML = '<div style="padding:20px;color:var(--muted);font-size:13px">Aucun agent actif sur ce projet.</div>';
     return;
   }
 
-  let html = `
-    ${isLocked ? `<div class="alert-err" style="display:block;margin-bottom:12px">🔒 Ce mois est verrouillé (archivé). Les modifications sont impossibles.</div>` : ''}
-    <table class="tbl">
-      <thead>
-        <tr><th>Agent</th><th>Perf (%)</th><th>Qualité (%)</th><th>Présence (%)</th><th>Engagement (/5)</th><th>Avert.</th><th>Total</th></tr>
-      </thead>
-      <tbody>`;
-
-  list.forEach(a => {
-    const s = (a.scores && a.scores[m]) || {perf:'',qual:'',pres:100,eng:5,avert:0};
-    const total = sc(s.perf||0, s.qual||0, s.pres||0, s.eng||0, s.avert||0);
-    
+  let html = `<table class="tbl"><thead><tr><th>Agent</th><th>Perf %</th><th>Qualité %</th><th>Présence %</th><th>Engagement /5</th><th>Avert.</th><th>Score final</th></tr></thead><tbody>`;
+  filtered.forEach(a => {
+    const scs = (a.scores && a.scores[m]) || {perf:100, qual:100, pres:100, eng:5, avert:0};
+    const currentScore = window.sc(scs.perf, scs.qual, scs.pres, scs.eng, scs.avert);
     html += `
       <tr data-aid="${a.id}">
-        <td style="font-weight:600">${a.name}</td>
-        <td><input type="number" class="score-input" data-field="perf" value="${s.perf}" min="0" max="200" ${isLocked?'disabled':''}></td>
-        <td><input type="number" class="score-input" data-field="qual" value="${s.qual}" min="0" max="100" ${isLocked?'disabled':''}></td>
-        <td><input type="number" class="score-input" data-field="pres" value="${s.pres}" min="0" max="100" ${isLocked?'disabled':''}></td>
-        <td>
-          <select class="score-select" data-field="eng" ${isLocked?'disabled':''}>
-            ${[5,4,3,2,1,0].map(v => `<option value="${v}" ${s.eng==v?'selected':''}>${v}</option>`).join('')}
-          </select>
-        </td>
-        <td><input type="number" class="score-input" data-field="avert" value="${s.avert}" min="0" max="10" ${isLocked?'disabled':''}></td>
-        <td style="font-weight:700;font-size:14px;color:${col(total)}" id="total-${a.id}">${total}</td>
-      </tr>
-    `;
+        <td><b>${a.name}</b></td>
+        <td><input type="number" class="score-input" name="perf" value="${scs.perf}"></td>
+        <td><input type="number" class="score-input" name="qual" value="${scs.qual}"></td>
+        <td><input type="number" class="score-input" name="pres" value="${scs.pres}"></td>
+        <td><input type="number" class="score-input" name="eng" max="5" value="${scs.eng}"></td>
+        <td><input type="number" class="score-input" name="avert" value="${scs.avert}"></td>
+        <td><b class="final-row-score">${currentScore}%</b></td>
+      </tr>`;
   });
-
   html += `</tbody></table>`;
-  container.innerHTML = html;
-
-  // Listeners pour calcul en temps réel
-  if(!isLocked) {
-    container.querySelectorAll('input, select').forEach(el => {
-      el.addEventListener('input', (e) => {
-        const tr = e.target.closest('tr');
-        const aid = tr.dataset.aid;
-        const perf = +tr.querySelector('[data-field="perf"]').value || 0;
-        const qual = +tr.querySelector('[data-field="qual"]').value || 0;
-        const pres = +tr.querySelector('[data-field="pres"]').value || 0;
-        const eng = +tr.querySelector('[data-field="eng"]').value || 0;
-        const avert = +tr.querySelector('[data-field="avert"]').value || 0;
-        const totalEl = document.getElementById(`total-${aid}`);
-        const res = sc(perf, qual, pres, eng, avert);
-        if(totalEl) {
-          totalEl.textContent = res;
-          totalEl.style.color = col(res);
-        }
-      });
-    });
-  }
+  grid.innerHTML = html;
 }
 
 window.saveScores = async function() {
   const m = document.getElementById('msel').value;
-  if(DATA.archives?.months?.includes(m)) {
-    alert("Impossible d'enregistrer, ce mois est verrouillé.");
-    return;
-  }
-
   const rows = document.querySelectorAll('#sgrid tbody tr');
-  rows.forEach(tr => {
-    const aid = tr.dataset.aid;
-    const perf = tr.querySelector('[data-field="perf"]').value;
-    const qual = tr.querySelector('[data-field="qual"]').value;
-    const pres = tr.querySelector('[data-field="pres"]').value;
-    const eng = tr.querySelector('[data-field="eng"]').value;
-    const avert = tr.querySelector('[data-field="avert"]').value;
-
+  rows.forEach(row => {
+    const aid = row.getAttribute('data-aid');
     const agent = DATA.agents.find(a => a.id === aid);
     if(agent) {
       if(!agent.scores) agent.scores = {};
-      if(perf === '' && qual === '') {
-        delete agent.scores[m];
-      } else {
-        agent.scores[m] = { perf:+perf, qual:+qual, pres:+pres, eng:+eng, avert:+avert };
-      }
+      agent.scores[m] = {
+        perf: parseFloat(row.querySelector('[name=perf]').value) || 0,
+        qual: parseFloat(row.querySelector('[name=qual]').value) || 0,
+        pres: parseFloat(row.querySelector('[name=pres]').value) || 0,
+        eng: parseFloat(row.querySelector('[name=eng]').value) || 0,
+        avert: parseInt(row.querySelector('[name=avert]').value) || 0
+      };
     }
   });
-
-  await setDoc(REF, DATA);
+  await pushData();
   alert("Scores enregistrés avec succès !");
-};
-
-function renderTrendChart() {
-  const canvas = document.getElementById('trendchart');
-  if(!canvas) return;
-  if(charts.trend) charts.trend.destroy();
-
-  const datasets = DATA.projects.map((proj, idx) => {
-    const data = DATA.months.map(m => {
-      let sum=0, count=0;
-      DATA.agents.filter(a => a.active && a.proj === proj).forEach(a => {
-        const s = a.scores && a.scores[m];
-        if(s) { sum += sc(s.perf,s.qual,s.pres,s.eng,s.avert); count++; }
-      });
-      return count ? Math.round(sum/count*10)/10 : null;
-    });
-    return { label:proj, data, borderColor:PC[idx%PC.length], backgroundColor:'transparent', tension:.1, spanGaps:true };
-  });
-
-  charts.trend = new Chart(canvas, {
-    type: 'line',
-    data: { labels: DATA.months, datasets },
-    options: { scales:{ y:{ max:100, min:30 } }, maintainAspectRatio:false }
-  });
 }
 
-function renderProjets() {
-  const tbody = document.getElementById('pbody');
-  if(!tbody) return;
+// Onglet Projets
+function renderProjectsTab(m) {
+  const pbody = document.getElementById('pbody');
+  if(!pbody) return;
+  pbody.innerHTML = '';
 
-  let html = '';
   DATA.projects.forEach(p => {
     const ags = DATA.agents.filter(a => a.active && a.proj === p);
-    let sum=0, count=0;
+    let total = 0, count = 0;
     ags.forEach(a => {
-      const s = a.scores && a.scores[currentMonth];
-      if(s) { sum += sc(s.perf,s.qual,s.pres,s.eng,s.avert); count++; }
+      if(a.scores && a.scores[m]) {
+        total += window.sc(a.scores[m].perf, a.scores[m].qual, a.scores[m].pres, a.scores[m].eng, a.scores[m].avert);
+        count++;
+      }
     });
-    const avg = count ? Math.round(sum/count*10)/10 : 0;
-    const r = count ? rank(avg) : '—';
+    const avg = count > 0 ? Math.round(total/count*10)/10 : 0;
+    const r = window.rank(avg);
 
-    html += `
+    pbody.innerHTML += `
       <tr>
-        <td style="font-weight:700">${p}</td>
-        <td><span class="badge-ok" style="background:var(--light);color:var(--text)">👥 ${ags.length} agent(s)</span></td>
-        <td style="font-weight:700;color:${count?col(avg):'#ccc'}">${count?avg + ' pts':'Aucune donnée'}</td>
-        <td>${count ? `<span class="pill s${r}">${RL[r]}</span>` : '—'}</td>
-        <td style="text-align:right">
-          <button class="abtn red" onclick="window.deleteProj('${p}')">🗑️</button>
-        </td>
-      </tr>
-    `;
-  });
-  tbody.innerHTML = html;
-}
-
-window.renderHist = function() {
-  const container = document.getElementById('hist-body');
-  const hAg = document.getElementById('hag');
-  const hPr = document.getElementById('hpr');
-  if(!container || !hAg || !hPr) return;
-
-  // Sync des filtres historique au premier chargement
-  if(hAg.options.length <= 1) {
-    hAg.innerHTML = '<option value="all">Tous les agents</option>' + DATA.agents.map(a=>`<option value="${a.id}">${a.name}</option>`).join('');
-    hPr.innerHTML = '<option value="all">Tous les projets</option>' + DATA.projects.map(p=>`<option value="${p}">${p}</option>`).join('');
-  }
-
-  const fAg = hAg.value;
-  const fPr = hPr.value;
-
-  let rows = [];
-  DATA.agents.forEach(a => {
-    if(fAg !== 'all' && a.id !== fAg) return;
-    DATA.months.forEach(m => {
-      const s = a.scores && a.scores[m];
-      if(!s) return;
-      // On cherche son projet historique pour ce mois ou le projet actuel par défaut
-      const projAtMonth = a.proj; 
-      if(fPr !== 'all' && projAtMonth !== fPr) return;
-
-      const v = sc(s.perf,s.qual,s.pres,s.eng,s.avert);
-      rows.push({ name:a.name, month:m, proj:projAtMonth, perf:s.perf, qual:s.qual, pres:s.pres, eng:s.eng, avert:s.avert, total:v });
-    });
-  });
-
-  let html = `
-    <table class="tbl">
-      <thead>
-        <tr><th>Agent</th><th>Mois</th><th>Projet</th><th>Perf</th><th>Qualité</th><th>Présence</th><th>Eng.</th><th>Avert.</th><th>Total</th><th>Rang</th></tr>
-      </thead>
-      <tbody>`;
-  
-  rows.forEach(r => {
-    html += `
-      <tr>
-        <td style="font-weight:600">${r.name}</td>
-        <td><strong>${r.month}</strong></td>
-        <td>${r.proj}</td>
-        <td>${r.perf}%</td>
-        <td>${r.qual}%</td>
-        <td>${r.pres}%</td>
-        <td>${r.eng}/5</td>
-        <td><span style="color:${r.avert>0?'var(--red)':'inherit'}">${r.avert}</span></td>
-        <td style="font-weight:700;color:${col(r.total)}">${r.total}</td>
-        <td><span class="pill s${rank(r.total)}">${rank(r.total)}</span></td>
+        <td><b>${p}</b></td>
+        <td>${ags.length} agents</td>
+        <td><b>${avg > 0 ? avg+'%' : '—'}</b></td>
+        <td><span class="pill s${r}">${r}</span></td>
+        <td><button class="abtn" onclick="alert('Détails du projet disponible en snapshot global.')">Analyse</button></td>
       </tr>`;
   });
-  html += `</tbody></table>`;
-  container.innerHTML = rows.length ? html : '<div style="padding:20px;color:var(--muted)">Aucun historique correspondant.</div>';
-};
-
-function renderTeamLeaders() {
-  const container = document.getElementById('tl-body');
-  if(!container) return;
-
-  if(!DATA.teamLeaders.length) {
-    container.innerHTML = '<div class="card" style="color:var(--muted);text-align:center">Aucun team leader enregistré.</div>';
-    return;
-  }
-
-  container.innerHTML = DATA.teamLeaders.map(tl => {
-    const members = DATA.agents.filter(a => tl.agents?.includes(a.id));
-    return `
-      <div class="card" style="margin-bottom:12px">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
-          <div>
-            <div style="font-weight:700;font-size:15px">👤 ${tl.name}</div>
-            <div style="font-size:12px;color:var(--muted);margin-top:2px">Projet managé : <strong>${tl.proj || 'Non spécifié'}</strong></div>
-          </div>
-          <button class="abtn red" onclick="window.deleteTL('${tl.id}')">🗑️ Supprimer</button>
-        </div>
-        <div style="margin-top:10px">
-          <div style="font-size:11px;text-transform:uppercase;color:var(--muted);margin-bottom:6px">Équipe affectée (${members.length}) :</div>
-          <div style="display:flex;gap:6px;flex-wrap:wrap">
-            ${members.map(m => `<span class="chip">${m.name}</span>`).join('') || '<span style="font-size:12px;color:var(--muted)">Aucun membre dans cette équipe</span>'}
-          </div>
-        </div>
-      </div>
-    `;
-  }).join('');
 }
 
-function renderComptes() {
-  const container = document.getElementById('comptes-body');
-  if(!container) return;
-
-  container.innerHTML = `
-    <div class="card" style="padding:0;overflow:hidden">
-      <table class="tbl">
-        <thead><tr><th>Nom complet</th><th>Utilisateur</th><th>Mot de passe</th><th>Rôle</th><th></th></tr></thead>
-        <tbody>
-          ${DATA.comptes.map(c => `
-            <tr>
-              <td style="font-weight:600">${c.name}</td>
-              <td><code>${c.user}</code></td>
-              <td><code>${c.pass}</code></td>
-              <td><span class="role-badge role-${c.role}">${c.role.toUpperCase()}</span></td>
-              <td style="text-align:right">
-                ${c.user==='admin'?'':`<button class="abtn red" onclick="window.deleteCompte('${c.user}')">🗑️</button>`}
-              </td>
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>
-    </div>
-  `;
-}
-
-function renderCalendar() {
+// Onglet Calendrier
+function renderCalendrier() {
   const up = document.getElementById('cal-upcoming');
   const past = document.getElementById('cal-past');
   if(!up || !past) return;
+  up.innerHTML = ''; past.innerHTML = '';
 
-  const now = new Date();
-  const sorted = [...DATA.calendar].sort((a,b) => new Date(a.date) - new Date(b.date));
-
-  let upHtml = '', pastHtml = '';
-  sorted.forEach(ev => {
-    const evDate = new Date(ev.date);
-    const isPast = evDate < now && evDate.toDateString() !== now.toDateString();
-    const typeLabel = ev.type === 'initiale' ? '🟢 Initiale' : ev.type === 'suivi' ? '🔵 Suivi' : '🟠 Débrief';
-    const h = `
-      <div class="cal-event ${isPast?'past':(evDate.toDateString()===now.toDateString()?'today':'upcoming')}">
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <div class="cal-event-title">${ev.agentName} — <span style="font-size:11px;color:var(--muted)">${typeLabel}</span></div>
-          <button class="comment-del" onclick="window.deleteCalendarEvent('${ev.id}')">×</button>
-        </div>
-        <div class="cal-event-meta">📅 ${ev.date} à ${ev.time} | Salon/Lien: ${ev.room || 'Non spécifié'}</div>
-        ${ev.notes ? `<div style="font-size:11px;color:var(--text);margin-top:4px;background:rgba(0,0,0,0.02);padding:4px;border-radius:4px">📝 ${ev.notes}</div>` : ''}
-      </div>
-    `;
-    if(isPast) pastHtml += h; else upHtml += h;
-  });
-
-  up.innerHTML = upHtml || '<div style="color:var(--muted);font-size:13px">Aucune évaluation planifiée.</div>';
-  past.innerHTML = pastHtml || '<div style="color:var(--muted);font-size:13px">Aucun historique d\'évaluation.</div>';
-}
-
-function renderArchivesSection() {
-  const monthsDiv = document.getElementById('arc-months');
-  const snapsDiv = document.getElementById('arc-snaps');
-  if(!monthsDiv || !snapsDiv) return;
-
-  monthsDiv.innerHTML = DATA.months.map(m => {
-    const locked = DATA.archives?.months?.includes(m);
-    return `
-      <span class="chip" style="padding:6px 12px;background:${locked?'#ffe8e8':'#dcfff2'};border-color:${locked?'var(--red)':'var(--green)'}">
-        <strong>${m}</strong> : ${locked?'🔒 Verrouillé':'🔓 Ouvert'}
-        <button onclick="window.toggleLockMonth('${m}')" style="margin-left:8px;color:var(--text);font-size:11px">
-          ${locked?'[Ouvrir]':'[Verrouiller]'}
-        </button>
-      </span>`;
-  }).join('');
-
-  snapsDiv.innerHTML = DATA.archives?.snapshots?.length ? DATA.archives.snapshots.map(s => `
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px;background:var(--light);border-radius:8px;margin-bottom:6px;font-size:13px">
-      <div>💾 <strong>Snapshot</strong> du ${s.timestamp} (${s.agentsCount} agents enregistrés)</div>
-      <button class="abtn" onclick="window.restoreSnap('${s.id}')">Restaurer</button>
-    </div>
-  `).join('') : '<div style="font-size:12px;color:var(--muted)">Aucune snapshot enregistrée.</div>';
-}
-
-// MANAGEMENT DES AGENTS (OUVERTURE MODALES)
-const OV = document.getElementById('ov');
-const MBOX = document.getElementById('mbox');
-
-function openModal(html) {
-  MBOX.innerHTML = html;
-  OV.classList.add('on');
-}
-window.closeModal = function() { OV.classList.remove('on'); };
-
-window.openAdd = function() {
-  openModal(`
-    <div class="mhdr"><h3>👤 Ajouter un nouvel agent</h3><button class="xbtn" onclick="closeModal()">×</button></div>
-    <div class="fgrid">
-      <div><div class="flabel">Nom complet</div><input type="text" id="aname" placeholder="Ex: Larbi Yanis"></div>
-      <div><div class="flabel">Projet</div><select id="aproj">${DATA.projects.map(p=>`<option value="${p}">${p}</option>`).join('')}</select></div>
-      <div><div class="flabel">Date d'entrée</div><input type="month" id="adate" value="${new Date().toISOString().slice(0,7)}"></div>
-    </div>
-    <div class="frow">
-      <button class="btn" onclick="closeModal()">Annuler</button>
-      <button class="btn yellow" onclick="window.submitAdd()">Créer l'agent</button>
-    </div>
-  `);
-};
-
-window.submitAdd = async function() {
-  const name = document.getElementById('aname').value.trim();
-  const proj = document.getElementById('aproj').value;
-  const dateEntree = document.getElementById('adate').value;
-  if(!name || !dateEntree) return alert("Veuillez remplir tous les champs.");
-
-  DATA.agents.push({ id:uid(), name, proj, active:true, dateEntree, projHistory:[{proj, debut:currentMonth, fin:null}], scores:{} });
-  await setDoc(REF, DATA);
-  closeModal();
-};
-
-window.openEdit = function(id) {
-  const a = DATA.agents.find(x => x.id === id);
-  if(!a) return;
-  openModal(`
-    <div class="mhdr"><h3>✏️ Modifier l'agent</h3><button class="xbtn" onclick="closeModal()">×</button></div>
-    <div class="fgrid">
-      <div style="grid-column:1/-1"><div class="flabel">Nom complet</div><input type="text" id="ename" value="${a.name}"></div>
-      <div><div class="flabel">Projet actuel</div><select id="eproj">${DATA.projects.map(p=>`<option value="${p}" ${a.proj===p?'selected':''}>${p}</option>`).join('')}</select></div>
-      <div><div class="flabel">Statut</div><select id="eact"><option value="1" ${a.active?'selected':''}>Actif</option><option value="0" ${!a.active?'selected':''}>Sorti du planning</option></select></div>
-    </div>
-    <div class="frow">
-      <button class="btn red" onclick="window.deleteAgent('${a.id}')">🗑️ Supprimer l'agent</button>
-      <button class="btn" onclick="closeModal()">Annuler</button>
-      <button class="btn yellow" onclick="window.submitEdit('${a.id}')">Enregistrer</button>
-    </div>
-  `);
-};
-
-window.submitEdit = async function(id) {
-  const a = DATA.agents.find(x => x.id === id);
-  if(!a) return;
-  const name = document.getElementById('ename').value.trim();
-  const proj = document.getElementById('eproj').value;
-  const active = document.getElementById('eact').value === '1';
-
-  if(!name) return alert("Le nom ne peut pas être vide.");
-
-  if(a.proj !== proj) {
-    if(!a.projHistory) a.projHistory = [];
-    if(a.projHistory.length > 0) a.projHistory[a.projHistory.length-1].fin = currentMonth;
-    a.projHistory.push({ proj, debut:currentMonth, fin:null });
+  const list = DATA.calendrier || [];
+  if(list.length === 0) {
+    up.innerHTML = '<div style="color:var(--muted);font-size:13px">Aucun événement planifié.</div>';
+    past.innerHTML = '<div style="color:var(--muted);font-size:13px">Aucun historique.</div>';
+    return;
   }
 
-  a.name = name;
-  a.proj = proj;
-  a.active = active;
+  list.forEach(e => {
+    const html = `
+      <div class="cal-event upcoming">
+        <div class="cal-event-title">${e.type} — ${e.agent}</div>
+        <div class="cal-event-meta">Date: ${e.date} | Assigné à: ${e.lead}</div>
+      </div>`;
+    up.innerHTML += html;
+  });
+}
 
-  await setDoc(REF, DATA);
-  closeModal();
-};
-
-window.deleteAgent = async function(id) {
-  if(!confirm("Supprimer définitivement cet agent ? Cette action effacera également tous ses scores historiques.")) return;
-  DATA.agents = DATA.agents.filter(x => x.id !== id);
-  await setDoc(REF, DATA);
-  closeModal();
-};
-
-// FICHE PERSONNELLE ET COMMENTAIRES
-window.openFiche = function(id) {
+// Fiche agent modale complète
+window.viewAgent = function(id) {
   const a = DATA.agents.find(x => x.id === id);
   if(!a) return;
 
-  const s = a.scores && a.scores[currentMonth];
-  const value = s ? sc(s.perf,s.qual,s.pres,s.eng,s.avert) : null;
-  const r = value!==null ? rank(value) : '—';
-  const c = avc(a.name);
+  let scoreHtml = '';
+  for(let m in a.scores) {
+    const s = a.scores[m];
+    const f = window.sc(s.perf, s.qual, s.pres, s.eng, s.avert);
+    scoreHtml += `<div><b>${m}</b> : ${f}% (Rang ${window.rank(f)})</div>`;
+  }
 
-  // Historique des scores pour les graphiques de la fiche
-  const monthsWithScore = DATA.months.filter(m => a.scores && a.scores[m]);
-  const scoreValues = monthsWithScore.map(m => sc(a.scores[m].perf, a.scores[m].qual, a.scores[m].pres, a.scores[m].eng, a.scores[m].avert));
-
-  // Liste des commentaires
-  const coms = DATA.comments?.[id] || [];
-  const commentsHtml = coms.map((co, idx) => `
-    <div class="comment-item">
-      <div class="comment-header">
-        <span class="comment-author">👤 ${co.author}</span>
-        <div>
-          <span class="comment-month">📅 ${co.month}</span>
-          <button class="comment-del" onclick="window.deleteComment('${id}', ${idx})" style="margin-left:8px">×</button>
-        </div>
-      </div>
-      <div class="comment-text">${co.text}</div>
+  const html = `
+    <div class="mhdr">
+      <h3>Fiche Profil de l'Agent</h3>
+      <button class="xbtn" onclick="window.closeModal()">×</button>
     </div>
-  `).join('');
-
-  openModal(`
-    <div class="mhdr"><h3>📄 Fiche Individuelle de Performance</h3><button class="xbtn" onclick="closeModal()">×</button></div>
     <div class="fiche-header">
-      <div class="fiche-av" style="background:${c[0]};color:${c[1]}">${ini(a.name)}</div>
+      <div class="fiche-av" style="background:${window.avc(a.name)[0]};color:${window.avc(a.name)[1]}">${window.ini(a.name)}</div>
       <div>
         <div class="fiche-name">${a.name}</div>
-        <div class="fiche-sub">Projet actuel : <strong>${a.proj}</strong> | Ancienneté : ${anciennete(a.dateEntree)}</div>
+        <div class="fiche-sub">Projet actuel : <b>${a.proj}</b></div>
       </div>
     </div>
-    
     <div class="stat-grid">
-      <div class="stat-box"><div class="stat-box-label">Score ${currentMonth}</div><div class="stat-box-val" style="color:${value?col(value):'inherit'}">${value!==null?value:'—'} pts</div></div>
-      <div class="stat-box"><div class="stat-box-label">Rang attribué</div><div class="stat-box-val">${value!==null?RL[r]:'—'}</div></div>
+      <div class="stat-box"><div class="stat-box-label">Ancienneté</div><div class="stat-box-val">${window.anciennete(a.dateEntree)}</div></div>
+      <div class="stat-box"><div class="stat-box-label">Statut</div><div class="stat-box-val">${a.active?'Actif':'Sorti'}</div></div>
     </div>
-
-    <div class="stitle">📋 Détail des indicateurs (${currentMonth})</div>
-    <table class="tbl" style="margin-bottom:16px">
-      <tr><td>📈 Performance Quantitative (Ventes/Objectifs)</td><td style="font-weight:700;text-align:right">${s?.perf!==undefined?s.perf+'%':'—'}</td></tr>
-      <tr><td>⭐ Qualité & Conformité des appels</td><td style="font-weight:700;text-align:right">${s?.qual!==undefined?s.qual+'%':'—'}</td></tr>
-      <tr><td>📅 Assiduité & Présence sur site</td><td style="font-weight:700;text-align:right">${s?.pres!==undefined?s.pres+'%':'—'}</td></tr>
-      <tr><td>🤝 Engagement, Posture & Esprit d'équipe</td><td style="font-weight:700;text-align:right">${s?.eng!==undefined?s.eng+'/5':'—'}</td></tr>
-      <tr><td>⚠️ Mesures disciplinaires / Avertissements</td><td style="font-weight:700;text-align:right;color:${s?.avert>0?'var(--red)':'inherit'}">${s?.avert||0}</td></tr>
-    </table>
-
-    <div class="stitle">🕒 Historique d'évolution des scores</div>
-    <div style="font-size:12px;color:var(--muted);margin-bottom:12px">
-      ${monthsWithScore.map((m,i)=>`<strong>${m}</strong>: ${scoreValues[i]} pts (${rank(scoreValues[i])})`).join(' ➔ ') || 'Aucun historique.'}
+    <div class="stitle">Historique des scores mensuels</div>
+    <div style="font-size:13px;line-height:1.6;margin-bottom:14px">${scoreHtml || 'Aucun score enregistré pour le moment.'}</div>
+    <div class="frow">
+      <button class="btn" onclick="window.closeModal()">Fermer</button>
     </div>
+  `;
+  window.openModalContent(html);
+}
 
-    <div class="divider"></div>
-    <div class="stitle">💬 Évaluations qualitatives & Coaching (${coms.length})</div>
-    <div id="comments-container" style="max-height:160px;overflow-y:auto;margin-bottom:12px">${commentsHtml || '<div style="color:var(--muted);font-size:12px">Aucun commentaire de coaching.</div>'}</div>
-    
-    <div class="comment-form">
-      <textarea id="newcomment" placeholder="Saisir un compte-rendu d'évaluation ou un plan d'action de coaching..."></textarea>
-      <div style="display:flex;justify-content:flex-end;margin-top:6px">
-        <button class="btn prim" onclick="window.submitComment('${id}')" style="font-size:12px;padding:6px 14px">Ajouter la note</button>
-      </div>
-    </div>
-  `);
-};
-
-window.submitComment = async function(aid) {
-  const txt = document.getElementById('newcomment').value.trim();
-  if(!txt) return;
-  if(!DATA.comments) DATA.comments = {};
-  if(!DATA.comments[aid]) DATA.comments[aid] = [];
-
-  DATA.comments[aid].push({ author: USER?.name || 'Manager', month: currentMonth, text: txt });
-  await setDoc(REF, DATA);
-  window.openFiche(aid);
-};
-
-window.deleteComment = async function(aid, idx) {
-  if(!confirm("Supprimer ce commentaire ?")) return;
-  DATA.comments[aid].splice(idx, 1);
-  await setDoc(REF, DATA);
-  window.openFiche(aid);
-};
-
-// ACTIONS AJOUT PROJETS, MOIS, TEAM LEADERS, CALENDRIER, SNAPSHOTS
-window.openAddProj = function() {
-  openModal(`
-    <div class="mhdr"><h3>🏢 Créer un nouveau projet</h3><button class="xbtn" onclick="closeModal()">×</button></div>
-    <div><div class="flabel">Nom du projet</div><input type="text" id="newpname" placeholder="Ex: CANAL+"></div>
-    <div class="frow"><button class="btn" onclick="closeModal()">Annuler</button><button class="btn yellow" onclick="window.submitAddProj()">Créer</button></div>
-  `);
-};
-window.submitAddProj = async function() {
-  const p = document.getElementById('newpname').value.trim().toUpperCase();
-  if(!p || DATA.projects.includes(p)) return alert("Nom invalide ou projet déjà existant.");
-  DATA.projects.push(p);
-  await setDoc(REF, DATA);
-  closeModal();
-};
-window.deleteProj = async function(p) {
-  if(!confirm(`Supprimer le projet ${p} ?`)) return;
-  DATA.projects = DATA.projects.filter(x => x !== p);
-  await setDoc(REF, DATA);
-};
-
-window.openAddMonth = function() {
-  openModal(`
-    <div class="mhdr"><h3>📅 Ajouter un mois d'analyse</h3><button class="xbtn" onclick="closeModal()">×</button></div>
-    <div><div class="flabel">Identifiant du mois</div><input type="text" id="newmname" placeholder="Ex: Avr 26"></div>
-    <div class="frow"><button class="btn" onclick="closeModal()">Annuler</button><button class="btn yellow" onclick="window.submitAddMonth()">Ajouter</button></div>
-  `);
-};
-window.submitAddMonth = async function() {
-  const m = document.getElementById('newmname').value.trim();
-  if(!m || DATA.months.includes(m)) return alert("Format invalide ou mois déjà présent.");
-  DATA.months.push(m);
-  currentMonth = m;
-  await setDoc(REF, DATA);
-  closeModal();
-};
-
-window.openAddTL = function() {
-  openModal(`
-    <div class="mhdr"><h3>👤 Nouveau Team Leader</h3><button class="xbtn" onclick="closeModal()">×</button></div>
+// Ajout rapide d'un agent
+window.openAdd = function() {
+  let options = '';
+  DATA.projects.forEach(p => options += `<option value="${p}">${p}</option>`);
+  
+  const html = `
+    <div class="mhdr"><h3>+ Ajouter un nouvel Agent</h3><button class="xbtn" onclick="window.closeModal()">×</button></div>
     <div class="fgrid">
-      <div><div class="flabel">Nom du TL</div><input type="text" id="tlname"></div>
-      <div><div class="flabel">Projet</div><select id="tlproj">${DATA.projects.map(p=>`<option value="${p}">${p}</option>`).join('')}</select></div>
-      <div style="grid-column:1/-1">
-        <div class="flabel">Sélectionner les agents de son équipe :</div>
-        <div style="max-height:140px;overflow-y:auto;border:1px solid var(--border);padding:8px;border-radius:8px" id="tl-agents-list">
-          ${DATA.agents.filter(a=>a.active).map(a=>`<div><label><input type="checkbox" value="${a.id}"> ${a.name} (${a.proj})</label></div>`).join('')}
-        </div>
-      </div>
+      <div><div class="flabel">Nom complet</div><input type="text" id="addName"></div>
+      <div><div class="flabel">Projet</div><select id="addProj">${options}</select></div>
+      <div style="margin-top:8px"><div class="flabel">Date d'entrée</div><input type="month" id="addDate"></div>
     </div>
-    <div class="frow"><button class="btn" onclick="closeModal()">Annuler</button><button class="btn yellow" onclick="window.submitAddTL()">Créer</button></div>
-  `);
-};
-window.submitAddTL = async function() {
-  const name = document.getElementById('tlname').value.trim();
-  const proj = document.getElementById('tlproj').value;
-  const tlagents = Array.from(document.querySelectorAll('#tl-agents-list input:checked')).map(el => el.value);
+    <div class="frow">
+      <button class="btn" onclick="window.closeModal()">Annuler</button>
+      <button class="btn yellow" onclick="window.saveNewAgent()">Créer l'agent</button>
+    </div>`;
+  window.openModalContent(html);
+}
 
-  if(!name) return alert("Veuillez saisir un nom.");
-  DATA.teamLeaders.push({ id:uid(), name, proj, agents:tlagents });
-  await setDoc(REF, DATA);
-  closeModal();
-};
-window.deleteTL = async function(id) {
-  if(!confirm("Supprimer ce Team Leader ?")) return;
-  DATA.teamLeaders = DATA.teamLeaders.filter(x => x.id !== id);
-  await setDoc(REF, DATA);
-};
+window.saveNewAgent = async function() {
+  const name = document.getElementById('addName').value.trim();
+  const proj = document.getElementById('addProj').value;
+  const date = document.getElementById('addDate').value;
+  if(!name) return alert("Veuillez entrer un nom.");
 
-window.openAddCompte = function() {
-  openModal(`
-    <div class="mhdr"><h3>🔑 Créer un compte utilisateur</h3><button class="xbtn" onclick="closeModal()">×</button></div>
-    <div class="fgrid">
-      <div><div class="flabel">Nom complet</div><input type="text" id="cname"></div>
-      <div><div class="flabel">Rôle</div><select id="crole"><option value="chef">Chef de Projet</option><option value="qualite">Qualité / QA</option><option value="teamlead">Team Leader</option></select></div>
-      <div><div class="flabel">Identifiant</div><input type="text" id="cuser"></div>
-      <div><div class="flabel">Mot de passe</div><input type="text" id="cpass"></div>
-    </div>
-    <div class="frow"><button class="btn" onclick="closeModal()">Annuler</button><button class="btn yellow" onclick="window.submitAddCompte()">Créer le compte</button></div>
-  `);
-};
-window.submitAddCompte = async function() {
-  const name = document.getElementById('cname').value.trim();
-  const role = document.getElementById('crole').value;
-  const user = document.getElementById('cuser').value.trim();
-  const pass = document.getElementById('cpass').value.trim();
+  DATA.agents.push({
+    id: window.uid(),
+    name: name,
+    proj: proj,
+    active: true,
+    dateEntree: date,
+    projHistory: [{proj: proj, debut: 'Oct 25', fin: null}],
+    scores: {}
+  });
+  await pushData();
+  window.closeModal();
+}
 
-  if(!name || !user || !pass) return alert("Veuillez remplir tous les champs.");
-  if(DATA.comptes.find(c=>c.user===user)) return alert("Cet identifiant est déjà utilisé.");
-
-  DATA.comptes.push({ name, role, user, pass });
-  await setDoc(REF, DATA);
-  closeModal();
-};
-window.deleteCompte = async function(user) {
-  if(!confirm("Supprimer ce compte ?")) return;
-  DATA.comptes = DATA.comptes.filter(c => c.user !== user);
-  await setDoc(REF, DATA);
-};
-
-window.openAddEval = function() {
-  openModal(`
-    <div class="mhdr"><h3>📅 Planifier une Évaluation</h3><button class="xbtn" onclick="closeModal()">×</button></div>
-    <div class="fgrid">
-      <div><div class="flabel">Agent</div><select id="ev-aid">${DATA.agents.filter(a=>a.active).map(a=>`<option value="${a.id}">${a.name}</option>`).join('')}</select></div>
-      <div><div class="flabel">Type d'entretien</div><select id="ev-type"><option value="initiale">Initiale</option><option value="suivi">Suivi hebdomadaire</option><option value="debrief">Débrief mensuel</option></select></div>
-      <div><div class="flabel">Date</div><input type="date" id="ev-date"></div>
-      <div><div class="flabel">Heure</div><input type="time" id="ev-time"></div>
-      <div style="grid-column:1/-1"><div class="flabel">Salon ou numéro de box</div><input type="text" id="ev-room" placeholder="Ex: Box Qualité 2 / Lien Meet"></div>
-      <div style="grid-column:1/-1"><div class="flabel">Notes / Objectifs</div><input type="text" id="ev-notes" placeholder="Ex: Focus sur les objections tarifaires"></div>
-    </div>
-    <div class="frow"><button class="btn" onclick="closeModal()">Annuler</button><button class="btn yellow" onclick="window.submitAddEval()">Planifier</button></div>
-  `);
-};
-window.submitAddEval = async function() {
-  const aid = document.getElementById('ev-aid').value;
-  const type = document.getElementById('ev-type').value;
-  const date = document.getElementById('ev-date').value;
-  const time = document.getElementById('ev-time').value;
-  const room = document.getElementById('ev-room').value.trim();
-  const notes = document.getElementById('ev-notes').value.trim();
-
-  const agent = DATA.agents.find(a=>a.id===aid);
-  if(!date || !time || !agent) return alert("Veuillez remplir au moins la date et l'heure.");
-
-  DATA.calendar.push({ id:uid(), agentId:aid, agentName:agent.name, type, date, time, room, notes });
-  await setDoc(REF, DATA);
-  closeModal();
-};
-window.deleteCalendarEvent = async function(id) {
-  if(!confirm("Annuler ou supprimer cette évaluation planifiée ?")) return;
-  DATA.calendar = DATA.calendar.filter(ev => ev.id !== id);
-  await setDoc(REF, DATA);
-};
-
-window.toggleLockMonth = async function(m) {
-  if(!DATA.archives.months) DATA.archives.months = [];
-  if(DATA.archives.months.includes(m)) {
-    DATA.archives.months = DATA.archives.months.filter(x => x !== m);
-  } else {
-    DATA.archives.months.push(m);
-  }
-  await setDoc(REF, DATA);
-};
-
-window.takeSnap = async function() {
-  if(!DATA.archives.snapshots) DATA.archives.snapshots = [];
-  const now = new Date();
-  const snap = {
-    id: uid(),
-    timestamp: now.toLocaleDateString('fr-FR') + ' à ' + now.toLocaleTimeString('fr-FR'),
-    agentsCount: DATA.agents.length,
-    frozenData: JSON.parse(JSON.stringify(DATA.agents))
-  };
-  DATA.archives.snapshots.push(snap);
-  await setDoc(REF, DATA);
-  alert("Snapshot d'archive créée avec succès.");
-};
-
-window.restoreSnap = async function(id) {
-  const snap = DATA.archives?.snapshots?.find(s=>s.id===id);
-  if(!snap) return;
-  if(!confirm(`Restaurer les données agents de la snapshot du ${snap.timestamp} ? Les affectations actuelles seront écrasées.`)) return;
-  DATA.agents = JSON.parse(JSON.stringify(snap.frozenData));
-  await setDoc(REF, DATA);
-  alert("Données restaurées !");
-};
-
-// EXPORT PDF COMPLET DE L'ANALYSE
+// Fonction PDF Automatisée
 window._exportPDF = function() {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
+  doc.setFont("Helvetica", "bold");
+  doc.text("ALTIUS CONTACT — EXPORT DASHBOARD", 14, 20);
+  doc.setFont("Helvetica", "normal");
+  doc.text("Généré automatiquement le : " + new Date().toLocaleDateString(), 14, 28);
   
-  doc.setFillColor(26,26,24); doc.rect(0,0,210,35,'F');
-  doc.setTextColor(255,255,255); doc.setFont("Helvetica","bold"); doc.setFontSize(22); doc.text("ALTIUS Contact",14,18);
-  doc.setFont("Helvetica","normal"); doc.setFontSize(10); doc.setFillColor(245,200,0); doc.setTextColor(26,26,24); doc.text(` RAPPORT DE PERFORMANCE MENSUEL — ${currentMonth} `,14,26);
+  const headers = [["Agent", "Projet actuel", "Ancienneté", "Statut"]];
+  const body = DATA.agents.map(a => [a.name, a.proj, window.anciennete(a.dateEntree), a.active ? 'Actif' : 'Sorti']);
   
-  doc.setTextColor(50,50,50); doc.setFontSize(10); doc.text(`Édité le : ${new Date().toLocaleDateString('fr-FR')}`, 155, 26);
-  
-  let y = 48;
-  doc.setFont("Helvetica","bold"); doc.setFontSize(14); doc.text("1. Synthèse globale de l'activité", 14, y);
-  y += 8;
-
-  let totalScore=0, count=0;
-  DATA.agents.filter(a=>a.active).forEach(a=>{
-    const s = a.scores && a.scores[currentMonth];
-    if(s){ totalScore += sc(s.perf,s.qual,s.pres,s.eng,s.avert); count++; }
-  });
-  const avg = count ? Math.round(totalScore/count*10)/10 : 0;
-
-  doc.setFont("Helvetica","normal"); doc.setFontSize(11);
-  doc.text(`• Mois analysé : ${currentMonth}`, 16, y); y+=6;
-  doc.text(`• Nombre d'agents sous contrat actif : ${DATA.agents.filter(a=>a.active).length}`, 16, y); y+=6;
-  doc.text(`• Moyenne générale constatée : ${avg} / 100`, 16, y); y+=10;
-
-  doc.setFont("Helvetica","bold"); doc.setFontSize(14); doc.text("2. Classement détaillé des conseillers commerciaux", 14, y);
-  y += 4;
-
-  const tableBody = DATA.agents.filter(a=>a.active).map(a => {
-    const s = a.scores && a.scores[currentMonth];
-    const val = s ? sc(s.perf,s.qual,s.pres,s.eng,s.avert) : null;
-    return [a.name, a.proj, anciennete(a.dateEntree), val!==null?val+' pts':'—', val!==null?rank(val):'—'];
-  }).sort((a,b) => (parseFloat(b[3])||0) - (parseFloat(a[3])||0));
-
-  doc.autoTable({
-    startY: y,
-    head: [['Conseiller', 'Projet Affecté', 'Ancienneté', 'Score Global', 'Rang']],
-    body: tableBody,
-    headStyles: { fillColor: [26,26,24] },
-    theme: 'striped',
-    styles: { fontSize: 9 }
-  });
-
-  doc.save(`ALTIUS-Performance-Sales-${currentMonth}.pdf`);
-};
+  doc.autoTable({ head: headers, body: body, startY: 35, theme: 'grid' });
+  doc.save("Altius_Performance_Sales.pdf");
+}
 </script>
 </body>
 </html>
