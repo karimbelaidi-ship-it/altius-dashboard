@@ -1320,7 +1320,9 @@ function renderObjectifs(){
         + '<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px">Saisie du mois</div>'
         + '<div style="display:flex;align-items:center;gap:6px">'
           + '<span style="font-size:12px;color:var(--muted);width:60px">Unité :</span>'
-          + '<input type="text" placeholder="ex: leads, €, RDV" value="'+( obj.unite||'')+'" data-proj="'+p.name+'" data-field="unite" onchange="window.saveObjField(this)" style="flex:1;padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;font-family:inherit;outline:none">'
+          + '<select data-proj="'+p.name+'" data-field="unite" onchange="window.saveObjField(this)" style="flex:1;padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;font-family:inherit;outline:none;background:var(--surface)">'
+          + ['CA (€)','Leads','Rendez-vous','Mails','Ventes','Dossiers','Contrats','Appels','Devis','Autre'].map(function(u){ return '<option value="'+u+'"'+(obj.unite===u?' selected':'')+'>'+u+'</option>'; }).join('')
+          + '</select>'
         + '</div>'
         + '<div style="display:flex;align-items:center;gap:6px">'
           + '<span style="font-size:12px;color:var(--muted);width:60px">Objectif :</span>'
