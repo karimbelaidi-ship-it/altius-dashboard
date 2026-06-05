@@ -890,7 +890,10 @@
       <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
         <div>
           <div style="font-size:11px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">Vue Chef de projet</div>
-          <div style="font-size:20px;font-weight:900" id="chef-title">Mon projet</div>
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <div style="font-size:20px;font-weight:900" id="chef-title">Mon projet</div>
+            <div id="chef-proj-selector"></div>
+          </div>
           <div style="font-size:12px;color:rgba(255,255,255,.5);margin-top:2px" id="chef-subtitle"></div>
         </div>
         <div id="chef-obj-badge" style="background:rgba(255,255,255,.1);border-radius:10px;padding:10px 16px;text-align:center"></div>
@@ -1305,6 +1308,14 @@ function renderAgents(){
   document.getElementById('rankfilter').innerHTML='<span style="font-size:12px;color:var(--muted)">Rang :</span>'+
     ['Tous','S','A','B','C','D'].map(r=>`<button class="fb${r===rf?' on':''}" onclick="window._setRF('${r}')">${r==='Tous'?'Tous':RL[r]}</button>`).join('');
   let list=D.agents.filter(a=>a.active);
+  // Filtre par projets selon rôle
+  if(role==='respo'&&userProjets.length) list=list.filter(a=>userProjets.indexOf(a.proj)!==-1);
+  else if(role==='chef'&&userProjets.length) list=list.filter(a=>userProjets.indexOf(a.proj)!==-1);
+  else if(role==='teamlead'||role==='qualite'){
+    var tls=(D.teamleaders||[]).filter(function(t){return CURRENT_USER&&t.name===CURRENT_USER.nom;});
+    if(tls.length){ var tlAgents=[];tls.forEach(function(t){tlAgents=tlAgents.concat(getTeamLeaderAgents(t).map(function(a){return a.id;}));}); list=list.filter(function(a){return tlAgents.indexOf(a.id)!==-1;}); }
+    else if(userProjets.length) list=list.filter(a=>userProjets.indexOf(a.proj)!==-1);
+  }
   if(rf!=='Tous')list=list.filter(a=>{const s=lastScore(a);return s&&rank(s.score)===rf;});
   list.sort((a,b)=>{const sa=lastScore(a),sb=lastScore(b);return(sb?sb.score:0)-(sa?sa.score:0);});
   const dismissed=D.agents.filter(a=>!a.active);
@@ -1373,8 +1384,20 @@ window.switchMoisTab = function(tab){
 function renderChef(){
   if(!D || !CURRENT_USER) return;
   var projets = CURRENT_USER.projets || [];
-  if(!projets.length) return;
-  var projName = projets[0];
+  var role = CURRENT_USER.role;
+  // Respo can see all their projets — show selector if multiple
+  if(!projets.length && role!=='respo') return;
+  if(role==='respo' && !projets.length) projets = D.projects; // respo sans filtre = tous
+  var chefSelEl = document.getElementById('chef-proj-sel');
+  var projName = chefSelEl && chefSelEl.value ? chefSelEl.value : projets[0];
+  // Build projet selector if multiple projets
+  var selHtml = '';
+  if(projets.length > 1){
+    selHtml = '<select id="chef-proj-sel" onchange="renderChef()" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.2);border-radius:8px;padding:5px 10px;font-size:13px;font-family:inherit;outline:none">'
+      + projets.map(function(p){return '<option value="'+p+'"'+(p===projName?' selected':'')+'>'+p+'</option>';}).join('')
+      + '</select>';
+  }
+  document.getElementById('chef-proj-selector').innerHTML = selHtml;
   var agents = D.agents.filter(function(a){ return a.active && a.proj===projName; });
   var lastM = D.months[D.months.length-1];
   var prevM = D.months.length>1 ? D.months[D.months.length-2] : null;
@@ -3313,11 +3336,11 @@ var DEFAULT_ACCOUNTS = [
 var CURRENT_USER = null;
 
 var ROLES = {
-  admin:    {label:'Admin', badge:'role-patron', desc:'Acces total'},
-  respo:    {label:'Responsable operations', badge:'role-chef', desc:'Acces complet sauf comptes'},
-  chef:     {label:'Chef de projet', badge:'role-chef', desc:'Voit ses projets'},
-  teamlead: {label:'Team Leader', badge:'role-teamlead', desc:'Voit son equipe uniquement'},
-  qualite:  {label:'Qualticien', badge:'role-qualite', desc:'Voit les scores qualite'}
+  admin:    {label:'Admin',                    badge:'role-patron',   desc:'Acces total'},
+  respo:    {label:'Responsable de production',badge:'role-chef',     desc:'Multi-projets, sans gestion comptes'},
+  chef:     {label:'Chef de projet',           badge:'role-chef',     desc:'Ses projets uniquement'},
+  teamlead: {label:'Manager',                  badge:'role-teamlead', desc:'Son equipe uniquement'},
+  qualite:  {label:'Qualticien',               badge:'role-qualite',  desc:'Scores qualite de son equipe'}
 };
 
 function getAccounts(){
@@ -3354,10 +3377,10 @@ function applyUserRole(){
   // Define tab access per role
   var tabAccess = {
     admin:    ['overview','agents','mois','projets','archives','teamleaders','comptes','cal-dl'],
-    respo:    ['overview','agents','mois','projets','archives','teamleaders','cal-dl'],
+    respo:    ['overview','chef','agents','mois','projets','archives','teamleaders','cal-dl'],
     chef:     ['chef','agents','mois','projets','cal-dl'],
-    teamlead: ['chef','agents','mois','cal-dl'],
-    qualite:  ['overview','agents','mois','cal-dl']
+    teamlead: ['chef','agents','cal-dl'],
+    qualite:  ['chef','agents','cal-dl']
   };
   var allowed = tabAccess[role] || ['overview'];
 
@@ -3455,9 +3478,10 @@ window.openAddCompte = function(){
     +'<div style="grid-column:1/-1"><div class="flabel">Nom complet</div><input type="text" id="acc-nom" placeholder="Ex: Dyhia Amrani"></div>'
     +'<div><div class="flabel">Nom utilisateur</div><input type="text" id="acc-user" placeholder="Ex: dyhia"></div>'
     +'<div><div class="flabel">Mot de passe</div><input type="password" id="acc-pass" placeholder="Choisir un mot de passe"></div>'
-    +'<div><div class="flabel">Role</div><select id="acc-role" onchange="window.updateAccRoleFields()"><option value="admin">Admin</option><option value="chef">Chef de projet</option><option value="qualite">Qualticien</option><option value="teamlead" selected>Team Leader</option></select></div>'
+    +'<div><div class="flabel">Role</div><select id="acc-role" onchange="window.updateAccRoleFields()"><option value="admin">Admin</option><option value="respo">Responsable de production</option><option value="chef">Chef de projet</option><option value="teamlead" selected>Manager</option><option value="qualite">Qualticien</option></select></div>'
     +'<div><div class="flabel">Projet assigne</div><select id="acc-proj" onchange="window.updateAccOps()">'+projOpts+'</select></div>'
     +'</div>'
+    +'<div id="acc-proj-wrap"></div>'
     +'<div style="margin-bottom:14px" id="acc-op-wrap"><div class="flabel">Operation</div><select id="acc-op"><option value="">-- Toutes --</option></select></div>'
     +'<div class="frow"><button class="btn" onclick="closeM()">Annuler</button><button class="btn yellow" onclick="window.doAddCompte()">Creer</button></div>');
   window.updateAccOps();
@@ -3466,7 +3490,21 @@ window.openAddCompte = function(){
 window.updateAccRoleFields = function(){
   var role = document.getElementById('acc-role').value;
   var wrap = document.getElementById('acc-op-wrap');
-  if(wrap) wrap.style.display = (role==='admin'||role==='qualite') ? 'none' : 'block';
+  var projWrap = document.getElementById('acc-proj-wrap');
+  if(wrap) wrap.style.display = (role==='admin') ? 'none' : 'block';
+  // Respo can select multiple projets
+  if(projWrap){
+    projWrap.innerHTML = '';
+    if(role==='respo'){
+      projWrap.innerHTML = '<div class="flabel" style="margin-top:8px">Projets assignés (multi-sélection)</div>'
+        + '<div style="margin-top:4px;display:flex;flex-wrap:wrap;gap:6px" id="respo-projs">'
+        + (D?D.projects:[]).map(function(p){
+            return '<label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer">'
+              + '<input type="checkbox" value="'+p+'" class="respo-proj-cb"> '+p+'</label>';
+          }).join('')
+        + '</div>';
+    }
+  }
 }
 
 window.updateAccOps = function(){
@@ -3490,13 +3528,20 @@ window.doAddCompte = async function(){
   if(!pass){fa.textContent='Le mot de passe est obligatoire.';fa.style.display='block';return;}
   if(!D.accounts) D.accounts = [];
   if(D.accounts.find(function(a){return a.username===user;})){fa.textContent='Ce nom utilisateur existe deja.';fa.style.display='block';return;}
+  // Multi-projet pour respo
+  var projets = [];
+  if(role==='respo'){
+    document.querySelectorAll('.respo-proj-cb:checked').forEach(function(cb){ projets.push(cb.value); });
+  } else if(proj){
+    projets = [proj];
+  }
   D.accounts.push({
     id:'acc'+Date.now(),
     username:user,
     password:pass,
     role:role,
     nom:nom,
-    projets:proj?[proj]:[],
+    projets:projets,
     operation:op
   });
   await saveD();
