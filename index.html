@@ -1273,50 +1273,76 @@ window.switchProjTab = function(tab){
 // ══════════════════════════════════════
 function renderObjectifs(){
   if(!D) return;
-  if(!D.objectifs) D.objectifs = {};
+  if(!D.objectifsComm) D.objectifsComm = {};
   var ps = projStats();
+  var moisActuel = D.months[D.months.length-1];
   var html = '';
+
   ps.forEach(function(p){
-    var target = D.objectifs[p.name] || 70;
-    var pct = Math.min(100, Math.round(p.score/Math.max(target,1)*100));
-    var fillW = Math.min(100, p.score);
-    var targetW = Math.min(100, target);
-    var status = p.score >= target
-      ? '<span class="obj-status-ok">✅ Objectif atteint</span>'
-      : p.score >= target*0.9
-        ? '<span class="obj-status-warn">⚠️ Proche ('+(target-p.score).toFixed(1)+'% manquant)</span>'
-        : '<span class="obj-status-fail">❌ Sous objectif (-'+(target-p.score).toFixed(1)+'%)</span>';
-    html += '<div class="obj-card">'
-      + '<div>'
+    var obj = D.objectifsComm[p.name] || {unite:'', objectif:'', realise:''};
+    var pct = (obj.objectif && obj.realise)
+      ? Math.round(+obj.realise / +obj.objectif * 100) : null;
+    var fillW = pct ? Math.min(100, pct) : 0;
+    var targetW = 100; // la cible est toujours à 100%
+
+    var statusHtml = '';
+    if(pct !== null){
+      statusHtml = pct >= 100
+        ? '<span class="obj-status-ok">✅ Objectif atteint ('+pct+'%)</span>'
+        : pct >= 80
+          ? '<span class="obj-status-warn">⚠️ Proche — '+pct+'% atteint</span>'
+          : '<span class="obj-status-fail">❌ '+pct+'% atteint</span>';
+    } else {
+      statusHtml = '<span style="font-size:12px;color:var(--muted)">En attente de saisie</span>';
+    }
+
+    var safeName = p.name.replace(/[^a-z0-9]/gi,'');
+    html += '<div class="obj-card" style="flex-wrap:wrap;gap:14px">'
+      // Nom projet
+      + '<div style="min-width:130px">'
         + '<div class="obj-proj-name">'+p.name+'</div>'
-        + '<div style="font-size:11px;color:var(--muted)">'+p.n+' agents</div>'
+        + '<div style="font-size:11px;color:var(--muted)">'+p.n+' agents · '+moisActuel+'</div>'
       + '</div>'
-      + '<div style="flex:1;min-width:220px">'
-        + '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px">'
-          + '<span class="obj-score" style="color:'+col(p.score)+'">'+p.score.toFixed(1)+'%</span>'
-          + '<span style="font-size:12px;color:var(--muted)">Objectif : <strong>'+target+'%</strong></span>'
+      // Barre progression
+      + '<div style="flex:1;min-width:200px">'
+        + '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px">'
+          + '<span style="font-size:18px;font-weight:900;color:'+(pct!==null?col(pct>=100?100:pct>=80?80:pct>=65?65:pct>=50?50:0):'var(--muted)')+'">'+( pct!==null ? pct+'%' : '—' )+'</span>'
+          + '<span style="font-size:11px;color:var(--muted)">'+(obj.objectif?'Obj : '+Number(obj.objectif).toLocaleString('fr-FR')+' '+(obj.unite||''):'À définir')+'</span>'
         + '</div>'
         + '<div class="obj-bar-wrap">'
-          + '<div class="obj-bar-fill" style="width:'+fillW+'%;background:'+col(p.score)+'"></div>'
+          + '<div class="obj-bar-fill" style="width:'+fillW+'%;background:'+(pct!==null&&pct>=100?'var(--green)':pct!==null&&pct>=80?'var(--amber)':'var(--red)')+'"></div>'
           + '<div class="obj-bar-target" style="left:'+targetW+'%"></div>'
         + '</div>'
-        + '<div style="margin-top:6px">'+status+'</div>'
+        + '<div style="margin-top:6px">'+statusHtml+'</div>'
       + '</div>'
-      + '<div class="obj-input-wrap">'
-        + '<span style="font-size:12px;color:var(--muted)">Cible :</span>'
-        + '<input type="number" class="obj-input" min="0" max="100" value="'+target+'" id="obj-'+p.name.replace(/[^a-z0-9]/gi,'')+'" data-proj="'+p.name+'" onchange="window.saveObjectif(this,this.dataset.proj)">'
-        + '<span style="font-size:12px;color:var(--muted)">%</span>'
+      // Formulaire saisie
+      + '<div style="display:flex;flex-direction:column;gap:6px;min-width:220px;background:var(--light);border-radius:10px;padding:10px 12px">'
+        + '<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px">Saisie du mois</div>'
+        + '<div style="display:flex;align-items:center;gap:6px">'
+          + '<span style="font-size:12px;color:var(--muted);width:60px">Unité :</span>'
+          + '<input type="text" placeholder="ex: leads, €, RDV" value="'+( obj.unite||'')+'" data-proj="'+p.name+'" data-field="unite" onchange="window.saveObjField(this)" style="flex:1;padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;font-family:inherit;outline:none">'
+        + '</div>'
+        + '<div style="display:flex;align-items:center;gap:6px">'
+          + '<span style="font-size:12px;color:var(--muted);width:60px">Objectif :</span>'
+          + '<input type="number" min="0" placeholder="ex: 1000" value="'+(obj.objectif||'')+'" data-proj="'+p.name+'" data-field="objectif" onchange="window.saveObjField(this)" style="flex:1;padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;font-family:inherit;outline:none">'
+        + '</div>'
+        + '<div style="display:flex;align-items:center;gap:6px">'
+          + '<span style="font-size:12px;color:var(--muted);width:60px">Réalisé :</span>'
+          + '<input type="number" min="0" placeholder="ex: 782" value="'+(obj.realise||'')+'" data-proj="'+p.name+'" data-field="realise" onchange="window.saveObjField(this)" style="flex:1;padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;font-family:inherit;outline:none">'
+        + '</div>'
       + '</div>'
     + '</div>';
   });
+
   document.getElementById('objectifs-body').innerHTML = html || '<p style="color:var(--muted)">Aucun projet actif.</p>';
 }
 
-window.saveObjectif = async function(input, projName){
-  if(!D.objectifs) D.objectifs = {};
-  var val = Math.min(100, Math.max(0, +input.value || 70));
-  input.value = val;
-  D.objectifs[projName] = val;
+window.saveObjField = async function(input){
+  if(!D.objectifsComm) D.objectifsComm = {};
+  var proj = input.dataset.proj;
+  var field = input.dataset.field;
+  if(!D.objectifsComm[proj]) D.objectifsComm[proj] = {unite:'', objectif:'', realise:''};
+  D.objectifsComm[proj][field] = input.value;
   await saveD();
   renderObjectifs();
 };
@@ -1360,7 +1386,7 @@ function updateRapportPreview(){
 
   ps.forEach(function(p){
     var agents = D.agents.filter(function(a){ return a.active && a.proj===p.name; });
-    var target = (D.objectifs||{})[p.name];
+    var target = (D.objectifsComm||{})[p.name] ? ((D.objectifsComm[p.name].objectif||'') + ' ' + (D.objectifsComm[p.name].unite||'')) : null;
     var statusIcon = target ? (p.score>=target?'✅':'❌') : '—';
 
     html += '<div style="margin-bottom:24px">';
@@ -1430,7 +1456,7 @@ window.genRapport = function(){
     doc.setFillColor(245,200,0);
     doc.rect(margin, y, W-margin*2, 8, 'F');
     doc.setFontSize(11); doc.setFont('helvetica','bold'); doc.setTextColor(26,26,24);
-    var target = (D.objectifs||{})[p.name];
+    var target = (D.objectifsComm||{})[p.name] ? ((D.objectifsComm[p.name].objectif||'') + ' ' + (D.objectifsComm[p.name].unite||'')) : null;
     var objTxt = target ? ' | Objectif: '+target+'%' : '';
     doc.text(p.name+' — '+p.score.toFixed(1)+'%'+objTxt, margin+3, y+5.5);
     doc.setTextColor(0,0,0);
@@ -3211,24 +3237,27 @@ function generateNotifications(){
     }
   }
 
-  // Check objectifs
-  if(D.objectifs){
-    var ps = projStats();
-    for(var pi=0; pi<ps.length; pi++){
-      var p = ps[pi];
-      var target = D.objectifs[p.name];
-      if(target && p.score < target){
-        var key3 = 'obj_'+p.name+'_'+D.months[D.months.length-1];
-        if(!notifs.find(function(n){ return n.key===key3; })){
-          newNotifs.push({
-            id: 'n'+Date.now()+Math.random(),
-            key: key3,
-            type: 'warning',
-            icon: '🎯',
-            msg: p.name+' objectif non atteint ('+p.score.toFixed(1)+'% / '+target+'%)',
-            time: now,
-            unread: true
-          });
+  // Check objectifs commerciaux
+  if(D.objectifsComm){
+    var ps2 = projStats();
+    for(var pi=0; pi<ps2.length; pi++){
+      var p2 = ps2[pi];
+      var objC2 = D.objectifsComm[p2.name];
+      if(objC2 && objC2.objectif && objC2.realise){
+        var pct2 = Math.round(+objC2.realise/+objC2.objectif*100);
+        if(pct2 < 80){
+          var key3 = 'obj_'+p2.name+'_'+D.months[D.months.length-1];
+          if(!notifs.find(function(n){ return n.key===key3; })){
+            newNotifs.push({
+              id: 'n'+Date.now()+Math.random(),
+              key: key3,
+              type: 'warning',
+              icon: '🎯',
+              msg: p2.name+' : objectif commercial à '+pct2+'% ('+Number(objC2.realise).toLocaleString('fr-FR')+' / '+Number(objC2.objectif).toLocaleString('fr-FR')+' '+( objC2.unite||'')+')',
+              time: now,
+              unread: true
+            });
+          }
         }
       }
     }
