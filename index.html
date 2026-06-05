@@ -543,6 +543,33 @@
     .rapport-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:8px; }
     .rapport-opts { display:flex; gap:8px; flex-wrap:wrap; }
     .rapport-preview { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+
+    /* ── COMPARAISON INTER-MOIS ── */
+    .comp-filter { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; align-items:center; }
+    .comp-proj-btn { padding:5px 14px; border-radius:20px; border:1px solid var(--border); background:var(--surface); font-size:12px; font-weight:600; cursor:pointer; transition:all .15s; font-family:inherit; }
+    .comp-proj-btn.on { background:#1a1a18; color:#fff; border-color:#1a1a18; }
+    .comp-heatmap { display:grid; gap:1px; margin-bottom:20px; overflow-x:auto; }
+    .comp-heatmap-cell { min-height:38px; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; border-radius:4px; transition:transform .1s; cursor:default; }
+    .comp-heatmap-cell:hover { transform:scale(1.05); z-index:1; }
+    .comp-heatmap-header { font-size:11px; font-weight:600; color:var(--muted); text-align:center; }
+    .comp-heatmap-label { font-size:12px; font-weight:600; text-align:right; padding-right:10px; white-space:nowrap; }
+    .delta-badge { display:inline-flex; align-items:center; gap:3px; font-size:11px; font-weight:700; padding:2px 7px; border-radius:20px; }
+    .delta-up   { background:rgba(29,158,117,.12); color:var(--green); }
+    .delta-down { background:rgba(226,75,74,.1);   color:var(--red); }
+    .delta-flat { background:var(--light); color:var(--muted); }
+
+    /* ── VUE CHEF DE PROJET ── */
+    .chef-header { background: linear-gradient(135deg,#1a1a18,#2d2d2a); border-radius:16px; padding:20px 24px; color:#fff; margin-bottom:20px; }
+    .chef-kpi-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:10px; margin-top:14px; }
+    .chef-kpi { background:rgba(255,255,255,.08); border-radius:10px; padding:12px 14px; }
+    .chef-kpi-val { font-size:24px; font-weight:900; }
+    .chef-kpi-label { font-size:11px; color:rgba(255,255,255,.6); margin-top:2px; }
+    .chef-agent-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:14px 16px; margin-bottom:8px; display:flex; align-items:center; gap:14px; cursor:pointer; transition:box-shadow .15s,transform .15s; }
+    .chef-agent-card:hover { box-shadow:0 4px 16px rgba(0,0,0,.1); transform:translateY(-1px); }
+    .chef-agent-info { flex:1; min-width:0; }
+    .chef-agent-name { font-size:14px; font-weight:700; }
+    .chef-agent-sub { font-size:11px; color:var(--muted); margin-top:2px; }
+    .chef-agent-score { font-size:22px; font-weight:900; flex-shrink:0; }
   </style>
 </head>
 <body>
@@ -571,6 +598,7 @@
 
 <div class="nav" id="main-nav" style="display:none">
   <button class="nb on" data-page="overview" onclick="goPage('overview',this)">📋 Tableau de bord</button>
+  <button class="nb" data-page="chef" onclick="goPage('chef',this)">🎯 Mon projet</button>
   <button class="nb" data-page="agents" onclick="goPage('agents',this)">👥 Agents</button>
   <button class="nb" data-page="projets" onclick="goPage('projets',this)">🏢 Projets</button>
   <button class="nb" data-page="cal-dl" onclick="goPage('cal-dl',this)">⏰ Calendrier &amp; Deadlines</button>
@@ -640,25 +668,57 @@
   </div>
 
   <div class="pg" id="pg-mois">
-    <div class="card">
-      <div class="stitle">Mois actifs</div>
-      <div id="mchips" style="margin-bottom:12px"></div>
-      <button class="btn" onclick="openAddMonth()">+ Ajouter un mois</button>
+    <!-- Sous-onglets -->
+    <div style="display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:20px">
+      <button id="mois-tab-saisie" onclick="window.switchMoisTab('saisie')" style="padding:10px 22px;font-size:13px;font-weight:600;background:none;border:none;border-bottom:2px solid var(--yellow);cursor:pointer;font-family:inherit;color:var(--text)">📝 Saisie des scores</button>
+      <button id="mois-tab-comparaison" onclick="window.switchMoisTab('comparaison')" style="padding:10px 22px;font-size:13px;font-weight:600;background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;font-family:inherit;color:var(--muted)">📈 Comparaison inter-mois</button>
     </div>
-    <div class="card">
-      <div class="stitle">Saisir les scores du mois</div>
-      <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:flex-end">
-        <div><div class="flabel">Mois</div><select id="msel" onchange="renderScoreGrid()" style="width:auto"></select></div>
-        <div><div class="flabel">Projet</div><select id="psel" onchange="renderScoreGrid()" style="width:auto"></select></div>
+
+    <!-- Tab Saisie -->
+    <div id="mois-section-saisie">
+      <div class="card">
+        <div class="stitle">Mois actifs</div>
+        <div id="mchips" style="margin-bottom:12px"></div>
+        <button class="btn" onclick="openAddMonth()">+ Ajouter un mois</button>
       </div>
-      <div class="twrap" id="sgrid"></div>
-      <div style="display:flex;justify-content:flex-end;margin-top:12px">
-        <button class="btn yellow" onclick="saveScores()">💾 Enregistrer les scores</button>
+      <div class="card">
+        <div class="stitle">Saisir les scores du mois</div>
+        <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:flex-end">
+          <div><div class="flabel">Mois</div><select id="msel" onchange="renderScoreGrid()" style="width:auto"></select></div>
+          <div><div class="flabel">Projet</div><select id="psel" onchange="renderScoreGrid()" style="width:auto"></select></div>
+        </div>
+        <div class="twrap" id="sgrid"></div>
+        <div style="display:flex;justify-content:flex-end;margin-top:12px">
+          <button class="btn yellow" onclick="saveScores()">💾 Enregistrer les scores</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="stitle">Évolution mensuelle</div>
+        <div style="position:relative;width:100%;height:260px"><canvas id="trendchart" role="img" aria-label="Évolution mensuelle"></canvas></div>
       </div>
     </div>
-    <div class="card">
-      <div class="stitle">Évolution mensuelle</div>
-      <div style="position:relative;width:100%;height:260px"><canvas id="trendchart" role="img" aria-label="Évolution mensuelle"></canvas></div>
+
+    <!-- Tab Comparaison -->
+    <div id="mois-section-comparaison" style="display:none">
+      <div class="card" style="margin-bottom:16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+          <div class="stitle" style="margin-bottom:0">Vue par projet</div>
+          <div class="comp-filter" id="comp-proj-filter" style="margin-bottom:0"></div>
+        </div>
+        <div style="position:relative;width:100%;height:280px"><canvas id="comp-chart" role="img"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="stitle" style="margin-bottom:14px">Heatmap — Score par agent et par mois</div>
+        <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
+          <span style="font-size:12px;color:var(--muted)">Projet :</span>
+          <select id="comp-heatmap-proj" onchange="window.renderHeatmap()" style="font-size:13px;width:auto"></select>
+        </div>
+        <div id="comp-heatmap-wrap" style="overflow-x:auto"></div>
+      </div>
+      <div class="card">
+        <div class="stitle" style="margin-bottom:14px">Tableau comparatif — Delta mois précédent</div>
+        <div id="comp-delta-table"></div>
+      </div>
     </div>
   </div>
 
@@ -823,6 +883,39 @@
     </div>
   </div>
 
+
+  <!-- VUE CHEF DE PROJET -->
+  <div class="pg" id="pg-chef">
+    <div class="chef-header">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+        <div>
+          <div style="font-size:11px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">Vue Chef de projet</div>
+          <div style="font-size:20px;font-weight:900" id="chef-title">Mon projet</div>
+          <div style="font-size:12px;color:rgba(255,255,255,.5);margin-top:2px" id="chef-subtitle"></div>
+        </div>
+        <div id="chef-obj-badge" style="background:rgba(255,255,255,.1);border-radius:10px;padding:10px 16px;text-align:center"></div>
+      </div>
+      <div class="chef-kpi-grid" id="chef-kpi-grid"></div>
+    </div>
+
+    <!-- Alertes -->
+    <div id="chef-alertes" style="margin-bottom:16px"></div>
+
+    <!-- Classement agents -->
+    <div class="card" style="margin-bottom:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+        <div class="stitle" style="margin-bottom:0">🏆 Classement agents</div>
+        <div id="chef-mois-badge" style="font-size:11px;color:var(--muted);font-weight:600"></div>
+      </div>
+      <div id="chef-agents-list"></div>
+    </div>
+
+    <!-- Évolution -->
+    <div class="card">
+      <div class="stitle" style="margin-bottom:14px">📈 Évolution du projet</div>
+      <div style="position:relative;width:100%;height:220px"><canvas id="chef-trend-chart"></canvas></div>
+    </div>
+  </div>
 <div class="overlay" id="ov"><div class="modal" id="mbox"></div></div>
 
 <script type="module">
@@ -1050,6 +1143,7 @@ function renderAll(){
   if(document.getElementById('pg-mois').classList.contains('on'))renderMois();
   if(document.getElementById('pg-projets').classList.contains('on'))renderProjects();
   if(document.getElementById('pg-cal-dl') && document.getElementById('pg-cal-dl').classList.contains('on'))renderCalDl();
+  if(document.getElementById('pg-chef') && document.getElementById('pg-chef').classList.contains('on'))renderChef();
 }
 
 function renderOverview(){
@@ -1254,6 +1348,312 @@ function renderAgents(){
 // ONGLETS PROJETS
 // ══════════════════════════════════════
 var PROJ_TAB = 'scores';
+
+// ══════════════════════════════════════
+// ONGLETS MOIS
+// ══════════════════════════════════════
+var MOIS_TAB = 'saisie';
+window.switchMoisTab = function(tab){
+  MOIS_TAB = tab;
+  ['saisie','comparaison'].forEach(function(t){
+    var sec = document.getElementById('mois-section-'+t);
+    var btn = document.getElementById('mois-tab-'+t);
+    if(!sec||!btn) return;
+    sec.style.display = t===tab ? '' : 'none';
+    btn.style.borderBottomColor = t===tab ? 'var(--yellow)' : 'transparent';
+    btn.style.color = t===tab ? 'var(--text)' : 'var(--muted)';
+  });
+  if(tab==='comparaison') renderComparaison();
+};
+
+
+// ══════════════════════════════════════
+// VUE CHEF DE PROJET
+// ══════════════════════════════════════
+function renderChef(){
+  if(!D || !CURRENT_USER) return;
+  var projets = CURRENT_USER.projets || [];
+  if(!projets.length) return;
+  var projName = projets[0];
+  var agents = D.agents.filter(function(a){ return a.active && a.proj===projName; });
+  var lastM = D.months[D.months.length-1];
+  var prevM = D.months.length>1 ? D.months[D.months.length-2] : null;
+
+  // Scores
+  var scored = agents.map(function(a){
+    var sf = scoreFinal(a);
+    var dr = rankDynamic(a.id, sf);
+    var bonus = bonusProgression(a);
+    var reg = badgeRegularite(a);
+    return {a:a, sf:sf, dr:dr, bonus:bonus, reg:reg};
+  }).filter(function(x){return x.sf>0;}).sort(function(a,b){return b.sf-a.sf;});
+
+  var avg = scored.length ? Math.round(scored.reduce(function(t,x){return t+x.sf;},0)/scored.length*10)/10 : 0;
+  var top = scored[0];
+  var rangD = scored.filter(function(x){return x.dr==='D';});
+  var rangS = scored.filter(function(x){return x.dr==='S';});
+
+  // Title
+  document.getElementById('chef-title').textContent = projName;
+  document.getElementById('chef-subtitle').textContent = agents.length+' agents actifs · '+lastM;
+
+  // Objectif commercial
+  var objBadge = document.getElementById('chef-obj-badge');
+  var objC = (D.objectifsComm||{})[projName];
+  if(objC && objC.objectif){
+    var pctC = objC.realise ? Math.round(+objC.realise/+objC.objectif*100) : null;
+    objBadge.innerHTML = '<div style="font-size:11px;color:rgba(255,255,255,.5)">Objectif '+( objC.unite||'')+' </div>'
+      + '<div style="font-size:22px;font-weight:900;color:'+(pctC!==null&&pctC>=100?'#1D9E75':pctC!==null&&pctC>=80?'#F5C800':'#E24B4A')+'">'+(pctC!==null?pctC+'%':'—')+'</div>'
+      + '<div style="font-size:11px;color:rgba(255,255,255,.4)">'+(objC.realise?Number(objC.realise).toLocaleString('fr-FR'):'—')+' / '+Number(objC.objectif).toLocaleString('fr-FR')+'</div>';
+  } else {
+    objBadge.innerHTML = '<div style="font-size:11px;color:rgba(255,255,255,.4)">Objectif non défini</div>';
+  }
+
+  // KPIs
+  document.getElementById('chef-kpi-grid').innerHTML =
+    '<div class="chef-kpi"><div class="chef-kpi-val" style="color:'+col(avg)+'">'+avg+'%</div><div class="chef-kpi-label">Score moyen</div></div>'
+    + '<div class="chef-kpi"><div class="chef-kpi-val" style="color:#1D9E75">'+rangS.length+'</div><div class="chef-kpi-label">Rang S (Top 5)</div></div>'
+    + '<div class="chef-kpi"><div class="chef-kpi-val" style="color:#E24B4A">'+rangD.length+'</div><div class="chef-kpi-label">Rang D critique</div></div>'
+    + '<div class="chef-kpi"><div class="chef-kpi-val">'+agents.length+'</div><div class="chef-kpi-label">Agents actifs</div></div>';
+
+  // Alertes Rang D
+  var alertesEl = document.getElementById('chef-alertes');
+  if(rangD.length){
+    alertesEl.innerHTML = '<div class="section-bar-red" style="margin-bottom:10px"><div style="font-size:13px;font-weight:700;color:#8c1a1a">⚠️ Agents en Rang D ('+rangD.length+')</div></div>'
+      + rangD.map(function(x){
+        return '<div class="alert-d">'
+          + '<div class="alert-d-icon">⚠️</div>'
+          + '<div class="alert-d-info"><div class="alert-d-name">'+x.a.name+'</div></div>'
+          + '<div class="alert-d-score">'+x.sf.toFixed(1)+'%</div>'
+          + '</div>';
+      }).join('');
+  } else {
+    alertesEl.innerHTML = '';
+  }
+
+  // Mois badge
+  document.getElementById('chef-mois-badge').textContent = lastM;
+
+  // Agents list
+  var agHtml = '';
+  scored.forEach(function(x, i){
+    var av = avc(x.a.name);
+    var delta = null;
+    if(prevM){
+      var sP = x.a.scores[prevM];
+      var vP = sP&&(sP.perf||sP.qual)?sc(sP.perf,sP.qual,sP.pres,sP.eng||{briefs:true,remontees:true,comportement:true},sP.avert):null;
+      if(vP!==null) delta = Math.round((x.sf-vP)*10)/10;
+    }
+    var deltaHtml = delta===null?''
+      : delta>0?'<span class="delta-badge delta-up" style="font-size:10px">▲ +'+delta+'%</span>'
+      : delta<0?'<span class="delta-badge delta-down" style="font-size:10px">▼ '+delta+'%</span>'
+      : '<span class="delta-badge delta-flat" style="font-size:10px">= Stable</span>';
+    var badges = (x.bonus>0?'<span class="badge-progression">▲ Prog.</span>':'')+(x.reg?'<span class="badge-regularite">⭐</span>':'');
+    agHtml += '<div class="chef-agent-card" data-aid="'+x.a.id+'" onclick="window._openFiche(this.dataset.aid)">'
+      + '<div style="width:28px;height:28px;border-radius:50%;background:'+av[0]+';color:'+av[1]+';display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0">'+ini(x.a.name)+'</div>'
+      + '<div style="width:24px;text-align:center;font-size:13px;font-weight:700;color:var(--muted);flex-shrink:0">'+(i+1)+'</div>'
+      + '<div class="chef-agent-info">'
+        + '<div class="chef-agent-name">'+x.a.name+'</div>'
+        + '<div style="display:flex;gap:4px;margin-top:3px;flex-wrap:wrap">'+deltaHtml+badges+'</div>'
+      + '</div>'
+      + '<div>'
+        + '<div class="chef-agent-score" style="color:'+col(x.sf)+'">'+x.sf.toFixed(1)+'%</div>'
+        + '<div style="text-align:right;margin-top:2px"><span class="pill s'+x.dr+'" style="font-size:10px">'+RL[x.dr]+'</span></div>'
+      + '</div>'
+    + '</div>';
+  });
+  document.getElementById('chef-agents-list').innerHTML = agHtml || '<p style="color:var(--muted);font-size:13px">Aucun score saisi ce mois.</p>';
+
+  // Trend chart
+  dc('chef-trend-chart');
+  var trendData = D.months.map(function(m){
+    var ss = agents.map(function(a){
+      var s=a.scores[m];
+      return s&&(s.perf||s.qual)?sc(s.perf,s.qual,s.pres,s.eng||{briefs:true,remontees:true,comportement:true},s.avert):null;
+    }).filter(function(v){return v!==null;});
+    return ss.length?Math.round(ss.reduce(function(t,v){return t+v;},0)/ss.length*10)/10:null;
+  });
+  if(document.getElementById('chef-trend-chart')){
+    charts['chef-trend-chart'] = new Chart(document.getElementById('chef-trend-chart'),{
+      type:'line',
+      data:{labels:D.months,datasets:[{
+        label:projName,data:trendData,
+        borderColor:'#F5C800',backgroundColor:'rgba(245,200,0,.1)',
+        pointRadius:5,pointBackgroundColor:'#F5C800',
+        borderWidth:2.5,tension:.3,spanGaps:false,fill:true
+      }]},
+      options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){return c.raw+'%';}}}},
+        scales:{y:{min:0,max:100,ticks:{callback:function(v){return v+'%';},font:{size:10}},grid:{color:'rgba(0,0,0,.04)'}},x:{grid:{display:false},ticks:{font:{size:10}}}}
+      }
+    });
+  }
+}
+// ══════════════════════════════════════
+// COMPARAISON INTER-MOIS
+// ══════════════════════════════════════
+var COMP_SELECTED_PROJS = [];
+
+function renderComparaison(){
+  if(!D) return;
+  var ps = projStats();
+  // Init selected projs
+  if(!COMP_SELECTED_PROJS.length) COMP_SELECTED_PROJS = ps.map(function(p){return p.name;});
+
+  // Projet filter buttons
+  var filterHtml = ps.map(function(p){
+    var on = COMP_SELECTED_PROJS.indexOf(p.name)!==-1;
+    return '<button class="comp-proj-btn'+(on?' on':'')+'" data-proj="'+p.name+'" onclick="window.toggleCompProj(this.dataset.proj)">'+p.name+'</button>';
+  }).join('');
+  document.getElementById('comp-proj-filter').innerHTML = filterHtml;
+
+  // Heatmap projet select
+  var heatSel = document.getElementById('comp-heatmap-proj');
+  if(heatSel && !heatSel.options.length){
+    ps.forEach(function(p){
+      var o = document.createElement('option'); o.value=p.name; o.textContent=p.name; heatSel.appendChild(o);
+    });
+  }
+
+  renderCompChart();
+  renderHeatmap();
+  renderDeltaTable();
+}
+
+window.toggleCompProj = function(projName){
+  var idx = COMP_SELECTED_PROJS.indexOf(projName);
+  if(idx === -1) COMP_SELECTED_PROJS.push(projName);
+  else if(COMP_SELECTED_PROJS.length > 1) COMP_SELECTED_PROJS.splice(idx,1);
+  renderComparaison();
+};
+
+function renderCompChart(){
+  if(!D) return;
+  dc('comp-chart');
+  var ps = projStats().filter(function(p){ return COMP_SELECTED_PROJS.indexOf(p.name)!==-1; });
+  var ds = ps.map(function(p, pi){
+    var ags = D.agents.filter(function(a){ return a.proj===p.name && a.active; });
+    var data = D.months.map(function(m){
+      var ss = ags.map(function(a){
+        var s=a.scores[m];
+        return s&&(s.perf||s.qual)?sc(s.perf,s.qual,s.pres,s.eng||{briefs:true,remontees:true,comportement:true},s.avert):null;
+      }).filter(function(v){return v!==null;});
+      return ss.length?Math.round(ss.reduce(function(t,v){return t+v;},0)/ss.length*10)/10:null;
+    });
+    if(data.every(function(v){return v===null;})) return null;
+    return {
+      label: p.name,
+      data: data,
+      borderColor: PC[pi%PC.length],
+      backgroundColor: PC[pi%PC.length]+'22',
+      pointRadius: 5,
+      pointBackgroundColor: PC[pi%PC.length],
+      borderWidth: 2.5,
+      tension: .3,
+      spanGaps: false,
+      fill: false
+    };
+  }).filter(Boolean);
+
+  if(document.getElementById('comp-chart')){
+    charts['comp-chart'] = new Chart(document.getElementById('comp-chart'),{
+      type:'line',
+      data:{labels:D.months, datasets:ds},
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        plugins:{
+          legend:{position:'bottom',labels:{font:{size:11},boxWidth:10,padding:8}},
+          tooltip:{callbacks:{label:function(c){return ' '+c.dataset.label+' : '+c.raw+'%';}}}
+        },
+        scales:{
+          y:{min:0,max:100,ticks:{callback:function(v){return v+'%';},font:{size:10}},grid:{color:'rgba(0,0,0,.04)'}},
+          x:{grid:{display:false},ticks:{font:{size:10}}}
+        }
+      }
+    });
+  }
+}
+
+window.renderHeatmap = function(){
+  if(!D) return;
+  var heatSel = document.getElementById('comp-heatmap-proj');
+  var projName = heatSel ? heatSel.value : (D.projects[0]||'');
+  var agents = D.agents.filter(function(a){ return a.active && a.proj===projName; });
+  var wrap = document.getElementById('comp-heatmap-wrap');
+  if(!wrap) return;
+
+  if(!agents.length){ wrap.innerHTML='<p style="color:var(--muted);font-size:13px">Aucun agent actif dans ce projet.</p>'; return; }
+
+  var cols = D.months.length + 1;
+  var html = '<div style="display:grid;grid-template-columns:140px repeat('+D.months.length+',1fr);gap:3px;min-width:500px">';
+
+  // Header row
+  html += '<div class="comp-heatmap-header"></div>';
+  D.months.forEach(function(m){
+    html += '<div class="comp-heatmap-header" style="padding:4px 2px">'+m+'</div>';
+  });
+
+  // Agent rows
+  agents.forEach(function(a){
+    html += '<div class="comp-heatmap-label">'+a.name.split(' ')[0]+'</div>';
+    D.months.forEach(function(m){
+      var s = a.scores[m];
+      var sv = s&&(s.perf||s.qual)?sc(s.perf,s.qual,s.pres,s.eng||{briefs:true,remontees:true,comportement:true},s.avert):null;
+      if(sv===null){
+        html += '<div class="comp-heatmap-cell" style="background:var(--light);color:var(--muted);font-size:11px">—</div>';
+      } else {
+        var bg = sv>=95?'#1D9E75':sv>=80?'#378ADD':sv>=65?'#7F77DD':sv>=50?'#BA7517':'#E24B4A';
+        html += '<div class="comp-heatmap-cell" style="background:'+bg+'22;color:'+bg+'" title="'+a.name+' — '+m+' : '+sv.toFixed(1)+'%">'+sv.toFixed(0)+'%</div>';
+      }
+    });
+  });
+
+  html += '</div>';
+  wrap.innerHTML = html;
+};
+
+function renderDeltaTable(){
+  if(!D || D.months.length < 2) return;
+  var el = document.getElementById('comp-delta-table');
+  if(!el) return;
+  var lastM = D.months[D.months.length-1];
+  var prevM = D.months[D.months.length-2];
+  var agents = D.agents.filter(function(a){ return a.active; });
+
+  var rows = agents.map(function(a){
+    var sLast = a.scores[lastM]; var sPrev = a.scores[prevM];
+    var vLast = sLast&&(sLast.perf||sLast.qual)?sc(sLast.perf,sLast.qual,sLast.pres,sLast.eng||{briefs:true,remontees:true,comportement:true},sLast.avert):null;
+    var vPrev = sPrev&&(sPrev.perf||sPrev.qual)?sc(sPrev.perf,sPrev.qual,sPrev.pres,sPrev.eng||{briefs:true,remontees:true,comportement:true},sPrev.avert):null;
+    return {a:a, vLast:vLast, vPrev:vPrev, delta: vLast!==null&&vPrev!==null?Math.round((vLast-vPrev)*10)/10:null};
+  }).filter(function(r){ return r.vLast!==null; })
+    .sort(function(a,b){ return (b.delta||0)-(a.delta||0); });
+
+  var html = '<table class="tbl" style="font-size:12px"><thead><tr>'
+    + '<th>Agent</th><th>Projet</th>'
+    + '<th>'+prevM+'</th><th>'+lastM+'</th>'
+    + '<th>Évolution</th>'
+    + '</tr></thead><tbody>';
+
+  rows.forEach(function(r){
+    var deltaHtml = r.delta===null
+      ? '<span style="color:var(--muted)">Nouveau</span>'
+      : r.delta > 0
+        ? '<span class="delta-badge delta-up">▲ +'+r.delta+'%</span>'
+        : r.delta < 0
+          ? '<span class="delta-badge delta-down">▼ '+r.delta+'%</span>'
+          : '<span class="delta-badge delta-flat">= Stable</span>';
+    html += '<tr>'
+      + '<td style="font-weight:600">'+r.a.name+'</td>'
+      + '<td style="color:var(--muted)">'+r.a.proj+'</td>'
+      + '<td style="color:var(--muted)">'+( r.vPrev!==null?r.vPrev.toFixed(1)+'%':'—')+'</td>'
+      + '<td style="font-weight:700;color:'+col(r.vLast)+'">'+r.vLast.toFixed(1)+'%</td>'
+      + '<td>'+deltaHtml+'</td>'
+      + '</tr>';
+  });
+
+  html += '</tbody></table>';
+  el.innerHTML = html;
+}
 window.switchProjTab = function(tab){
   PROJ_TAB = tab;
   ['scores','objectifs','rapport'].forEach(function(t){
@@ -2955,8 +3355,8 @@ function applyUserRole(){
   var tabAccess = {
     admin:    ['overview','agents','mois','projets','archives','teamleaders','comptes','cal-dl'],
     respo:    ['overview','agents','mois','projets','archives','teamleaders','cal-dl'],
-    chef:     ['overview','agents','mois','projets','cal-dl'],
-    teamlead: ['overview','agents','mois','cal-dl'],
+    chef:     ['chef','agents','mois','projets','cal-dl'],
+    teamlead: ['chef','agents','mois','cal-dl'],
     qualite:  ['overview','agents','mois','cal-dl']
   };
   var allowed = tabAccess[role] || ['overview'];
@@ -3575,6 +3975,7 @@ var PAGE_LABELS = {
   'agents':      {section:'', page:'Agents'},
   'projets':     {section:'', page:'Projets'},
   'cal-dl':      {section:'', page:'Calendrier & Deadlines'},
+  'chef':        {section:'', page:'Mon projet'},
   'mois':        {section:'Administration', page:'Mois & Scores'},
   'archives':    {section:'Administration', page:'Archives'},
   'teamleaders': {section:'Administration', page:'Team Leaders'},
@@ -3617,6 +4018,13 @@ window.goPage=function(id,btn){
     document.getElementById('pg-cal-dl').classList.add('on');
     if(btn) btn.classList.add('on');
     renderCalDl();
+    return;
+  }
+  // Page chef de projet
+  if(id==='chef'){
+    document.getElementById('pg-chef').classList.add('on');
+    if(btn) btn.classList.add('on');
+    renderChef();
     return;
   }
   document.getElementById('pg-'+id).classList.add('on');
