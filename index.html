@@ -515,6 +515,34 @@
     }
     .score-final-wrap { display:flex; flex-direction:column; gap:3px; }
     .score-badges { display:flex; gap:4px; flex-wrap:wrap; }
+
+    /* ── OBJECTIFS PAR PROJET ── */
+    .obj-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; padding: 18px 20px; margin-bottom: 10px;
+      display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+    }
+    .obj-proj-name { font-size: 14px; font-weight: 700; min-width: 160px; }
+    .obj-score { font-size: 22px; font-weight: 900; min-width: 60px; }
+    .obj-target-wrap { flex: 1; min-width: 200px; }
+    .obj-bar-wrap { height: 10px; background: var(--border); border-radius: 5px; overflow: visible; position: relative; margin-top: 6px; }
+    .obj-bar-fill { height: 100%; border-radius: 5px; transition: width .5s ease; }
+    .obj-bar-target {
+      position: absolute; top: -4px; width: 3px; height: 18px;
+      background: #1a1a18; border-radius: 2px;
+      transform: translateX(-50%);
+    }
+    .obj-status-ok   { color: var(--green); font-size: 12px; font-weight: 700; }
+    .obj-status-warn { color: var(--amber); font-size: 12px; font-weight: 700; }
+    .obj-status-fail { color: var(--red);   font-size: 12px; font-weight: 700; }
+    .obj-input-wrap { display: flex; align-items: center; gap: 6px; }
+    .obj-input { width: 70px; padding: 5px 8px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; font-family: inherit; text-align: center; outline: none; }
+    .obj-input:focus { border-color: var(--yellow); }
+
+    /* ── RAPPORT PDF ── */
+    .rapport-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:8px; }
+    .rapport-opts { display:flex; gap:8px; flex-wrap:wrap; }
+    .rapport-preview { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
   </style>
 </head>
 <body>
@@ -635,21 +663,52 @@
   </div>
 
   <div class="pg" id="pg-projets">
-    <!-- Mini KPI projets -->
-    <div class="pgrid" id="pgrid" style="margin-bottom:20px"></div>
-    <!-- Graphiques -->
-    <div class="twocol" style="margin-bottom:20px">
-      <div class="card"><div class="stitle">Distribution des rangs</div><div class="chart-box"><canvas id="donut" role="img" aria-label="Rangs"></canvas></div></div>
-      <div class="card"><div class="stitle">Score par projet</div><div class="chart-box"><canvas id="projbar" role="img" aria-label="Score par projet"></canvas></div></div>
+    <!-- Sous-onglets -->
+    <div style="display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:20px">
+      <button id="proj-tab-scores" onclick="window.switchProjTab('scores')" style="padding:10px 22px;font-size:13px;font-weight:600;background:none;border:none;border-bottom:2px solid var(--yellow);cursor:pointer;font-family:inherit;color:var(--text)">📊 Scores & Rangs</button>
+      <button id="proj-tab-objectifs" onclick="window.switchProjTab('objectifs')" style="padding:10px 22px;font-size:13px;font-weight:600;background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;font-family:inherit;color:var(--muted)">🎯 Objectifs</button>
+      <button id="proj-tab-rapport" onclick="window.switchProjTab('rapport')" style="padding:10px 22px;font-size:13px;font-weight:600;background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;font-family:inherit;color:var(--muted)">📄 Rapport mensuel</button>
     </div>
-    <!-- Tableau détail -->
-    <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
-      <button class="btn yellow" onclick="openAddProj()">+ Nouveau projet</button>
+
+    <!-- Tab Scores -->
+    <div id="proj-section-scores">
+      <div class="pgrid" id="pgrid" style="margin-bottom:20px"></div>
+      <div class="twocol" style="margin-bottom:20px">
+        <div class="card"><div class="stitle">Distribution des rangs</div><div class="chart-box"><canvas id="donut" role="img" aria-label="Rangs"></canvas></div></div>
+        <div class="card"><div class="stitle">Score par projet</div><div class="chart-box"><canvas id="projbar" role="img" aria-label="Score par projet"></canvas></div></div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
+        <button class="btn yellow" onclick="openAddProj()">+ Nouveau projet</button>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden">
+        <div class="twrap"><table class="tbl"><thead><tr>
+          <th>Projet</th><th>Agents actifs</th><th>Score moyen</th><th>Objectif</th><th>Rang</th><th></th>
+        </tr></thead><tbody id="pbody"></tbody></table></div>
+      </div>
     </div>
-    <div class="card" style="padding:0;overflow:hidden">
-      <div class="twrap"><table class="tbl"><thead><tr>
-        <th>Projet</th><th>Agents actifs</th><th>Score moyen</th><th>Rang</th><th></th>
-      </tr></thead><tbody id="pbody"></tbody></table></div>
+
+    <!-- Tab Objectifs -->
+    <div id="proj-section-objectifs" style="display:none">
+      <div class="card" style="margin-bottom:16px">
+        <div style="font-size:13px;color:var(--muted);margin-bottom:4px">Définissez un objectif de score mensuel pour chaque projet. Une alerte se déclenche automatiquement si le projet est en dessous.</div>
+      </div>
+      <div id="objectifs-body"></div>
+    </div>
+
+    <!-- Tab Rapport -->
+    <div id="proj-section-rapport" style="display:none">
+      <div class="rapport-header">
+        <div>
+          <div style="font-size:17px;font-weight:700">📄 Rapport mensuel</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px">Générez un rapport complet par projet ou global</div>
+        </div>
+        <div class="rapport-opts">
+          <select id="rapport-mois" style="font-size:13px;width:auto"></select>
+          <select id="rapport-proj" style="font-size:13px;width:auto"></select>
+          <button class="btn yellow" onclick="window.genRapport()">📄 Générer PDF</button>
+        </div>
+      </div>
+      <div id="rapport-preview"></div>
     </div>
   </div>
 
@@ -1190,6 +1249,245 @@ function renderAgents(){
 
 // FICHE AGENT — panneau latéral
 
+
+// ══════════════════════════════════════
+// ONGLETS PROJETS
+// ══════════════════════════════════════
+var PROJ_TAB = 'scores';
+window.switchProjTab = function(tab){
+  PROJ_TAB = tab;
+  ['scores','objectifs','rapport'].forEach(function(t){
+    var sec = document.getElementById('proj-section-'+t);
+    var btn = document.getElementById('proj-tab-'+t);
+    if(!sec||!btn) return;
+    sec.style.display = t===tab ? '' : 'none';
+    btn.style.borderBottomColor = t===tab ? 'var(--yellow)' : 'transparent';
+    btn.style.color = t===tab ? 'var(--text)' : 'var(--muted)';
+  });
+  if(tab==='objectifs') renderObjectifs();
+  if(tab==='rapport') renderRapportPreview();
+};
+
+// ══════════════════════════════════════
+// OBJECTIFS PAR PROJET
+// ══════════════════════════════════════
+function renderObjectifs(){
+  if(!D) return;
+  if(!D.objectifs) D.objectifs = {};
+  var ps = projStats();
+  var html = '';
+  ps.forEach(function(p){
+    var target = D.objectifs[p.name] || 70;
+    var pct = Math.min(100, Math.round(p.score/Math.max(target,1)*100));
+    var fillW = Math.min(100, p.score);
+    var targetW = Math.min(100, target);
+    var status = p.score >= target
+      ? '<span class="obj-status-ok">✅ Objectif atteint</span>'
+      : p.score >= target*0.9
+        ? '<span class="obj-status-warn">⚠️ Proche ('+(target-p.score).toFixed(1)+'% manquant)</span>'
+        : '<span class="obj-status-fail">❌ Sous objectif (-'+(target-p.score).toFixed(1)+'%)</span>';
+    html += '<div class="obj-card">'
+      + '<div>'
+        + '<div class="obj-proj-name">'+p.name+'</div>'
+        + '<div style="font-size:11px;color:var(--muted)">'+p.n+' agents</div>'
+      + '</div>'
+      + '<div style="flex:1;min-width:220px">'
+        + '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px">'
+          + '<span class="obj-score" style="color:'+col(p.score)+'">'+p.score.toFixed(1)+'%</span>'
+          + '<span style="font-size:12px;color:var(--muted)">Objectif : <strong>'+target+'%</strong></span>'
+        + '</div>'
+        + '<div class="obj-bar-wrap">'
+          + '<div class="obj-bar-fill" style="width:'+fillW+'%;background:'+col(p.score)+'"></div>'
+          + '<div class="obj-bar-target" style="left:'+targetW+'%"></div>'
+        + '</div>'
+        + '<div style="margin-top:6px">'+status+'</div>'
+      + '</div>'
+      + '<div class="obj-input-wrap">'
+        + '<span style="font-size:12px;color:var(--muted)">Cible :</span>'
+        + '<input type="number" class="obj-input" min="0" max="100" value="'+target+'" id="obj-'+p.name.replace(/[^a-z0-9]/gi,'')+'" data-proj="'+p.name+'" onchange="window.saveObjectif(this,this.dataset.proj)">'
+        + '<span style="font-size:12px;color:var(--muted)">%</span>'
+      + '</div>'
+    + '</div>';
+  });
+  document.getElementById('objectifs-body').innerHTML = html || '<p style="color:var(--muted)">Aucun projet actif.</p>';
+}
+
+window.saveObjectif = async function(input, projName){
+  if(!D.objectifs) D.objectifs = {};
+  var val = Math.min(100, Math.max(0, +input.value || 70));
+  input.value = val;
+  D.objectifs[projName] = val;
+  await saveD();
+  renderObjectifs();
+};
+
+// ══════════════════════════════════════
+// RAPPORT MENSUEL
+// ══════════════════════════════════════
+function renderRapportPreview(){
+  if(!D) return;
+  // Populate selects
+  var moisSel = document.getElementById('rapport-mois');
+  var projSel = document.getElementById('rapport-proj');
+  if(!moisSel||!projSel) return;
+  if(!moisSel.options.length){
+    D.months.slice().reverse().forEach(function(m){
+      var o = document.createElement('option'); o.value=m; o.textContent=m; moisSel.appendChild(o);
+    });
+    var allOpt = document.createElement('option'); allOpt.value='all'; allOpt.textContent='Tous les projets';
+    projSel.appendChild(allOpt);
+    D.projects.forEach(function(p){
+      var o = document.createElement('option'); o.value=p; o.textContent=p; projSel.appendChild(o);
+    });
+  }
+  updateRapportPreview();
+}
+
+function updateRapportPreview(){
+  var moisSel = document.getElementById('rapport-mois');
+  var projSel = document.getElementById('rapport-proj');
+  if(!moisSel||!projSel) return;
+  var m = moisSel.value;
+  var projFilter = projSel.value;
+  var ps = projStats();
+  if(projFilter !== 'all') ps = ps.filter(function(p){return p.name===projFilter;});
+
+  var html = '<div class="rapport-preview">';
+  html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;padding-bottom:16px;border-bottom:2px solid var(--yellow)">';
+  html += '<div><div style="font-size:20px;font-weight:900">ALTIUS Contact</div><div style="font-size:13px;color:var(--muted)">Rapport de performance — '+m+'</div></div>';
+  html += '<div style="text-align:right;font-size:11px;color:var(--muted)">Généré le '+new Date().toLocaleDateString('fr-FR')+'<br>'+D.agents.filter(function(a){return a.active;}).length+' agents · '+D.projects.length+' projets</div>';
+  html += '</div>';
+
+  ps.forEach(function(p){
+    var agents = D.agents.filter(function(a){ return a.active && a.proj===p.name; });
+    var target = (D.objectifs||{})[p.name];
+    var statusIcon = target ? (p.score>=target?'✅':'❌') : '—';
+
+    html += '<div style="margin-bottom:24px">';
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">';
+    html += '<div style="font-size:15px;font-weight:800">'+p.name+'</div>';
+    html += '<div style="display:flex;align-items:center;gap:10px">';
+    html += '<span style="font-size:20px;font-weight:900;color:'+col(p.score)+'">'+p.score.toFixed(1)+'%</span>';
+    html += '<span class="pill s'+p.rank+'">'+RL[p.rank]+'</span>';
+    if(target) html += '<span style="font-size:12px;color:var(--muted)">'+statusIcon+' Obj: '+target+'%</span>';
+    html += '</div></div>';
+
+    // Agents table
+    html += '<table class="tbl" style="font-size:12px"><thead><tr><th>Agent</th><th>Perf</th><th>Qualité</th><th>Présence</th><th>Score</th><th>Rang</th><th>Badges</th></tr></thead><tbody>';
+    agents.sort(function(a,b){ return scoreFinal(b)-scoreFinal(a); }).forEach(function(a){
+      var s = a.scores[m];
+      var sf = scoreFinal(a);
+      var dr = rankDynamic(a.id, sf);
+      var bonus = bonusProgression(a);
+      var reg = badgeRegularite(a);
+      var badges = (bonus>0?'▲ ':'')+( reg?'⭐':'');
+      html += '<tr>';
+      html += '<td style="font-weight:600">'+a.name+'</td>';
+      html += '<td>'+(s&&s.perf?s.perf+'%':'—')+'</td>';
+      html += '<td>'+(s&&s.qual?s.qual+'%':'—')+'</td>';
+      html += '<td>'+(s&&s.pres?s.pres+'%':'—')+'</td>';
+      html += '<td style="font-weight:700;color:'+col(sf)+'">'+sf.toFixed(1)+'%</td>';
+      html += '<td><span class="pill s'+dr+'">'+RL[dr]+'</span></td>';
+      html += '<td style="font-size:11px">'+badges+'</td>';
+      html += '</tr>';
+    });
+    html += '</tbody></table></div>';
+  });
+
+  html += '</div>';
+  document.getElementById('rapport-preview').innerHTML = html;
+}
+
+window.genRapport = function(){
+  if(!D){ alert('Données non chargées.'); return; }
+  var moisSel = document.getElementById('rapport-mois');
+  var projSel = document.getElementById('rapport-proj');
+  var m = moisSel ? moisSel.value : D.months[D.months.length-1];
+  var projFilter = projSel ? projSel.value : 'all';
+  var jsPDF = window.jspdf.jsPDF;
+  var doc = new jsPDF({orientation:'portrait', unit:'mm', format:'a4'});
+  var W = doc.internal.pageSize.getWidth();
+  var margin = 15;
+  var y = 20;
+
+  // Header
+  doc.setFillColor(26,26,24);
+  doc.rect(0,0,W,22,'F');
+  doc.setTextColor(255,255,255);
+  doc.setFontSize(14); doc.setFont('helvetica','bold');
+  doc.text('ALTIUS Contact — Rapport de performance', margin, 14);
+  doc.setFontSize(9); doc.setFont('helvetica','normal');
+  doc.text('Période : '+m+' · Généré le '+new Date().toLocaleDateString('fr-FR'), margin, 19);
+  doc.setTextColor(0,0,0);
+  y = 30;
+
+  var ps = projStats();
+  if(projFilter !== 'all') ps = ps.filter(function(p){return p.name===projFilter;});
+
+  ps.forEach(function(p){
+    if(y > 250){ doc.addPage(); y = 20; }
+    // Projet header
+    doc.setFillColor(245,200,0);
+    doc.rect(margin, y, W-margin*2, 8, 'F');
+    doc.setFontSize(11); doc.setFont('helvetica','bold'); doc.setTextColor(26,26,24);
+    var target = (D.objectifs||{})[p.name];
+    var objTxt = target ? ' | Objectif: '+target+'%' : '';
+    doc.text(p.name+' — '+p.score.toFixed(1)+'%'+objTxt, margin+3, y+5.5);
+    doc.setTextColor(0,0,0);
+    y += 12;
+
+    // Agents
+    var agents = D.agents.filter(function(a){ return a.active && a.proj===p.name; })
+      .sort(function(a,b){ return scoreFinal(b)-scoreFinal(a); });
+
+    doc.setFontSize(8); doc.setFont('helvetica','bold');
+    doc.setFillColor(240,240,240);
+    doc.rect(margin, y, W-margin*2, 6, 'F');
+    doc.text('Agent', margin+2, y+4);
+    doc.text('Perf', margin+60, y+4);
+    doc.text('Qualité', margin+80, y+4);
+    doc.text('Présence', margin+100, y+4);
+    doc.text('Score', margin+122, y+4);
+    doc.text('Rang', margin+142, y+4);
+    doc.text('Badges', margin+158, y+4);
+    y += 8;
+
+    doc.setFont('helvetica','normal');
+    agents.forEach(function(a, ai){
+      if(y > 270){ doc.addPage(); y = 20; }
+      var s = a.scores[m];
+      var sf = scoreFinal(a);
+      var dr = rankDynamic(a.id, sf);
+      var bonus = bonusProgression(a);
+      var reg = badgeRegularite(a);
+      if(ai%2===0){ doc.setFillColor(250,250,248); doc.rect(margin,y,W-margin*2,6,'F'); }
+      doc.setTextColor(0,0,0);
+      doc.text(a.name, margin+2, y+4);
+      doc.text(s&&s.perf?s.perf+'%':'—', margin+60, y+4);
+      doc.text(s&&s.qual?s.qual+'%':'—', margin+80, y+4);
+      doc.text(s&&s.pres?s.pres+'%':'—', margin+100, y+4);
+      var rgb = sf>=80?[55,138,221]:sf>=65?[127,119,221]:sf>=50?[186,117,23]:[226,75,74];
+      if(dr==='S') rgb=[29,158,117];
+      doc.setTextColor(rgb[0],rgb[1],rgb[2]);
+      doc.setFont('helvetica','bold');
+      doc.text(sf.toFixed(1)+'%', margin+122, y+4);
+      doc.setTextColor(0,0,0); doc.setFont('helvetica','normal');
+      doc.text(dr, margin+142, y+4);
+      doc.text((bonus>0?'Progression ':''+(reg?'Régulier':'')), margin+158, y+4);
+      y += 6;
+    });
+    y += 8;
+  });
+
+  doc.save('Rapport_Altius_'+m.replace(' ','_')+'.pdf');
+};
+
+// Update rapport preview when selects change
+document.addEventListener('change', function(e){
+  if(e.target && (e.target.id==='rapport-mois'||e.target.id==='rapport-proj')){
+    updateRapportPreview();
+  }
+});
 window._qaGo = function(dest){
   if(dest === 'mois'){
     var btn = document.querySelector('.nb-dropdown-item[data-page="mois"]');
@@ -1546,10 +1844,15 @@ function renderProjects(){
     var p=ps[i];
     var ops=(D.operations||{})[p.name]||[];
     var opsHtml=ops.map(function(o){return '<span style="font-size:10px;background:#f0f0f0;color:#555;padding:1px 7px;border-radius:20px;margin-right:3px">'+o+'</span>';}).join('');
+    var target=(D.objectifs||{})[p.name];
+    var targetHtml=target
+      ? '<span style="font-weight:700;color:'+(p.score>=target?'var(--green)':'var(--red)')+'">'+p.score.toFixed(1)+'% / '+target+'%</span>'
+      : '<span style="color:var(--muted);font-size:12px">Non défini</span>';
     rows+='<tr>';
     rows+='<td><div style="font-weight:600">'+p.name+'</div><div style="margin-top:3px">'+opsHtml+'</div></td>';
     rows+='<td>'+p.n+'</td>';
     rows+='<td style="color:'+col(p.score)+';font-weight:700">'+p.score.toFixed(1)+'%</td>';
+    rows+='<td>'+targetHtml+'</td>';
     rows+='<td><span class="pill s'+p.rank+'">'+RL[p.rank]+'</span></td>';
     rows+='<td style="display:flex;gap:4px;padding:8px 6px">';
     rows+='<button class="abtn" data-proj="'+p.name+'" onclick="window._editProjOps(this.dataset.proj)">Ops</button>';
