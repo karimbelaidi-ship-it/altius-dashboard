@@ -3745,7 +3745,18 @@ async function saveNotifications(notifs){
 
 function renderNotifications(){
   if(!D) return;
-  var notifs = D.notifications || [];
+  var allNotifs = D.notifications || [];
+  // Filter notifications for current user
+  var notifs = allNotifs.filter(function(n){
+    if(!CURRENT_USER) return true;
+    // If notification has no targetAccId — it's global (Rang D, etc)
+    if(!n.targetAccId) return true;
+    // Otherwise only show if targeted at this user
+    return n.targetAccId === CURRENT_USER.id;
+  });
+  // Replace D.notifications with filtered for display
+  var origNotifs = D.notifications;
+  D.notifications = notifs;
   var newNotifs = generateNotifications();
 
   // Add new notifications
@@ -3797,6 +3808,8 @@ function renderNotifications(){
     html += '</div></div>';
   }
   list.innerHTML = html;
+  // Restore full notifications
+  if(origNotifs !== undefined) D.notifications = origNotifs;
 }
 
 function getReadNotifIds(){
@@ -3840,6 +3853,61 @@ document.addEventListener('click', function(e){
 });
 
 
+
+var EVENT_CATEGORIES = {
+  'Evaluation': { icon: '📋', color: '#378ADD', targets: 'individuel',
+    desc: 'Personne concernee + Chef de projet + Responsable' },
+  'Copil':      { icon: '🏢', color: '#7F77DD', targets: 'projet',
+    desc: 'Toutes les personnes du projet + Responsable' },
+  'Entretien':  { icon: '💬', color: '#1D9E75', targets: 'individuel',
+    desc: 'Personne concernee + Chef de projet + Responsable' },
+  'Brief':      { icon: '📝', color: '#F5C800', targets: 'projet',
+    desc: 'Toutes les personnes du projet' },
+  'Formation':  { icon: '🎓', color: '#E24B4A', targets: 'individuel_chef',
+    desc: 'Personne concernee + Chef de projet' },
+  'Reunion':    { icon: '👥', color: '#BA7517', targets: 'projet_respo',
+    desc: 'Toutes les personnes du projet + Responsable' },
+  'Audit':      { icon: '🔍', color: '#E24B4A', targets: 'admin',
+    desc: 'Tout le monde' },
+  'Autre':      { icon: '📌', color: '#666', targets: 'individuel_only',
+    desc: 'Personne concernee uniquement' }
+};
+
+// Get accounts who should receive a notification for an event
+function getEventTargetAccounts(categorie, projet, concerneNom){
+  var allAccounts = getAccounts();
+  var targets = (EVENT_CATEGORIES[categorie]||{}).targets || 'individuel';
+  var result = [];
+
+  allAccounts.forEach(function(acc){
+    var role = acc.role;
+    var accProjets = acc.projets || [];
+
+    if(targets === 'admin'){
+      // Tout le monde
+      result.push(acc.id);
+    } else if(targets === 'projet' || targets === 'projet_respo'){
+      // Personnes sur ce projet
+      if(projet && accProjets.indexOf(projet) !== -1) result.push(acc.id);
+      if(role === 'admin') result.push(acc.id);
+      if(targets === 'projet_respo' && role === 'respo') result.push(acc.id);
+    } else if(targets === 'individuel' || targets === 'individuel_chef' || targets === 'individuel_only'){
+      // Personne concernée
+      if(concerneNom && acc.nom === concerneNom) result.push(acc.id);
+      // Chef de projet du même projet
+      if(targets !== 'individuel_only'){
+        if(projet && accProjets.indexOf(projet) !== -1 && (role === 'chef' || role === 'respo')) result.push(acc.id);
+      }
+      // Responsable
+      if(targets === 'individuel' && role === 'respo') result.push(acc.id);
+      // Admin toujours
+      if(role === 'admin') result.push(acc.id);
+    }
+  });
+
+  // Deduplicate
+  return result.filter(function(id, idx, arr){ return arr.indexOf(id) === idx; });
+}
 function renderCalendrier(){
   if(!D) return;
   var evals = D.evaluations || [];
@@ -3863,11 +3931,18 @@ function renderCalendrier(){
       var when = isToday ? "Aujourd'hui !" : (dayDiff===1?'Demain':dayDiff+' jours');
       upHtml += '<div class="cal-event '+cls+'">';
       upHtml += '<div style="display:flex;align-items:center;justify-content:space-between">';
+      var evCatInfo = ev.categorie ? (EVENT_CATEGORIES[ev.categorie]||{icon:'📌'}) : {icon:'📋'};
+      upHtml += '<div style="display:flex;align-items:center;gap:8px">';
+      upHtml += '<span style="font-size:16px">'+evCatInfo.icon+'</span>';
       upHtml += '<div class="cal-event-title">'+ev.titre+'</div>';
+      if(ev.categorie) upHtml += '<span style="font-size:10px;background:var(--light);color:var(--muted);padding:2px 8px;border-radius:20px;font-weight:600">'+ev.categorie+'</span>';
+      upHtml += '</div>';
       upHtml += '<div style="font-size:11px;font-weight:700;color:'+(isToday?'#1D9E75':'#BA7517')+'">'+when+'</div>';
       upHtml += '</div>';
       upHtml += '<div class="cal-event-meta">'+evDate.toLocaleDateString('fr-FR',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
-      upHtml += ' &nbsp;·&nbsp; '+ev.projet+(ev.operation?' - '+ev.operation:'')+'</div>';
+      upHtml += ' &nbsp;·&nbsp; '+(ev.projet||'Tous projets')+(ev.operation?' - '+ev.operation:'');
+      if(ev.concerne) upHtml += ' &nbsp;·&nbsp; 👤 '+ev.concerne;
+      upHtml += '</div>';
       if(ev.note) upHtml += '<div style="font-size:12px;color:var(--muted);margin-top:4px">'+ev.note+'</div>';
       upHtml += '<div style="display:flex;gap:4px;margin-top:8px">';
       upHtml += '<button class="abtn" data-id="'+ev.id+'" onclick="window.editEval(this.dataset.id)">Modifier</button>';
@@ -3905,17 +3980,65 @@ function renderCalendrier(){
 window.openAddEval = function(){
   var projOpts = D.projects.map(function(p){return '<option value="'+p+'">'+p+'</option>';}).join('');
   var today = new Date().toISOString().slice(0,10);
-  showModal('<div class="mhdr"><h3>Planifier une evaluation</h3><button class="xbtn" onclick="closeM()">x</button></div>'
+  var catOpts = Object.keys(EVENT_CATEGORIES).map(function(k){
+    return '<option value="'+k+'">'+EVENT_CATEGORIES[k].icon+' '+k+'</option>';
+  }).join('');
+  var allAccounts = getAccounts();
+  var personneOpts = '<option value="">-- Sélectionner --</option>'
+    + allAccounts.filter(function(a){return a.role!=='admin';}).map(function(a){
+        return '<option value="'+a.nom+'">'+a.nom+' ('+( ROLES[a.role]?ROLES[a.role].label:a.role)+')</option>';
+      }).join('');
+
+  showModal('<div class="mhdr"><h3>Planifier un evenement</h3><button class="xbtn" onclick="closeM()">✕</button></div>'
     +'<div id="fa" class="alert-err"></div>'
-    +'<div style="margin-bottom:10px"><div class="flabel">Titre</div><input type="text" id="ev-titre" placeholder="Ex: Evaluation mensuelle JAPHY"></div>'
-    +'<div class="fgrid" style="margin-bottom:10px">'
-    +'<div><div class="flabel">Date</div><input type="date" id="ev-date" value="'+today+'"></div>'
-    +'<div><div class="flabel">Projet</div><select id="ev-proj" onchange="window.updateEvalOps()"><option value="">-- Tous --</option>'+projOpts+'</select></div>'
+    // Catégorie
+    +'<div style="margin-bottom:12px">'
+      +'<div class="flabel">Categorie</div>'
+      +'<select id="ev-cat" onchange="window.updateEvalCat()">'+ catOpts +'</select>'
+      +'<div id="ev-cat-desc" style="font-size:11px;color:var(--muted);margin-top:4px"></div>'
     +'</div>'
-    +'<div style="margin-bottom:10px"><div class="flabel">Operation</div><select id="ev-op"><option value="">-- Toutes --</option></select></div>'
+    // Titre
+    +'<div style="margin-bottom:12px"><div class="flabel">Titre</div><input type="text" id="ev-titre" placeholder="Ex: Evaluation mensuelle JAPHY"></div>'
+    // Date + Projet
+    +'<div class="fgrid" style="margin-bottom:12px">'
+      +'<div><div class="flabel">Date</div><input type="date" id="ev-date" value="'+today+'"></div>'
+      +'<div><div class="flabel">Projet</div><select id="ev-proj" onchange="window.updateEvalOps();window.updateEvalCat()"><option value="">-- Tous --</option>'+projOpts+'</select></div>'
+    +'</div>'
+    // Opération
+    +'<div style="margin-bottom:12px"><div class="flabel">Operation</div><select id="ev-op"><option value="">-- Toutes --</option></select></div>'
+    // Personne concernée (pour catégories individuelles)
+    +'<div style="margin-bottom:12px" id="ev-personne-wrap">'
+      +'<div class="flabel">Personne(s) concernee(s)</div>'
+      +'<select id="ev-personne">'+personneOpts+'</select>'
+    +'</div>'
+    // Note
     +'<div style="margin-bottom:14px"><div class="flabel">Note (optionnel)</div><input type="text" id="ev-note" placeholder="Ex: Apporter les fiches de suivi"></div>'
+    +'<div id="ev-notif-preview" style="background:var(--light);border-radius:8px;padding:10px 12px;font-size:12px;color:var(--muted);margin-bottom:12px"></div>'
     +'<div class="frow"><button class="btn" onclick="closeM()">Annuler</button><button class="btn yellow" onclick="window.doAddEval()">Planifier</button></div>');
   window.updateEvalOps();
+  window.updateEvalCat();
+}
+
+window.updateEvalCat = function(){
+  var cat = document.getElementById('ev-cat');
+  var desc = document.getElementById('ev-cat-desc');
+  var personneWrap = document.getElementById('ev-personne-wrap');
+  var preview = document.getElementById('ev-notif-preview');
+  if(!cat) return;
+  var info = EVENT_CATEGORIES[cat.value] || {};
+  if(desc) desc.textContent = info.desc || '';
+  // Show/hide personne field based on targets
+  var showPersonne = ['individuel','individuel_chef','individuel_only'].indexOf(info.targets) !== -1;
+  if(personneWrap) personneWrap.style.display = showPersonne ? '' : 'none';
+  // Notif preview
+  var proj = document.getElementById('ev-proj');
+  var projVal = proj ? proj.value : '';
+  var targets = getEventTargetAccounts(cat.value, projVal, '');
+  if(preview){
+    preview.innerHTML = '🔔 Notification envoyée à : <strong>'
+      + (targets.length ? targets.length+' personne(s)' : 'personne (complétez le formulaire)')
+      + '</strong> — ' + (info.desc||'');
+  }
 }
 
 window.updateEvalOps = function(){
@@ -3928,38 +4051,57 @@ window.updateEvalOps = function(){
 
 window.doAddEval = async function(){
   var titre = document.getElementById('ev-titre').value.trim();
-  var date = document.getElementById('ev-date').value;
-  var fa = document.getElementById('fa');
+  var date  = document.getElementById('ev-date').value;
+  var fa    = document.getElementById('fa');
   if(!titre){fa.textContent='Le titre est obligatoire.';fa.style.display='block';return;}
-  if(!date){fa.textContent='La date est obligatoire.';fa.style.display='block';return;}
+  if(!date) {fa.textContent='La date est obligatoire.';fa.style.display='block';return;}
   if(!D.evaluations) D.evaluations = [];
-  var projet = document.getElementById('ev-proj').value;
+
+  var categorie = document.getElementById('ev-cat') ? document.getElementById('ev-cat').value : 'Evaluation';
+  var projet    = document.getElementById('ev-proj').value;
   var operation = document.getElementById('ev-op').value;
+  var perWrap   = document.getElementById('ev-personne-wrap');
+  var concerneNom = (perWrap && perWrap.style.display !== 'none' && document.getElementById('ev-personne'))
+    ? document.getElementById('ev-personne').value : '';
+
+  var catInfo = EVENT_CATEGORIES[categorie] || {icon:'📌'};
   var evId = 'ev'+Date.now();
+
   D.evaluations.push({
     id: evId,
     titre: titre,
     date: date,
+    categorie: categorie,
     projet: projet,
     operation: operation,
+    concerne: concerneNom,
     note: document.getElementById('ev-note').value.trim(),
     createdBy: CURRENT_USER ? CURRENT_USER.nom : 'Admin'
   });
-  // Add targeted notification for users on this project
+
+  // Notifications ciblées
   if(!D.notifications) D.notifications = [];
   var dateStr = new Date(date).toLocaleDateString('fr-FR',{weekday:'long',day:'2-digit',month:'long'});
-  var target = projet ? projet+(operation?' - '+operation:'') : 'tous les projets';
-  D.notifications.push({
-    id: 'n'+Date.now(),
-    key: 'neweval_'+evId,
-    type: 'info',
-    icon: 'C',
-    msg: 'Copil planifie : "'+titre+'" le '+dateStr+' ('+target+')',
-    time: new Date().toLocaleDateString('fr-FR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}),
-    unread: true,
-    targetProjet: projet,
-    targetOperation: operation
+  var targetIds = getEventTargetAccounts(categorie, projet, concerneNom);
+  var contextStr = projet ? projet+(operation?' - '+operation:'') : '';
+  var msg = catInfo.icon+' '+categorie+' : "'+titre+'" — '+dateStr+(contextStr?' ('+contextStr+')':'')+(concerneNom?' — Concerne : '+concerneNom:'');
+
+  targetIds.forEach(function(accId){
+    D.notifications.push({
+      id: 'n'+Date.now()+Math.random().toString(36).slice(2,5),
+      key: 'event_'+evId+'_'+accId,
+      type: 'info',
+      icon: catInfo.icon,
+      categorie: categorie,
+      msg: msg,
+      time: new Date().toLocaleDateString('fr-FR',{day:'2-digit',month:'short'})+' '+new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}),
+      unread: true,
+      targetAccId: accId,
+      targetProjet: projet,
+      createdBy: CURRENT_USER ? CURRENT_USER.nom : 'Admin'
+    });
   });
+
   await saveD();
   closeM();
   renderCalendrier();
