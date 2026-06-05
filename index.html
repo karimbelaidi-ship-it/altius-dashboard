@@ -1965,9 +1965,20 @@ window.resetDemoData = async function(){
     objectifsComm: {},
     teamleaders: []
   };
-  await saveD();
-  renderAll();
-  alert('✅ 64 agents importés avec succès (données Octobre 2025) !');
+  // Force save — bypass saving lock
+  saving = false;
+  setSyncBadge('sync-loading','⏳ Import en cours...');
+  try {
+    await setDoc(REF, JSON.parse(JSON.stringify(D)));
+    setSyncBadge('sync-ok','✅ '+D.agents.length+' agents importés !');
+    renderAll();
+    alert('✅ '+D.agents.length+' agents importés avec succès (données Octobre 2025) !');
+  } catch(e) {
+    setSyncBadge('sync-err','❌ Erreur import');
+    console.error(e);
+    alert('Erreur : ' + e.message);
+  }
+  saving = false;
 };
 window._qaGo = function(dest){
   if(dest === 'mois'){
