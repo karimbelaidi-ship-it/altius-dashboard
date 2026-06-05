@@ -653,6 +653,12 @@
 
     <!-- RACCOURCIS RAPIDES -->
     <div id="quick-actions"></div>
+    <!-- BOUTON RESET DÉMO (admin only) -->
+    <div id="reset-demo-wrap" style="display:none;margin-top:20px;padding:16px;background:rgba(255,90,90,.05);border:1px solid rgba(255,90,90,.15);border-radius:12px">
+      <div style="font-size:13px;font-weight:600;color:#E24B4A;margin-bottom:8px">⚠️ Données de démonstration détectées</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:10px">Le dashboard contient des agents fictifs. Cliquez ci-dessous pour repartir sur une base vide et saisir vos vrais agents.</div>
+      <button class="btn red" onclick="window.resetDemoData()">🗑️ Supprimer les données de démo</button>
+    </div>
   </div>
 
   <div class="pg" id="pg-agents">
@@ -1064,29 +1070,15 @@ function dureeEntreMois(debut, fin) {
 }
 
 const DEF = {
-  projects:['AEC','EURO-PARE-BRISE','JAPHY','ALTERNANCE','VITALIVET','EDEN-ENERGIE','WALTER SANTÉ','ENERIX'],
-  months:['Oct 25','Nov 25','Déc 25','Jan 26','Fév 26','Mar 26'],
-  agents:[
-    {id:'a1',name:'Larbi Yanis',proj:'JAPHY',active:true,dateEntree:'2019-02',projHistory:[{proj:'JAPHY',debut:'Oct 25',fin:null}],scores:{'Oct 25':{perf:140,qual:56,pres:100,eng:5,avert:0},'Mar 26':{perf:140,qual:56,pres:100,eng:5,avert:0}}},
-    {id:'a2',name:'Atek Tania',proj:'JAPHY',active:true,dateEntree:'2020-06',projHistory:[{proj:'JAPHY',debut:'Oct 25',fin:null}],scores:{'Oct 25':{perf:120,qual:100,pres:100,eng:5,avert:0},'Mar 26':{perf:100,qual:100,pres:100,eng:5,avert:0}}},
-    {id:'a3',name:'Mokrane Samia',proj:'JAPHY',active:true,dateEntree:'2021-03',projHistory:[{proj:'JAPHY',debut:'Oct 25',fin:null}],scores:{'Oct 25':{perf:119,qual:100,pres:99,eng:5,avert:0},'Mar 26':{perf:106,qual:100,pres:93,eng:2,avert:0}}},
-    {id:'a4',name:'Ouerden Djoher',proj:'JAPHY',active:true,dateEntree:'2020-01',projHistory:[{proj:'JAPHY',debut:'Oct 25',fin:null}],scores:{'Oct 25':{perf:69,qual:92,pres:100,eng:3,avert:0},'Mar 26':{perf:154,qual:92,pres:100,eng:2,avert:0}}},
-    {id:'a5',name:'Borsla Yasmine',proj:'JAPHY',active:true,dateEntree:'2021-08',projHistory:[{proj:'JAPHY',debut:'Oct 25',fin:null}],scores:{'Oct 25':{perf:100,qual:100,pres:99,eng:5,avert:0},'Mar 26':{perf:88,qual:100,pres:90,eng:4,avert:0}}},
-    {id:'a6',name:'Amira Aba',proj:'JAPHY',active:true,dateEntree:'2019-11',projHistory:[{proj:'JAPHY',debut:'Nov 25',fin:null}],scores:{'Mar 26':{perf:118,qual:85,pres:96,eng:2,avert:0}}},
-    {id:'a7',name:'Koudil Malik',proj:'JAPHY',active:true,dateEntree:'2021-06',projHistory:[{proj:'JAPHY',debut:'Oct 25',fin:null}],scores:{'Oct 25':{perf:144,qual:84,pres:95,eng:2,avert:0},'Mar 26':{perf:126,qual:84,pres:88,eng:2,avert:0}}},
-    {id:'a8',name:'Meddour Sarah',proj:'JAPHY',active:true,dateEntree:'2022-04',projHistory:[{proj:'JAPHY',debut:'Oct 25',fin:null}],scores:{'Oct 25':{perf:62,qual:62,pres:100,eng:2,avert:0},'Mar 26':{perf:106,qual:62,pres:96,eng:3,avert:0}}},
-    {id:'a9',name:'Guerfi Nesrine',proj:'WALTER SANTÉ',active:true,dateEntree:'2021-09',projHistory:[{proj:'WALTER SANTÉ',debut:'Oct 25',fin:null}],scores:{'Oct 25':{perf:101,qual:90,pres:100,eng:5,avert:0},'Fév 26':{perf:100,qual:90,pres:100,eng:2,avert:0}}},
-    {id:'a10',name:'Younsi Sabri',proj:'WALTER SANTÉ',active:true,dateEntree:'2022-01',projHistory:[{proj:'WALTER SANTÉ',debut:'Oct 25',fin:null}],scores:{'Oct 25':{perf:114,qual:74,pres:98,eng:2,avert:0},'Fév 26':{perf:118,qual:74,pres:100,eng:5,avert:0}}},
-    {id:'a11',name:'Ramdane Amira',proj:'WALTER SANTÉ',active:true,dateEntree:'2022-08',projHistory:[{proj:'WALTER SANTÉ',debut:'Oct 25',fin:null}],scores:{'Fév 26':{perf:101,qual:84,pres:92,eng:2,avert:0}}},
-    {id:'a12',name:'Khalef Redouane',proj:'WALTER SANTÉ',active:true,dateEntree:'2022-09',projHistory:[{proj:'WALTER SANTÉ',debut:'Oct 25',fin:null}],scores:{'Fév 26':{perf:102,qual:87,pres:95,eng:2,avert:0}}},
-    {id:'a13',name:'Nesrine Aib',proj:'AEC',active:true,dateEntree:'2023-02',projHistory:[{proj:'AEC',debut:'Fév 26',fin:null}],scores:{'Mar 26':{perf:120,qual:78,pres:100,eng:5,avert:0}}},
-    {id:'a14',name:'Bilel Kaci Aissa',proj:'EURO-PARE-BRISE',active:true,dateEntree:'2023-05',projHistory:[{proj:'EURO-PARE-BRISE',debut:'Fév 26',fin:null}],scores:{'Mar 26':{perf:100,qual:75,pres:100,eng:4,avert:0}}},
-    {id:'a15',name:'Attouchi Melissa',proj:'ALTERNANCE',active:true,dateEntree:'2022-11',projHistory:[{proj:'ALTERNANCE',debut:'Oct 25',fin:null}],scores:{'Oct 25':{perf:149,qual:85,pres:100,eng:5,avert:0},'Mar 26':{perf:105,qual:90,pres:100,eng:5,avert:0}}},
-    {id:'a16',name:'Knayaz Wassim',proj:'ALTERNANCE',active:true,dateEntree:'2022-11',projHistory:[{proj:'ALTERNANCE',debut:'Oct 25',fin:null}],scores:{'Oct 25':{perf:83,qual:80,pres:99,eng:3,avert:0},'Mar 26':{perf:80,qual:80,pres:100,eng:2,avert:0}}},
-    {id:'a17',name:'Benarousse Fatiha',proj:'VITALIVET',active:true,dateEntree:'2020-05',projHistory:[{proj:'VITALIVET',debut:'Oct 25',fin:null}],scores:{'Mar 26':{perf:55,qual:95,pres:100,eng:2,avert:0}}},
-    {id:'a18',name:'Boudia Kamil',proj:'EDEN-ENERGIE',active:true,dateEntree:'2024-03',projHistory:[{proj:'EDEN-ENERGIE',debut:'Mar 26',fin:null}],scores:{'Mar 26':{perf:100,qual:97,pres:100,eng:5,avert:0}}},
-    {id:'a19',name:'Malika Abdeslam',proj:'ENERIX',active:true,dateEntree:'2024-03',projHistory:[{proj:'ENERIX',debut:'Mar 26',fin:null}],scores:{'Mar 26':{perf:0,qual:0,pres:100,eng:1,avert:0}}}
-  ]
+  projects: ['AEC','EURO-PARE-BRISE','JAPHY','ALTERNANCE','VITALIVET','EDEN-ENERGIE','WALTER SANTÉ','ENERIX'],
+  months: ['Juin 26'],
+  agents: [],
+  accounts: [],
+  notifications: [],
+  evaluations: [],
+  deadlines: [],
+  operations: {},
+  objectifsComm: {}
 };
 
 let D = null;
@@ -1244,6 +1236,12 @@ function renderQuickActions(){
   if(!D) return;
   var el = document.getElementById('quick-actions');
   if(!el) return;
+  // Show reset button if demo data detected
+  var resetWrap = document.getElementById('reset-demo-wrap');
+  if(resetWrap && CURRENT_USER && CURRENT_USER.role === 'admin'){
+    var hasDemo = D.agents && D.agents.some(function(a){ return a.id === 'a1' || a.id === 'a2'; });
+    resetWrap.style.display = hasDemo ? '' : 'none';
+  }
 
   // Dernier mois avec scores
   var lastMonth = '';
@@ -1939,6 +1937,28 @@ document.addEventListener('change', function(e){
     updateRapportPreview();
   }
 });
+
+// ══════════════════════════════════════
+// RESET DONNÉES DE DÉMO (admin only)
+// ══════════════════════════════════════
+window.resetDemoData = async function(){
+  if(!confirm('Supprimer TOUTES les données de démo et repartir à zéro ?\nCette action est irréversible.')) return;
+  D = {
+    projects: ['AEC','EURO-PARE-BRISE','JAPHY','ALTERNANCE','VITALIVET','EDEN-ENERGIE','WALTER SANTÉ','ENERIX'],
+    months: ['Juin 26'],
+    agents: [],
+    accounts: D.accounts || [],
+    notifications: [],
+    evaluations: [],
+    deadlines: [],
+    operations: {},
+    objectifsComm: {},
+    teamleaders: []
+  };
+  await saveD();
+  renderAll();
+  alert('✅ Base remise à zéro ! Vous pouvez maintenant ajouter vos vrais agents.');
+};
 window._qaGo = function(dest){
   if(dest === 'mois'){
     var btn = document.querySelector('.nb-dropdown-item[data-page="mois"]');
