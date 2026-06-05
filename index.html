@@ -495,6 +495,26 @@
       height: 4px; background: var(--border); border-radius: 2px; overflow: hidden;
     }
     .kcard-v2-bar-fill { height: 100%; border-radius: 2px; transition: width .6s ease; }
+
+    /* ── BADGES V2 ── */
+    .badge-progression { 
+      font-size: 10px; font-weight: 700; padding: 2px 7px;
+      border-radius: 20px; background: rgba(29,158,117,.12);
+      color: var(--green); white-space: nowrap;
+    }
+    .badge-regularite {
+      font-size: 10px; font-weight: 700; padding: 2px 7px;
+      border-radius: 20px; background: rgba(245,200,0,.2);
+      color: #7a5e00; white-space: nowrap;
+    }
+    .badge-elite {
+      font-size: 10px; font-weight: 700; padding: 2px 7px;
+      border-radius: 20px; background: rgba(29,158,117,.15);
+      color: var(--green); border: 1px solid rgba(29,158,117,.3);
+      white-space: nowrap;
+    }
+    .score-final-wrap { display:flex; flex-direction:column; gap:3px; }
+    .score-badges { display:flex; gap:4px; flex-wrap:wrap; }
   </style>
 </head>
 <body>
@@ -769,18 +789,85 @@ const PC=['#1D9E75','#378ADD','#7F77DD','#D85A30','#BA7517','#E24B4A','#3B6D11',
 const AVC=[['#dcfff2','#0a6b45'],['#dceeff','#0a4d8c'],['#ede8ff','#3b2a8c'],['#fff3dc','#7a4e00'],['#ffe8e8','#8c1a1a'],['#e8f5e9','#1b5e20']];
 const MLIST=['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
 
-function rank(s){return s>=95?'S':s>=80?'A':s>=65?'B':s>=50?'C':'D';}
+// ═══════════════════════════════════════
+// SYSTÈME DE SCORING V2
+// ═══════════════════════════════════════
+
+// Rang statique (utilisé pour les rangs A/B/C/D)
+function rankStatic(s){return s>=80?'A':s>=65?'B':s>=50?'C':'D';}
+
+// Rang final (S réservé au top 5 dynamique — calculé dans rankDynamic)
+function rank(s){return s>=80?'A':s>=65?'B':s>=50?'C':'D';}
+
+// Rang dynamique : top 5 agents = S, reste selon score
+function rankDynamic(agentId, scoreVal){
+  if(!D) return rank(scoreVal);
+  var active = D.agents.filter(function(a){return a.active;});
+  var allScores = active.map(function(a){
+    var ls = lastScore(a);
+    return {id: a.id, score: ls ? ls.score : 0};
+  }).filter(function(x){return x.score > 0;});
+  allScores.sort(function(a,b){return b.score - a.score;});
+  var top5ids = allScores.slice(0,5).map(function(x){return x.id;});
+  if(top5ids.indexOf(agentId) !== -1) return 'S';
+  return rank(scoreVal);
+}
+
 var AVERT_LABELS={0:'Aucun',1:'Verbal',2:'Écrit',3:'Mise à pied'};
 function avertLabel(v){return AVERT_LABELS[+v]||'Aucun';}
 function col(s){return s>=95?'#1D9E75':s>=80?'#378ADD':s>=65?'#7F77DD':s>=50?'#BA7517':'#E24B4A';}
+function colRank(r){return r==='S'?'#1D9E75':r==='A'?'#378ADD':r==='B'?'#7F77DD':r==='C'?'#BA7517':'#E24B4A';}
 function avc(n){let h=0;for(let c of n)h=(h*31+c.charCodeAt(0))%AVC.length;return AVC[h];}
 function ini(n){const p=n.trim().split(' ');return(p[0][0]+(p[1]?p[1][0]:'')).toUpperCase();}
 function uid(){return'id'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
+
+// Score de base
 function sc(perf,qual,pres,eng,avert){
   if(!perf&&!qual)return 0;
   const r=(perf/100*.4)+(qual/100*.3)+(pres/100*.2)+((eng/5)*.1);
   const m=avert>=3?0:1-avert*.1;
   return Math.round(r*m*1000)/10;
+}
+
+// Score précédent d'un agent (avant-dernier mois avec données)
+function prevScore(a){
+  var found = 0;
+  for(var i=D.months.length-1;i>=0;i--){
+    var s=a.scores[D.months[i]];
+    if(s&&(s.perf||s.qual)){
+      found++;
+      if(found===2) return sc(s.perf,s.qual,s.pres,s.eng,s.avert);
+    }
+  }
+  return null;
+}
+
+// Bonus progression : +10pts d'amélioration → +3%
+function bonusProgression(a){
+  var ls = lastScore(a);
+  var ps = prevScore(a);
+  if(!ls || ps===null) return 0;
+  var diff = ls.score - ps;
+  return diff >= 10 ? 3 : 0;
+}
+
+// Score final avec bonus progression
+function scoreFinal(a){
+  var ls = lastScore(a);
+  if(!ls) return 0;
+  return Math.min(100, Math.round((ls.score + bonusProgression(a)) * 10) / 10);
+}
+
+// Badge régularité : 3 mois consécutifs sans baisser
+function badgeRegularite(a){
+  var scores = [];
+  for(var i=0;i<D.months.length;i++){
+    var s=a.scores[D.months[i]];
+    if(s&&(s.perf||s.qual)) scores.push(sc(s.perf,s.qual,s.pres,s.eng,s.avert));
+  }
+  if(scores.length < 3) return false;
+  var last3 = scores.slice(-3);
+  return last3[1] >= last3[0] && last3[2] >= last3[1];
 }
 
 // Calcule ancienneté totale en mois depuis dateEntree
@@ -864,7 +951,10 @@ async function saveD(){
 function lastScore(a){
   for(let i=D.months.length-1;i>=0;i--){
     const s=a.scores[D.months[i]];
-    if(s&&(s.perf||s.qual))return{...s,m:D.months[i],score:sc(s.perf,s.qual,s.pres,s.eng,s.avert)};
+    if(s&&(s.perf||s.qual)){
+      const baseScore = sc(s.perf,s.qual,s.pres,s.eng,s.avert);
+      return {...s, m:D.months[i], score:baseScore};
+    }
   }
   return null;
 }
@@ -1057,13 +1147,28 @@ function renderAgents(){
   list.sort((a,b)=>{const sa=lastScore(a),sb=lastScore(b);return(sb?sb.score:0)-(sa?sa.score:0);});
   const dismissed=D.agents.filter(a=>!a.active);
   document.getElementById('abody').innerHTML=list.map(a=>{
-    const ls=lastScore(a);const s=ls?ls.score:0;const r=rank(s);const[bg,fg]=avc(a.name);
+    const ls=lastScore(a);
+    const baseS=ls?ls.score:0;
+    const bonus=bonusProgression(a);
+    const finalS=scoreFinal(a);
+    const r=rankDynamic(a.id, finalS);
+    const[bg,fg]=avc(a.name);
     const anc=anciennete(a.dateEntree);
+    const isRegular=badgeRegularite(a);
+    const badgesHtml=(bonus>0?'<span class="badge-progression">▲ +'+bonus+'%</span>':'')
+      +(isRegular?'<span class="badge-regularite">⭐ Régulier</span>':'');
     return`<tr style="cursor:pointer" onclick="window._openFiche('${a.id}')">
-      <td><div class="nc"><div class="av" style="background:${bg};color:${fg}">${ini(a.name)}</div><div><span style="font-weight:500">${a.name}</span>${a.operation?`<span style="font-size:10px;background:#f0f0f0;color:#555;padding:1px 7px;border-radius:20px;margin-left:4px">${a.operation}</span>`:''}</div></div></td>
+      <td><div class="nc"><div class="av" style="background:${bg};color:${fg}">${ini(a.name)}</div><div>
+        <span style="font-weight:500">${a.name}</span>
+        ${a.operation?`<span style="font-size:10px;background:#f0f0f0;color:#555;padding:1px 7px;border-radius:20px;margin-left:4px">${a.operation}</span>`:''}
+      </div></div></td>
       <td style="color:var(--muted)">${a.proj}</td>
       <td style="font-size:12px;color:var(--muted)">${anc}</td>
-      <td><div class="sb"><span style="color:${col(s)};font-weight:700;min-width:42px">${s.toFixed(1)}%</span><div class="sb-bg"><div class="sb-fill" style="width:${Math.min(100,s)}%;background:${col(s)}"></div></div></div></td>
+      <td>
+        <div class="sb"><span style="color:${col(finalS)};font-weight:700;min-width:42px">${finalS.toFixed(1)}%</span>
+        <div class="sb-bg"><div class="sb-fill" style="width:${Math.min(100,finalS)}%;background:${col(finalS)}"></div></div></div>
+        ${badgesHtml?`<div class="score-badges" style="margin-top:3px">${badgesHtml}</div>`:''}
+      </td>
       <td><span class="pill s${r}">${RL[r]}</span></td>
       <td><span class="badge-ok">Actif</span></td>
       <td onclick="event.stopPropagation()" style="display:flex;gap:4px;padding:8px 6px">
@@ -1139,15 +1244,27 @@ window._openFiche = function(id){
     <button class="drawer-close" onclick="window.closeDrawer()" title="Fermer">✕</button>`;
 
   // Body
+  const bonus=bonusProgression(a);
+  const finalS=scoreFinal(a);
+  const dynRank=rankDynamic(a.id, finalS);
+  const isRegular=badgeRegularite(a);
+
   document.getElementById('drawer-body').innerHTML=`
     <div class="drawer-score-band">
       <div>
-        <div style="font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em">Score global</div>
-        <div class="drawer-score-big" style="color:${col(s)}">${s.toFixed(1)}%</div>
+        <div style="font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em">Score final</div>
+        <div class="drawer-score-big" style="color:${col(finalS)}">${finalS.toFixed(1)}%</div>
+        ${bonus>0?`<div style="font-size:11px;color:var(--green);font-weight:600;margin-top:2px">dont +${bonus}% bonus progression</div>`:''}
       </div>
       <div style="flex:1;margin-left:12px">
         <div style="height:8px;background:var(--border);border-radius:4px;overflow:hidden">
-          <div style="height:100%;width:${Math.min(100,s)}%;background:${col(s)};border-radius:4px;transition:width .4s"></div>
+          <div style="height:100%;width:${Math.min(100,finalS)}%;background:${col(finalS)};border-radius:4px;transition:width .4s"></div>
+        </div>
+        <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
+          <span class="pill s${dynRank}">${RL[dynRank]}</span>
+          ${dynRank==='S'?'<span class="badge-elite">🏆 Top 5</span>':''}
+          ${isRegular?'<span class="badge-regularite">⭐ Régulier 3 mois</span>':''}
+          ${bonus>0?'<span class="badge-progression">▲ En progression</span>':''}
         </div>
       </div>
     </div>
