@@ -3570,6 +3570,7 @@ function checkLogin(){
 
 function applyUserRole(){
   if(!CURRENT_USER) return;
+  if(!D) return; // Attendre que Firebase soit chargé avant d'appliquer les rôles
   var role = CURRENT_USER.role;
 
   // Define tab access per role
