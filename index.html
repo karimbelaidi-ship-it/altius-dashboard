@@ -1215,6 +1215,7 @@ function projStats(){
 const charts={};
 function dc(id){if(charts[id]){charts[id].destroy();delete charts[id];}}
 
+var _onboardingShown = false;
 function renderAll(){
   // Restaurer la session si pas encore connecté
   if(!CURRENT_USER) checkLogin();
@@ -1227,6 +1228,11 @@ function renderAll(){
   if(document.getElementById('pg-projets').classList.contains('on'))renderProjects();
   if(document.getElementById('pg-cal-dl') && document.getElementById('pg-cal-dl').classList.contains('on'))renderCalDl();
   if(document.getElementById('pg-chef') && document.getElementById('pg-chef').classList.contains('on'))renderChef();
+  // Afficher onboarding une seule fois par session après que tout est rendu
+  if(CURRENT_USER && D && !_onboardingShown){
+    _onboardingShown = true;
+    setTimeout(window.showOnboarding, 400);
+  }
 }
 
 function renderOverview(){
@@ -3634,7 +3640,6 @@ window.doLogin = function(){
     err.style.display = 'none';
     applyUserRole();
     renderAll();
-    setTimeout(showOnboarding, 600);
   } else {
     err.style.display = 'block';
     document.getElementById('loginPass').value = '';
