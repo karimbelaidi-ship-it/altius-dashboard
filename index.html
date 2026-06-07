@@ -2127,8 +2127,24 @@ window.showOnboarding = function showOnboarding(){
 
 window.closeOnboarding = function(){
   document.getElementById('onboarding-overlay').style.display = 'none';
-  applyUserRole();
-  renderAll();
+  if(D){
+    applyUserRole();
+    renderAll();
+  } else {
+    // D pas encore chargé (cas admin DEFAULT) — attendre Firebase
+    var attempts = 0;
+    var waitForD = setInterval(function(){
+      attempts++;
+      if(D){
+        clearInterval(waitForD);
+        applyUserRole();
+        renderAll();
+      } else if(attempts > 20){
+        clearInterval(waitForD);
+        applyUserRole();
+      }
+    }, 200);
+  }
 };
 
 window.onboardingGo = function(dest){
@@ -3560,8 +3576,11 @@ function checkLogin(){
       if(acc){
         CURRENT_USER = acc;
         document.getElementById('loginOverlay').style.display = 'none';
-        document.getElementById('main-nav').style.display = '';
-        applyUserRole();
+        if(D){
+          document.getElementById('main-nav').style.display = '';
+          applyUserRole();
+        }
+        // If D not yet loaded, onSnapshot will call renderAll() which calls applyUserRole()
         return;
       }
     }catch(e){}
