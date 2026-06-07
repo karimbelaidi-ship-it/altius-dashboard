@@ -613,7 +613,7 @@
     /* ── ONBOARDING ── */
     .onboarding-overlay {
       position: fixed; inset: 0; background: rgba(0,0,0,.6);
-      backdrop-filter: blur(4px); z-index: 900;
+      backdrop-filter: blur(4px); z-index: 950;
       display: flex; align-items: center; justify-content: center;
       padding: 20px;
     }
@@ -2102,7 +2102,7 @@ var ONBOARDING_STEPS = {
   ]
 };
 
-function showOnboarding(){
+window.showOnboarding = function showOnboarding(){
   var role = CURRENT_USER ? CURRENT_USER.role : 'admin';
   var steps = ONBOARDING_STEPS[role] || ONBOARDING_STEPS.admin;
   var nom = CURRENT_USER ? CURRENT_USER.nom : '';
@@ -2123,7 +2123,7 @@ function showOnboarding(){
   }).join('');
 
   document.getElementById('onboarding-overlay').style.display = 'flex';
-}
+};
 
 window.closeOnboarding = function(){
   document.getElementById('onboarding-overlay').style.display = 'none';
