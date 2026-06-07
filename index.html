@@ -570,6 +570,85 @@
     .chef-agent-name { font-size:14px; font-weight:700; }
     .chef-agent-sub { font-size:11px; color:var(--muted); margin-top:2px; }
     .chef-agent-score { font-size:22px; font-weight:900; flex-shrink:0; }
+
+    /* ── AIDE CONTEXTUELLE ── */
+    .help-icon {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 16px; height: 16px; border-radius: 50%;
+      background: var(--border); color: var(--muted);
+      font-size: 10px; font-weight: 800; cursor: help;
+      margin-left: 4px; flex-shrink: 0;
+      transition: background .15s;
+    }
+    .help-icon:hover { background: var(--yellow); color: #000; }
+    .tooltip-wrap { position: relative; display: inline-flex; align-items: center; }
+    .tooltip-box {
+      display: none; position: absolute; bottom: calc(100% + 6px); left: 50%;
+      transform: translateX(-50%);
+      background: #1a1a18; color: #f0f0f0;
+      font-size: 11px; line-height: 1.5; font-weight: 400;
+      padding: 8px 12px; border-radius: 8px;
+      white-space: nowrap; z-index: 999;
+      box-shadow: 0 4px 16px rgba(0,0,0,.3);
+      pointer-events: none;
+      max-width: 220px; white-space: normal; text-align: left;
+    }
+    .tooltip-box::after {
+      content: ''; position: absolute; top: 100%; left: 50%;
+      transform: translateX(-50%);
+      border: 5px solid transparent; border-top-color: #1a1a18;
+    }
+    .tooltip-wrap:hover .tooltip-box { display: block; }
+
+    /* ── BANNER INFO SAISIE ── */
+    .saisie-info-banner {
+      background: rgba(245,200,0,.08); border: 1px solid rgba(245,200,0,.2);
+      border-radius: 12px; padding: 12px 16px; margin-bottom: 16px;
+      display: flex; gap: 12px; align-items: flex-start;
+    }
+    .saisie-info-icon { font-size: 20px; flex-shrink: 0; }
+    .saisie-info-text { font-size: 12px; color: var(--muted); line-height: 1.6; }
+    .saisie-info-text strong { color: var(--text); }
+
+    /* ── ONBOARDING ── */
+    .onboarding-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,.6);
+      backdrop-filter: blur(4px); z-index: 900;
+      display: flex; align-items: center; justify-content: center;
+      padding: 20px;
+    }
+    .onboarding-box {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 20px; padding: 32px; width: 100%; max-width: 520px;
+      box-shadow: 0 24px 80px rgba(0,0,0,.4);
+      animation: modal-in .25s ease;
+    }
+    .onboarding-header { text-align: center; margin-bottom: 28px; }
+    .onboarding-logo {
+      width: 56px; height: 56px; background: var(--yellow);
+      border-radius: 14px; display: flex; align-items: center;
+      justify-content: center; margin: 0 auto 14px; font-size: 26px;
+    }
+    .onboarding-title { font-size: 20px; font-weight: 900; margin-bottom: 6px; }
+    .onboarding-sub { font-size: 13px; color: var(--muted); }
+    .onboarding-steps { display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px; }
+    .onboarding-step {
+      display: flex; gap: 14px; align-items: flex-start;
+      background: var(--light); border: 1px solid var(--border);
+      border-radius: 12px; padding: 14px 16px; cursor: pointer;
+      transition: all .15s;
+    }
+    .onboarding-step:hover { background: rgba(245,200,0,.06); border-color: rgba(245,200,0,.3); }
+    .onboarding-step-icon {
+      width: 38px; height: 38px; border-radius: 10px;
+      background: rgba(245,200,0,.12); display: flex;
+      align-items: center; justify-content: center;
+      font-size: 18px; flex-shrink: 0;
+    }
+    .onboarding-step-title { font-size: 13px; font-weight: 700; margin-bottom: 3px; }
+    .onboarding-step-desc { font-size: 12px; color: var(--muted); line-height: 1.5; }
+    .onboarding-skip { text-align: center; font-size: 12px; color: var(--muted); cursor: pointer; }
+    .onboarding-skip:hover { color: var(--text); }
   </style>
 </head>
 <body>
@@ -689,6 +768,15 @@
       </div>
       <div class="card">
         <div class="stitle">Saisir les scores du mois</div>
+        <!-- Bannière d'aide -->
+        <div class="saisie-info-banner">
+          <div class="saisie-info-icon">💡</div>
+          <div class="saisie-info-text">
+            <strong>Comment saisir les scores ?</strong><br>
+            Sélectionnez le mois et le projet, puis remplissez les colonnes pour chaque agent.
+            Le score est calculé automatiquement. Cliquez sur <strong>💾 Enregistrer</strong> quand vous avez terminé.
+          </div>
+        </div>
         <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:flex-end">
           <div><div class="flabel">Mois</div><select id="msel" onchange="renderScoreGrid()" style="width:auto"></select></div>
           <div><div class="flabel">Projet</div><select id="psel" onchange="renderScoreGrid()" style="width:auto"></select></div>
@@ -1982,6 +2070,75 @@ window.resetDemoData = async function(){
   }
   saving = false;
 };
+
+// ══════════════════════════════════════
+// ONBOARDING
+// ══════════════════════════════════════
+var ONBOARDING_STEPS = {
+  admin: [
+    { icon:"👥", title:"1. Gerer les agents", desc:"Allez dans Agents pour ajouter vos agents, les assigner a un projet et saisir leurs informations.", dest:"agents" },
+    { icon:"📅", title:"2. Saisir les scores du mois", desc:"Dans Administration > Mois & Scores, selectionnez le mois et le projet, puis remplissez Performance, Qualite, Presence et Engagement.", dest:"mois" },
+    { icon:"🎯", title:"3. Definir les objectifs commerciaux", desc:"Dans Projets > Objectifs, definissez le type (leads, CA...) et l objectif mensuel de chaque projet.", dest:"projets" }
+  ],
+  respo: [
+    { icon:"📊", title:"1. Consulter le tableau de bord", desc:"Votre vue principale affiche les scores, le Top 5 et les alertes de vos projets en temps reel.", dest:"overview" },
+    { icon:"📅", title:"2. Saisir les scores", desc:"Dans Mois & Scores, selectionnez votre projet et remplissez les colonnes pour chaque agent.", dest:"mois" },
+    { icon:"🎯", title:"3. Suivre les objectifs", desc:"Dans Projets > Objectifs, renseignez le realise du mois pour voir le % d atteinte automatiquement.", dest:"projets" }
+  ],
+  chef: [
+    { icon:"🎯", title:"1. Votre vue projet", desc:"L onglet Mon projet affiche en temps reel le classement de votre equipe, les alertes et l evolution mensuelle.", dest:"chef" },
+    { icon:"📅", title:"2. Saisir les scores", desc:"Dans Mois & Scores, selectionnez votre projet et remplissez les colonnes pour chaque agent de votre equipe.", dest:"mois" },
+    { icon:"👥", title:"3. Gerer votre equipe", dest:"agents", desc:"Dans Agents, consultez les fiches individuelles, ajoutez des commentaires et suivez l evolution de chaque agent." }
+  ],
+  teamlead: [
+    { icon:"🎯", title:"1. Votre vue equipe", desc:"L onglet Mon projet affiche le classement et les alertes de votre equipe en temps reel.", dest:"chef" },
+    { icon:"👥", title:"2. Consulter les fiches agents", desc:"Cliquez sur un agent dans la liste pour ouvrir sa fiche : scores, historique, badges et commentaires.", dest:"agents" },
+    { icon:"📆", title:"3. Calendrier et deadlines", desc:"Retrouvez les evaluations planifiees et vos deadlines dans Calendrier & Deadlines.", dest:"cal-dl" }
+  ],
+  qualite: [
+    { icon:"🎯", title:"1. Votre vue equipe", desc:"L onglet Mon projet affiche le classement et les scores qualite de votre equipe.", dest:"chef" },
+    { icon:"👥", title:"2. Scores qualite", desc:"Dans Agents, consultez les scores qualite individuels et les fiches detaillees de chaque agent.", dest:"agents" },
+    { icon:"📅", title:"3. Evolution mensuelle", desc:"Dans Mois & Scores > Comparaison, visualisez l evolution des scores qualite mois par mois.", dest:"mois" }
+  ]
+};
+
+function showOnboarding(){
+  var key = 'onboarding_done_' + (CURRENT_USER ? CURRENT_USER.id : 'guest');
+  if(localStorage.getItem(key)) return; // Already seen
+  var role = CURRENT_USER ? CURRENT_USER.role : 'admin';
+  var steps = ONBOARDING_STEPS[role] || ONBOARDING_STEPS.admin;
+  var nom = CURRENT_USER ? CURRENT_USER.nom : '';
+  var roleLabel = CURRENT_USER && ROLES[role] ? ROLES[role].label : 'Administrateur';
+
+  document.getElementById('onboarding-sub').textContent =
+    'Bonjour ' + nom + ' — ' + roleLabel + ' · Voici comment bien démarrer :';
+
+  document.getElementById('onboarding-steps').innerHTML = steps.map(function(s){
+    return '<div class="onboarding-step" data-dest="'+s.dest+'" onclick="window.onboardingGo(this.dataset.dest)">'
+      + '<div class="onboarding-step-icon">'+s.icon+'</div>'
+      + '<div>'
+        + '<div class="onboarding-step-title">'+s.title+'</div>'
+        + '<div class="onboarding-step-desc">'+s.desc+'</div>'
+      + '</div>'
+      + '<div style="margin-left:auto;font-size:18px;color:var(--muted);flex-shrink:0">›</div>'
+    + '</div>';
+  }).join('');
+
+  document.getElementById('onboarding-overlay').style.display = 'flex';
+}
+
+window.closeOnboarding = function(){
+  var key = 'onboarding_done_' + (CURRENT_USER ? CURRENT_USER.id : 'guest');
+  localStorage.setItem(key, '1');
+  document.getElementById('onboarding-overlay').style.display = 'none';
+};
+
+window.onboardingGo = function(dest){
+  window.closeOnboarding();
+  var btn = document.querySelector('.nb[data-page="'+dest+'"]')
+    || document.querySelector('.nb-dropdown-item[data-page="'+dest+'"]');
+  goPage(dest, btn);
+};
 window._qaGo = function(dest){
   if(dest === 'mois'){
     var btn = document.querySelector('.nb-dropdown-item[data-page="mois"]');
@@ -2222,12 +2379,12 @@ window.renderScoreGrid=function(){
   if(!ags.length){document.getElementById('sgrid').innerHTML='<p style="font-size:13px;color:var(--muted);padding:8px 0">Aucun agent actif dans ce projet.</p>';return;}
   document.getElementById('sgrid').innerHTML=`<table class="tbl"><thead><tr>
     <th>Agent</th>
-    <th>Performance %</th>
-    <th>Qualité %</th>
-    <th>Présence %</th>
-    <th title="Présent aux briefs / Remontées terrain / Comportement équipe">Engagement <span style="font-size:10px;color:var(--muted)">(3 critères)</span></th>
-    <th>Avertissement</th>
-    <th>Score calculé</th>
+    <th><div class="tooltip-wrap">Performance %<span class="help-icon">?</span><div class="tooltip-box">% d'atteinte de l'objectif commercial.<br>Ex: objectif 50 ventes, réalisé 60 → 120%.<br><strong>Poids : 40% du score final.</strong></div></div></th>
+    <th><div class="tooltip-wrap">Qualité %<span class="help-icon">?</span><div class="tooltip-box">Note de qualité des appels (grille d'écoute).<br>Entre 0% et 100%.<br><strong>Poids : 30% du score final.</strong></div></div></th>
+    <th><div class="tooltip-wrap">Présence %<span class="help-icon">?</span><div class="tooltip-box">Taux de présence sur le mois.<br>100% = aucune absence. Par défaut : 100%.<br><strong>Poids : 20% du score final.</strong></div></div></th>
+    <th><div class="tooltip-wrap">Engagement <span style="font-size:10px;color:var(--muted)">(3 critères)</span><span class="help-icon">?</span><div class="tooltip-box">3 critères objectifs :<br>✅ Présent aux briefs<br>✅ Remontées terrain<br>✅ Comportement équipe<br><strong>Poids : 10% du score final.</strong></div></div></th>
+    <th><div class="tooltip-wrap">Avertissement<span class="help-icon">?</span><div class="tooltip-box">Sanction disciplinaire du mois.<br>Verbal : -10% | Écrit : -20%<br>Mise à pied : score = 0.<br><strong>Impact : déduction sur score final.</strong></div></div></th>
+    <th><div class="tooltip-wrap">Score calculé<span class="help-icon">?</span><div class="tooltip-box">Score final = Perf×40% + Qualité×30% + Présence×20% + Engagement×10% − Avertissements.<br><strong>Se met à jour en temps réel.</strong></div></div></th>
   </tr></thead><tbody>${ags.map(a=>{
     const s=a.scores[m]||{perf:'',qual:'',pres:100,eng:{briefs:true,remontees:true,comportement:true},avert:0};
     const eng = (typeof s.eng==='object' && s.eng!==null) ? s.eng : {briefs:true,remontees:true,comportement:true};
@@ -3475,6 +3632,8 @@ window.doLogin = function(){
     document.getElementById('main-nav').style.display = '';
     err.style.display = 'none';
     applyUserRole();
+    renderAll();
+    setTimeout(showOnboarding, 600);
   } else {
     err.style.display = 'block';
     document.getElementById('loginPass').value = '';
@@ -4723,6 +4882,19 @@ setInterval(function(){
   <div id="notif-list"></div>
 </div>
 <!-- LOGIN SCREEN -->
+
+<!-- ONBOARDING SCREEN -->
+<div id="onboarding-overlay" class="onboarding-overlay" style="display:none">
+  <div class="onboarding-box">
+    <div class="onboarding-header">
+      <div class="onboarding-logo">📊</div>
+      <div class="onboarding-title">Bienvenue sur Altius Dashboard</div>
+      <div class="onboarding-sub" id="onboarding-sub">Tableau de bord de performance commerciale</div>
+    </div>
+    <div class="onboarding-steps" id="onboarding-steps"></div>
+    <div class="onboarding-skip" onclick="window.closeOnboarding()">Passer → Aller directement au dashboard</div>
+  </div>
+</div>
 <div class="login-overlay" id="loginOverlay">
   <div class="login-box">
     <div class="login-logo">
