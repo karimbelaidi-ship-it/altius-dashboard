@@ -2127,6 +2127,8 @@ window.showOnboarding = function showOnboarding(){
 
 window.closeOnboarding = function(){
   document.getElementById('onboarding-overlay').style.display = 'none';
+  applyUserRole();
+  renderAll();
 };
 
 window.onboardingGo = function(dest){
