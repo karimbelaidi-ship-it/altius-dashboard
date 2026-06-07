@@ -1228,11 +1228,7 @@ function renderAll(){
   if(document.getElementById('pg-projets').classList.contains('on'))renderProjects();
   if(document.getElementById('pg-cal-dl') && document.getElementById('pg-cal-dl').classList.contains('on'))renderCalDl();
   if(document.getElementById('pg-chef') && document.getElementById('pg-chef').classList.contains('on'))renderChef();
-  // Afficher onboarding une seule fois par session après que tout est rendu
-  if(CURRENT_USER && D && !_onboardingShown){
-    _onboardingShown = true;
-    setTimeout(window.showOnboarding, 400);
-  }
+
 }
 
 function renderOverview(){
@@ -2133,11 +2129,6 @@ window.showOnboarding = function showOnboarding(){
 
 window.closeOnboarding = function(){
   document.getElementById('onboarding-overlay').style.display = 'none';
-  if(CURRENT_USER){
-    document.getElementById('main-nav').style.display = '';
-    applyUserRole();
-  }
-  if(D) renderAll();
 };
 
 window.onboardingGo = function(dest){
@@ -3640,6 +3631,8 @@ window.doLogin = function(){
     err.style.display = 'none';
     applyUserRole();
     renderAll();
+    // Show onboarding after everything is rendered
+    setTimeout(window.showOnboarding, 500);
   } else {
     err.style.display = 'block';
     document.getElementById('loginPass').value = '';
