@@ -3570,7 +3570,6 @@ function checkLogin(){
 
 function applyUserRole(){
   if(!CURRENT_USER) return;
-  if(!D) return; // Attendre que Firebase soit chargé avant d'appliquer les rôles
   var role = CURRENT_USER.role;
 
   // Define tab access per role
@@ -3630,10 +3629,8 @@ window.doLogin = function(){
     document.getElementById('loginOverlay').style.display = 'none';
     document.getElementById('main-nav').style.display = '';
     err.style.display = 'none';
-    applyUserRole();
-    renderAll();
-    // Show onboarding after everything is rendered
-    setTimeout(window.showOnboarding, 500);
+    // Ne pas appeler applyUserRole ici — onSnapshot le fera quand D sera chargé
+    // Afficher l'onboarding après que Firebase charge (onSnapshot -> renderAll -> onboarding)
   } else {
     err.style.display = 'block';
     document.getElementById('loginPass').value = '';
@@ -4520,19 +4517,21 @@ onSnapshot(REF,async(snap)=>{
     await setDoc(REF,D);
     setSyncBadge('sync-ok','✅ Initialisé');
   }
-  // Toujours afficher la nav si utilisateur connecté
   if(CURRENT_USER){
     document.getElementById('main-nav').style.display = '';
-    applyUserRole();
   }
   renderAll();
+  // Onboarding après premier chargement complet
+  if(CURRENT_USER && !_onboardingShown){
+    _onboardingShown = true;
+    setTimeout(window.showOnboarding, 500);
+  }
 },(err)=>{
   setSyncBadge('sync-err','❌ Hors ligne');
   console.error(err);
   if(!D){D=JSON.parse(JSON.stringify(DEF));}
   if(CURRENT_USER){
     document.getElementById('main-nav').style.display = '';
-    applyUserRole();
   }
   renderAll();
 });
