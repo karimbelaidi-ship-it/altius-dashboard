@@ -685,6 +685,7 @@
     .sparkline-wrap { display: inline-block; vertical-align: middle; margin-left: 8px; }
     .sparkline-svg { overflow: visible; }
   </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
 
@@ -702,7 +703,7 @@
       <div class="logo-sub" id="subtitle">Connexion...</div>
     </div>
   </div>
-  <div style="display:flex;align-items:center;gap:10px"><button onclick="showOnboarding()" style="background:rgba(245,200,0,.1);border:1px solid rgba(245,200,0,.3);border-radius:8px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;color:#a08200;font-family:inherit;">❓ Aide</button><button onclick="window._exportPDF()" style="background:var(--yellow);color:#1a1a18;border:none;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">📄 Export PDF</button><div style="display:flex;align-items:center;gap:6px">
+  <div style="display:flex;align-items:center;gap:10px"><button onclick="showOnboarding()" style="background:rgba(245,200,0,.1);border:1px solid rgba(245,200,0,.3);border-radius:8px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;color:#a08200;font-family:inherit;">❓ Aide</button><button onclick="window._exportExcel()" style="background:var(--yellow);color:#1a1a18;border:none;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">📊 Export Excel</button><div style="display:flex;align-items:center;gap:6px">
     <button class="notif-bell" id="notif-bell" onclick="window.toggleNotifPanel()" title="Notifications">
       🔔 <span id="notif-count" class="notif-badge" style="display:none">0</span>
     </button>
@@ -894,7 +895,7 @@
         <div class="rapport-opts">
           <select id="rapport-mois" style="font-size:13px;width:auto"></select>
           <select id="rapport-proj" style="font-size:13px;width:auto"></select>
-          <button class="btn yellow" onclick="window.genRapport()">📄 Générer PDF</button>
+          <button class="btn yellow" onclick="window.genRapport()">📊 Générer Excel</button>
         </div>
       </div>
       <div id="rapport-preview"></div>
@@ -1987,7 +1988,7 @@ function updateRapportPreview(){
   document.getElementById('rapport-preview').innerHTML = html;
 }
 
-window.genRapport = function(){
+window.genRapport = window._exportExcel; window.genRapportOld = function(){
   if(!D){ alert('Données non chargées.'); return; }
   var moisSel = document.getElementById('rapport-mois');
   var projSel = document.getElementById('rapport-proj');
@@ -3007,377 +3008,169 @@ window._delComment = async function(agentId, idx){
 }
 
 
-window._exportPDF = function(){
+window._exportExcel = function(){
   if(!D){ alert('Donnees non chargees.'); return; }
-  var jsPDF = window.jspdf.jsPDF;
-  var doc = new jsPDF({orientation:'portrait', unit:'mm', format:'a4'});
-  var W = doc.internal.pageSize.getWidth();
-  var H = doc.internal.pageSize.getHeight();
-  var rankFn = function(s){ return s>=95?'S':s>=80?'A':s>=65?'B':s>=50?'C':'D'; };
-  var colRgb = function(s){ return s>=95?[29,158,117]:s>=80?[55,138,221]:s>=65?[127,119,221]:s>=50?[186,117,23]:[226,75,74]; };
-  var calcS = function(s){
-    if(!s||(s.perf===0&&s.qual===0)) return 0;
-    var r=(s.perf/100*0.4)+(s.qual/100*0.3)+(s.pres/100*0.2)+engScore(s.eng);
-    var m=s.avert>=3?0:1-s.avert*0.1;
+  if(typeof XLSX === 'undefined'){ alert('Librairie Excel non chargee, reessayez dans quelques secondes.'); return; }
+
+  var wb = XLSX.utils.book_new();
+
+  // ─── Helpers ───
+  function sc2(perf,qual,pres,eng,avert){
+    if(!perf&&!qual) return 0;
+    var e=0;
+    if(typeof eng==='object'&&eng!==null){
+      var cnt=(eng.briefs?1:0)+(eng.remontees?1:0)+(eng.comportement?1:0);
+      e=cnt===3?0.10:cnt===2?0.07:cnt===1?0.03:0;
+    } else { e=(eng/5)*0.10; }
+    var r=(perf/100*0.4)+(qual/100*0.3)+(pres/100*0.2)+e;
+    var m=avert>=3?0:1-avert*0.1;
     return Math.round(r*m*1000)/10;
-  };
-  var getLastScore = function(a){
-    for(var i=D.months.length-1;i>=0;i--){
-      var s=a.scores[D.months[i]];
-      if(s&&(s.perf||s.qual)) return {s:s, score:calcS(s), month:D.months[i]};
-    }
-    return null;
-  };
+  }
+  function agentScore(a){
+    var lastM = D.months[D.months.length-1];
+    var s=a.scores[lastM];
+    if(!s||(s.perf===0&&s.qual===0)) return 0;
+    return sc2(s.perf||0,s.qual||0,s.pres||100,s.eng||{briefs:true,remontees:true,comportement:true},s.avert||0);
+  }
+  function agentRank(a){
+    var score = agentScore(a);
+    var active = D.agents.filter(function(x){return x.active;});
+    var sorted = active.slice().sort(function(x,y){return agentScore(y)-agentScore(x);});
+    var top5 = sorted.slice(0,5).map(function(x){return x.id;});
+    if(top5.indexOf(a.id)!==-1) return 'A';
+    if(score>=80) return 'B';
+    if(score>=65) return 'C';
+    return 'E2';
+  }
   var active = D.agents.filter(function(a){return a.active;});
-  var allScores = active.map(function(a){var ls=getLastScore(a);return ls?ls.score:0;}).filter(function(s){return s>0;});
-  var avg = allScores.length?Math.round(allScores.reduce(function(a,b){return a+b;},0)/allScores.length):0;
-  var rc = {S:0,A:0,B:0,C:0,D:0};
-  allScores.forEach(function(s){rc[rankFn(s)]++;});
-  var tot = allScores.length||1;
-  var dateStr = new Date().toLocaleDateString('fr-FR',{day:'2-digit',month:'long',year:'numeric'});
+  var lastM = D.months[D.months.length-1];
+  var scores = active.map(function(a){return agentScore(a);}).filter(function(s){return s>0;});
+  var avg = scores.length ? Math.round(scores.reduce(function(t,s){return t+s;},0)/scores.length*10)/10 : 0;
+  var ranks = active.map(function(a){return agentRank(a);});
+  var cA=ranks.filter(function(r){return r==='A';}).length;
+  var cB=ranks.filter(function(r){return r==='B';}).length;
+  var cC=ranks.filter(function(r){return r==='C';}).length;
+  var cE2=ranks.filter(function(r){return r==='E2';}).length;
 
-  function addHeader(pageTitle){
-    doc.setFillColor(26,26,24);
-    doc.rect(0,0,W,16,'F');
-    doc.setFillColor(245,200,0);
-    doc.rect(0,16,W,2,'F');
-    doc.setTextColor(245,200,0);
-    doc.setFontSize(11);
-    doc.setFont('helvetica','bold');
-    doc.text('ALTIUS Contact', 14, 10);
-    doc.setTextColor(200,200,200);
-    doc.setFontSize(8);
-    doc.setFont('helvetica','normal');
-    doc.text(pageTitle, W-14, 10, {align:'right'});
-  }
-
-  function addFooter(){
-    var total = doc.internal.getNumberOfPages();
-    for(var i=1;i<=total;i++){
-      doc.setPage(i);
-      doc.setFillColor(26,26,24);
-      doc.rect(0,H-8,W,8,'F');
-      doc.setTextColor(245,200,0);
-      doc.setFontSize(7);
-      doc.setFont('helvetica','normal');
-      doc.text('ALTIUS Contact - Rapport Performance Sales - Confidentiel', 14, H-3);
-      doc.setTextColor(150,150,150);
-      doc.text('Page '+i+'/'+total, W-14, H-3, {align:'right'});
-    }
-  }
-
-  // =====================
-  // PAGE 1 - COUVERTURE
-  // =====================
-  doc.setFillColor(26,26,24);
-  doc.rect(0,0,W,H,'F');
-  doc.setFillColor(245,200,0);
-  doc.rect(0,H*0.45,W,2,'F');
-  doc.setFillColor(255,255,255);
-  doc.setDrawColor(255,255,255);
-  // Logo A shape
-  doc.setFillColor(255,255,255);
-  doc.triangle(W/2-15,H*0.28, W/2,H*0.16, W/2+15,H*0.28,'F');
-  doc.setFillColor(26,26,24);
-  doc.rect(W/2-6,H*0.22,12,5,'F');
-  doc.setFillColor(245,200,0);
-  doc.rect(W/2-8,H*0.25,16,3,'F');
-  doc.setTextColor(255,255,255);
-  doc.setFontSize(28);
-  doc.setFont('helvetica','bold');
-  doc.text('ALTIUS', W/2, H*0.38, {align:'center'});
-  doc.setTextColor(245,200,0);
-  doc.setFontSize(14);
-  doc.setFont('helvetica','normal');
-  doc.text('CONTACT', W/2, H*0.43, {align:'center'});
-  doc.setTextColor(255,255,255);
-  doc.setFontSize(20);
-  doc.setFont('helvetica','bold');
-  doc.text('Rapport Performance Sales', W/2, H*0.54, {align:'center'});
-  doc.setFontSize(11);
-  doc.setFont('helvetica','normal');
-  doc.setTextColor(180,180,180);
-  doc.text('Genere le '+dateStr, W/2, H*0.60, {align:'center'});
-  doc.text('Periode : '+D.months[0]+' - '+D.months[D.months.length-1], W/2, H*0.65, {align:'center'});
-  // KPI boxes on cover
-  var kpis = [
-    {label:'Agents actifs', val:active.length, c:[29,158,117]},
-    {label:'Score moyen', val:avg+'%', c:colRgb(avg)},
-    {label:'Rang S - Elite', val:rc.S, c:[29,158,117]},
-    {label:'Rang D - Critique', val:rc.D, c:[226,75,74]},
-  ];
-  var bw=(W-28-9)/4;
-  kpis.forEach(function(k,i){
-    var x=14+i*(bw+3);
-    var y=H*0.73;
-    doc.setFillColor(40,40,38);
-    doc.roundedRect(x,y,bw,20,2,2,'F');
-    doc.setFillColor(k.c[0],k.c[1],k.c[2]);
-    doc.rect(x,y,2,20,'F');
-    doc.setTextColor(160,160,160);
-    doc.setFontSize(7);
-    doc.setFont('helvetica','normal');
-    doc.text(k.label, x+5, y+7);
-    doc.setTextColor(k.c[0],k.c[1],k.c[2]);
-    doc.setFontSize(14);
-    doc.setFont('helvetica','bold');
-    doc.text(String(k.val), x+5, y+16);
+  // ─── ONGLET 1 : Synthèse ───
+  var synth = [];
+  synth.push(['ALTIUS CONTACT — RAPPORT DE PERFORMANCE','','','','','','','','','']);
+  synth.push(['Période : '+lastM+' · '+active.length+' agents actifs · '+D.projects.length+' projets','','','','','','','','','']);
+  synth.push([]);
+  synth.push(['KPI GLOBAUX','','','','','','','','','']);
+  synth.push(['Agents actifs','Score moyen','Rang A (Elite)','Rang B','Rang C','Rang E2 (Critique)','','','','']);
+  synth.push([active.length, avg+'%', cA, cB, cC, cE2,'','','','']);
+  synth.push([]);
+  synth.push(['TOP 3 AGENTS DU MOIS','','','','','','','','','']);
+  synth.push(['#','Nom','Projet','Score','Rang','','','','','']);
+  var top3 = active.slice().sort(function(a,b){return agentScore(b)-agentScore(a);}).slice(0,3);
+  var medals = ['🥇','🥈','🥉'];
+  top3.forEach(function(a,i){
+    synth.push([medals[i], a.name, a.proj, agentScore(a).toFixed(1)+'%', agentRank(a),'','','','','']);
+  });
+  synth.push([]);
+  synth.push(['RÉPARTITION DES RANGS','','','','','','','','','']);
+  synth.push(['Rang','Nb agents','% du total','','','','','','','']);
+  [['Rang A',cA],['Rang B',cB],['Rang C',cC],['Rang E2',cE2]].forEach(function(row){
+    synth.push([row[0], row[1], ranks.length?(Math.round(row[1]/ranks.length*100)+'%'):'0%','','','','','','','']);
   });
 
-  // =====================
-  // PAGE 2 - RESUME
-  // =====================
-  doc.addPage();
-  addHeader('Resume executif');
-  var y = 26;
-  doc.setTextColor(26,26,24);
-  doc.setFontSize(13);
-  doc.setFont('helvetica','bold');
-  doc.text('Resume executif', 14, y);
-  doc.setFillColor(245,200,0);
-  doc.rect(14,y+2,30,1,'F');
-  y += 10;
-  // Distribution rangs
-  doc.setFontSize(9);
-  doc.setFont('helvetica','bold');
-  doc.setTextColor(26,26,24);
-  doc.text('Distribution des rangs', 14, y);
-  y += 5;
-  var rkLabels = {S:'Rang S - Elite (95%+)',A:'Rang A - Top (80-94%)',B:'Rang B - Confirme (65-79%)',C:'Rang C - Coaching (50-64%)',D:'Rang D - Critique (<50%)'};
-  var rkColors = {S:[29,158,117],A:[55,138,221],B:[127,119,221],C:[186,117,23],D:[226,75,74]};
-  ['S','A','B','C','D'].forEach(function(r){
-    var pct=Math.round(rc[r]/tot*100);
-    var bw2=Math.round((W-60)*pct/100);
-    doc.setFillColor(rkColors[r][0],rkColors[r][1],rkColors[r][2]);
-    doc.roundedRect(14,y,bw2||1,5,1,1,'F');
-    doc.setFillColor(240,240,238);
-    doc.roundedRect(14+(bw2||1),y,(W-60)-(bw2||1),5,1,1,'F');
-    doc.setTextColor(26,26,24);
-    doc.setFontSize(8);
-    doc.setFont('helvetica','normal');
-    doc.text(rkLabels[r], W-44, y+4);
-    doc.setFont('helvetica','bold');
-    doc.text(rc[r]+' ('+pct+'%)', W-14, y+4, {align:'right'});
-    y += 8;
+  var wsSynth = XLSX.utils.aoa_to_sheet(synth);
+  wsSynth['!cols'] = [{wch:28},{wch:22},{wch:18},{wch:14},{wch:14},{wch:18}];
+  XLSX.utils.book_append_sheet(wb, wsSynth, '📊 Synthèse');
+
+  // ─── ONGLET 2 : Classement général ───
+  var classement = [];
+  classement.push(['CLASSEMENT GÉNÉRAL — '+lastM,'','','','','','','']);
+  classement.push(['#','Nom agent','Projet','Score','Rang','Performance','Qualite','Presence']);
+  var sorted_all = active.slice().sort(function(a,b){return agentScore(b)-agentScore(a);});
+  sorted_all.forEach(function(a,idx){
+    var s = a.scores[lastM]||{};
+    classement.push([
+      idx+1, a.name, a.proj,
+      agentScore(a).toFixed(1)+'%',
+      agentRank(a),
+      (s.perf||0)+'%',
+      (s.qual||0)+'%',
+      (s.pres||100)+'%'
+    ]);
   });
-  y += 4;
-  // Top 3
-  doc.setFontSize(11);
-  doc.setFont('helvetica','bold');
-  doc.setTextColor(26,26,24);
-  doc.text('Top 3 Agents du mois', 14, y);
-  doc.setFillColor(245,200,0);
-  doc.rect(14,y+2,30,1,'F');
-  y += 8;
-  var ranked = active.map(function(a){var ls=getLastScore(a);return {name:a.name,proj:a.proj,score:ls?ls.score:0};})
-    .filter(function(a){return a.score>0;}).sort(function(a,b){return b.score-a.score;}).slice(0,3);
-  var top3Labels = ['1er','2eme','3eme'];
-  var top3Bg = [[255,248,200],[235,235,235],[253,235,210]];
-  var top3Border = [[200,160,0],[160,160,160],[160,100,30]];
-  ranked.forEach(function(a,i){
-    var x=14+i*((W-28)/3+1);
-    var w2=(W-31)/3;
-    doc.setFillColor(top3Bg[i][0],top3Bg[i][1],top3Bg[i][2]);
-    doc.setDrawColor(top3Border[i][0],top3Border[i][1],top3Border[i][2]);
-    doc.roundedRect(x,y,w2,18,2,2,'FD');
-    doc.setTextColor(26,26,24);
-    doc.setFontSize(9);
-    doc.setFont('helvetica','bold');
-    doc.text(top3Labels[i], x+4, y+7);
-    var nameShort = a.name.length>18?a.name.slice(0,18)+'...':a.name;
-    doc.text(nameShort, x+4, y+12);
-    doc.setTextColor(100,100,100);
-    doc.setFontSize(7);
-    doc.setFont('helvetica','normal');
-    doc.text(a.proj, x+4, y+16);
-    var c2=colRgb(a.score);
-    doc.setTextColor(c2[0],c2[1],c2[2]);
-    doc.setFontSize(12);
-    doc.setFont('helvetica','bold');
-    doc.text(a.score.toFixed(1)+'%', x+w2-3, y+13, {align:'right'});
-  });
-  y += 24;
-  // Alertes Rang E2
-  var rangD = active.map(function(a){var ls=getLastScore(a);return{name:a.name,proj:a.proj,score:ls?ls.score:0,ls:ls};})
-    .filter(function(a){return a.score>0&&rankFn(a.score)==='D';}).sort(function(a,b){return a.score-b.score;});
-  if(rangD.length){
-    doc.setFillColor(255,245,245);
-    doc.setDrawColor(226,75,74);
-    doc.roundedRect(14,y,W-28,10+rangD.length*8,2,2,'FD');
-    doc.setTextColor(140,26,26);
-    doc.setFontSize(10);
-    doc.setFont('helvetica','bold');
-    doc.text('Agents en Rang D - Action requise ('+rangD.length+')', 18, y+7);
-    rangD.forEach(function(a,i){
-      doc.setFontSize(8);
-      doc.setFont('helvetica','normal');
-      doc.setTextColor(60,60,60);
-      doc.text('- '+a.name+' - '+a.proj, 20, y+14+i*8);
-      doc.setFont('helvetica','bold');
-      doc.setTextColor(226,75,74);
-      doc.text(a.score.toFixed(1)+'%', W-18, y+14+i*8, {align:'right'});
+  var wsClass = XLSX.utils.aoa_to_sheet(classement);
+  wsClass['!cols'] = [{wch:5},{wch:26},{wch:20},{wch:12},{wch:12},{wch:14},{wch:12},{wch:12}];
+  XLSX.utils.book_append_sheet(wb, wsClass, '🏆 Classement général');
+
+  // ─── ONGLETS PAR PROJET ───
+  var projEmojis = {
+    'JAPHY':'🐾','WALTER SANTÉ':'❤️','ALTERNANCE':'🎓',
+    'EURO-PARE-BRISE':'🚗','EDEN-ENERGIE':'⚡','ENERIX':'🔋',
+    'VITALIVET':'🌿','AEC':'📋'
+  };
+  D.projects.forEach(function(proj){
+    var emoji = projEmojis[proj]||'📁';
+    var projAgents = active.filter(function(a){return a.proj===proj;})
+      .sort(function(a,b){return agentScore(b)-agentScore(a);});
+    var projScores = projAgents.map(function(a){return agentScore(a);}).filter(function(s){return s>0;});
+    var projAvg = projScores.length ? Math.round(projScores.reduce(function(t,s){return t+s;},0)/projScores.length*10)/10 : 0;
+
+    var rows = [];
+    rows.push([emoji+' '+proj+' — '+lastM,'','','','','','','','']);
+    rows.push(['Moyenne du projet : '+projAvg+'%','','','','','','','','']);
+    rows.push(['#','Nom','Score','Rang','Performance %','Qualité %','Présence %','Engagement','Avertissement']);
+
+    projAgents.forEach(function(a,idx){
+      var s = a.scores[lastM]||{};
+      var eng = s.eng||{};
+      var engStr = typeof eng==='object'
+        ? ((eng.briefs?1:0)+(eng.remontees?1:0)+(eng.comportement?1:0))+'/3'
+        : (eng||3)+'/5';
+      var avertLabels = {0:'Aucun',1:'Verbal',2:'Écrit',3:'Mise à pied'};
+      rows.push([
+        idx+1, a.name,
+        agentScore(a).toFixed(1)+'%',
+        agentRank(a),
+        (s.perf||0)+'%',
+        (s.qual||0)+'%',
+        (s.pres||100)+'%',
+        engStr,
+        avertLabels[s.avert||0]||'Aucun'
+      ]);
     });
-  }
+    rows.push(['MOYENNE','',projAvg.toFixed(1)+'%','','','','','','']);
 
-  // =====================
-  // PAGE 3 - CLASSEMENT
-  // =====================
-  doc.addPage();
-  addHeader('Classement complet');
-  y = 26;
-  doc.setFontSize(13);
-  doc.setFont('helvetica','bold');
-  doc.setTextColor(26,26,24);
-  doc.text('Classement complet des agents', 14, y);
-  doc.setFillColor(245,200,0);
-  doc.rect(14,y+2,45,1,'F');
-  y += 8;
-  var tableRows = active.map(function(a){
-    var ls=getLastScore(a);
-    var s=ls?ls.score:0;
-    return[a.name, a.proj, s.toFixed(1)+'%', rankFn(s), ls?ls.s.perf+'%':'-', ls?ls.s.qual+'%':'-', ls?ls.s.pres+'%':'-', ls?ls.month:'-'];
-  }).sort(function(a,b){return parseFloat(b[2])-parseFloat(a[2]);});
-  doc.autoTable({
-    startY:y,
-    head:[['Agent','Projet','Score','Rang','Perf','Qualite','Presence','Mois']],
-    body:tableRows,
-    theme:'grid',
-    headStyles:{fillColor:[26,26,24],textColor:[245,200,0],fontSize:8,fontStyle:'bold'},
-    bodyStyles:{fontSize:8,textColor:[40,40,40]},
-    alternateRowStyles:{fillColor:[248,248,246]},
-    columnStyles:{0:{fontStyle:'bold',cellWidth:32},1:{cellWidth:26},2:{fontStyle:'bold',halign:'center',cellWidth:16},3:{halign:'center',cellWidth:12},4:{halign:'center',cellWidth:14},5:{halign:'center',cellWidth:14},6:{halign:'center',cellWidth:16},7:{halign:'center',cellWidth:18}},
-    didDrawCell:function(data){
-      if(data.section==='body'&&data.column.index===2){var s=parseFloat(data.cell.raw);if(!isNaN(s))data.cell.styles.textColor=colRgb(s);}
-      if(data.section==='body'&&data.column.index===3){var colors={S:[29,158,117],A:[55,138,221],B:[127,119,221],C:[186,117,23],D:[226,75,74]};if(colors[data.cell.raw])data.cell.styles.textColor=colors[data.cell.raw];}
-    },
-    margin:{left:14,right:14}
+    var wsProj = XLSX.utils.aoa_to_sheet(rows);
+    wsProj['!cols'] = [{wch:5},{wch:26},{wch:12},{wch:12},{wch:14},{wch:12},{wch:12},{wch:14},{wch:16}];
+    var sheetName = (emoji+' '+proj).slice(0,31);
+    XLSX.utils.book_append_sheet(wb, wsProj, sheetName);
   });
 
-  // =====================
-  // PAGE 4 - PAR PROJET
-  // =====================
-  doc.addPage();
-  addHeader('Stats par projet');
-  y = 26;
-  doc.setFontSize(13);
-  doc.setFont('helvetica','bold');
-  doc.setTextColor(26,26,24);
-  doc.text('Performance par projet', 14, y);
-  doc.setFillColor(245,200,0);
-  doc.rect(14,y+2,38,1,'F');
-  y += 10;
-  D.projects.forEach(function(projName){
-    var agents2 = D.agents.filter(function(a){return a.proj===projName&&a.active;});
-    if(!agents2.length) return;
-    var mScores = D.months.map(function(m){
-      var ss=agents2.map(function(a){var s=a.scores[m];return s&&(s.perf||s.qual)?calcS(s):null;}).filter(function(v){return v!==null;});
-      return{month:m,score:ss.length?Math.round(ss.reduce(function(a,b){return a+b;},0)/ss.length*10)/10:null};
-    }).filter(function(x){return x.score!==null;});
-    var msc=mScores.map(function(x){return x.score;});
-    var projAvg=msc.length?Math.round(msc.reduce(function(a,b){return a+b;},0)/msc.length*10)/10:0;
-    var lastS=msc.length?msc[msc.length-1]:0;
-    var rc2=colRgb(lastS);
-    if(y>H-50){doc.addPage();addHeader('Stats par projet');y=26;}
-    doc.setFillColor(245,245,243);
-    doc.setDrawColor(220,220,215);
-    doc.roundedRect(14,y,W-28,8,1,1,'FD');
-    doc.setFillColor(rc2[0],rc2[1],rc2[2]);
-    doc.rect(14,y,2,8,'F');
-    doc.setTextColor(26,26,24);
-    doc.setFontSize(9);
-    doc.setFont('helvetica','bold');
-    doc.text(projName, 18, y+5.5);
-    doc.setTextColor(rc2[0],rc2[1],rc2[2]);
-    doc.text(lastS.toFixed(1)+'%', W-18, y+5.5, {align:'right'});
-    doc.setTextColor(100,100,100);
-    doc.setFontSize(7);
-    doc.text(agents2.length+' agents - Moy. '+projAvg.toFixed(1)+'%', 50, y+5.5);
-    y += 11;
-    if(mScores.length>0){
-      var maxS=Math.max.apply(null,msc.concat([1]));
-      var bw3=Math.min(12,(W-28)/mScores.length-1);
-      mScores.forEach(function(ms,i){
-        var bh=Math.round(ms.score/maxS*12);
-        var bx=14+i*(bw3+1);
-        var c3=colRgb(ms.score);
-        doc.setFillColor(c3[0],c3[1],c3[2]);
-        doc.rect(bx,y+(12-bh),bw3,bh,'F');
-        doc.setTextColor(120,120,120);
-        doc.setFontSize(6);
-        doc.text(ms.month.slice(0,3),bx+bw3/2,y+16,{align:'center'});
-      });
-      y += 20;
-    }
+  // ─── ONGLET OBJECTIFS COMMERCIAUX ───
+  var objRows = [];
+  objRows.push(['OBJECTIFS COMMERCIAUX — '+lastM,'','','','','']);
+  objRows.push(['Projet','Unite','Objectif','Realise','% Atteinte','Statut']);
+  D.projects.forEach(function(proj){
+    var obj = (D.objectifsComm||{})[proj]||{};
+    var pct = (obj.objectif&&obj.realise) ? Math.round(+obj.realise/+obj.objectif*100)+'%' : '—';
+    var statut = (obj.objectif&&obj.realise)
+      ? (+obj.realise/+obj.objectif>=1?'✅ Atteint':+obj.realise/+obj.objectif>=0.8?'⚠️ Proche':'❌ Sous objectif')
+      : 'À renseigner';
+    objRows.push([
+      proj,
+      obj.unite||'À définir',
+      obj.objectif||'—',
+      obj.realise||'—',
+      pct,
+      statut
+    ]);
   });
+  var wsObj = XLSX.utils.aoa_to_sheet(objRows);
+  wsObj['!cols'] = [{wch:24},{wch:14},{wch:14},{wch:14},{wch:14},{wch:20}];
+  XLSX.utils.book_append_sheet(wb, wsObj, '🎯 Objectifs commerciaux');
 
-  addFooter();
-  doc.save('Rapport_Altius_'+new Date().toISOString().slice(0,10)+'.pdf');
-}
+  // ─── Télécharger ───
+  var filename = 'Rapport_Altius_'+lastM.replace(' ','_')+'.xlsx';
+  XLSX.writeFile(wb, filename);
+};
 
-
-
-function calcScore2(s) {
-  if (!s) return 0;
-  return sc(s.perf||0, s.qual||0, s.pres||100, s.eng||3, s.avert||0);
-}
-
-function renderArchives() {
-  if (!D) return;
-  var locked = D.lockedMonths || [];
-
-  // Months
-  var mh = '';
-  for (var i = 0; i < D.months.length; i++) {
-    var mo = D.months[i];
-    var isLocked = locked.indexOf(mo) !== -1;
-    mh += '<span style="display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:8px;margin:3px;font-size:13px;border:1px solid ' + (isLocked ? '#F5C800' : '#e0e0e0') + ';background:' + (isLocked ? '#fffbe6' : '#f5f5f5') + '">';
-    mh += (isLocked ? 'Verrouille ' : '') + mo;
-    if (isLocked) {
-      mh += ' <button data-mo="' + mo + '" onclick="window.unlockMonth(this.dataset.mo)" style="background:none;border:none;cursor:pointer;color:#888;font-size:13px">x</button>';
-    } else {
-      mh += ' <button data-mo="' + mo + '" onclick="window.lockMonth(this.dataset.mo)" style="background:none;border:none;cursor:pointer;color:#F5C800;font-size:12px;font-weight:700">Verr.</button>';
-    }
-    mh += '</span>';
-  }
-  document.getElementById('arc-months').innerHTML = mh || '<p style="color:#888;font-size:13px">Aucun mois.</p>';
-
-  // Snapshots
-  var snaps = D.snapshots || [];
-  if (!snaps.length) {
-    document.getElementById('arc-snaps').innerHTML = '<p style="color:#888;font-size:13px;padding:8px 0">Aucune snapshot. Clique sur le bouton pour en creer une.</p>';
-  } else {
-    var sh = '';
-    for (var si = snaps.length - 1; si >= 0; si--) {
-      var sn = snaps[si];
-      sh += '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border:1px solid #e0e0e0;border-radius:10px;margin-bottom:8px;flex-wrap:wrap;gap:8px">';
-      sh += '<div><div style="font-size:13px;font-weight:600">' + sn.label + '</div>';
-      sh += '<div style="font-size:11px;color:#888">' + sn.date + ' - ' + sn.agentCount + ' agents - Score moy. <span style="font-weight:700;color:' + col(sn.avgScore) + '">' + sn.avgScore + '%</span></div></div>';
-      sh += '<div style="display:flex;gap:6px">';
-      sh += '<button class="abtn red" data-si="' + si + '" onclick="window.delSnap(this.dataset.si)">Supprimer</button>';
-      sh += '</div></div>';
-    }
-    document.getElementById('arc-snaps').innerHTML = sh;
-  }
-
-  // Historique selectors
-  var agSel = document.getElementById('hag');
-  var curAg = agSel.value;
-  var agOpts = '<option value="all">Tous les agents</option>';
-  var activeAgs = D.agents.filter(function(a) { return a.active; });
-  for (var ai = 0; ai < activeAgs.length; ai++) {
-    agOpts += '<option value="' + activeAgs[ai].id + '"' + (activeAgs[ai].id === curAg ? ' selected' : '') + '>' + activeAgs[ai].name + '</option>';
-  }
-  agSel.innerHTML = agOpts;
-
-  var prSel = document.getElementById('hpr');
-  var prOpts = '<option value="all">Tous les projets</option>';
-  for (var pi = 0; pi < D.projects.length; pi++) {
-    prOpts += '<option value="' + D.projects[pi] + '">' + D.projects[pi] + '</option>';
-  }
-  prSel.innerHTML = prOpts;
-
-  window.renderHist();
-}
 
 window.renderHist = function() {
   if (!D) return;
