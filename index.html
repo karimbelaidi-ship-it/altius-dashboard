@@ -685,6 +685,54 @@
     /* ── SPARKLINE ── */
     .sparkline-wrap { display: inline-block; vertical-align: middle; margin-left: 8px; }
     .sparkline-svg { overflow: visible; }
+
+    /* ── MODAL EXPORT ── */
+    .export-modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,.5);
+      backdrop-filter: blur(4px); z-index: 900;
+      display: none; align-items: center; justify-content: center; padding: 20px;
+    }
+    .export-modal-overlay.on { display: flex; }
+    .export-modal {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 20px; padding: 28px; width: 100%; max-width: 520px;
+      box-shadow: 0 24px 80px rgba(0,0,0,.3);
+      animation: modal-in .2s ease;
+    }
+    .export-modal-title {
+      font-size: 17px; font-weight: 800; margin-bottom: 6px; letter-spacing: -.02em;
+    }
+    .export-modal-sub { font-size: 12px; color: var(--muted); margin-bottom: 20px; }
+    .export-section { margin-bottom: 18px; }
+    .export-section-label {
+      font-size: 11px; font-weight: 700; color: var(--muted);
+      text-transform: uppercase; letter-spacing: .06em;
+      margin-bottom: 8px; display: flex; align-items: center; gap: 6px;
+    }
+    .export-section-label::after { content:''; flex:1; height:1px; background:var(--border); }
+    .export-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+    .export-type-btn {
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+      padding: 10px 14px; border: 1px solid var(--border);
+      border-radius: 10px; cursor: pointer; background: var(--surface);
+      font-family: inherit; transition: all .15s; min-width: 100px; flex: 1;
+    }
+    .export-type-btn:hover { border-color: var(--yellow); background: var(--light); }
+    .export-type-btn.on { border-color: var(--yellow); background: var(--yellow-light); }
+    .export-type-btn .icon { font-size: 20px; }
+    .export-type-btn .label { font-size: 11px; font-weight: 700; color: var(--text); text-align: center; }
+    .export-type-btn .desc { font-size: 10px; color: var(--muted); text-align: center; }
+    .export-toggle {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 8px 12px; border: 1px solid var(--border);
+      border-radius: 8px; margin-bottom: 6px; cursor: pointer;
+      transition: background .12s;
+    }
+    .export-toggle:hover { background: var(--light); }
+    .export-toggle-label { font-size: 13px; font-weight: 500; }
+    .export-toggle input[type=checkbox] { width: auto; cursor: pointer; }
+    .export-select-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+    .export-period-row { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 6px; }
   </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
@@ -705,7 +753,7 @@
       <div class="logo-sub" id="subtitle">Connexion...</div>
     </div>
   </div>
-  <div style="display:flex;align-items:center;gap:10px"><button onclick="showOnboarding()" style="background:rgba(245,200,0,.1);border:1px solid rgba(245,200,0,.3);border-radius:8px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;color:#a08200;font-family:inherit;">❓ Aide</button><button onclick="window._exportPDF()" style="background:var(--yellow);color:#1a1a18;border:none;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">📄 Export PDF</button><button onclick="window._exportPDF()" style="background:var(--yellow);color:#1a1a18;border:none;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">📄 Export PDF</button><div style="display:flex;align-items:center;gap:6px">
+  <div style="display:flex;align-items:center;gap:10px"><button onclick="showOnboarding()" style="background:rgba(245,200,0,.1);border:1px solid rgba(245,200,0,.3);border-radius:8px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;color:#a08200;font-family:inherit;">❓ Aide</button><button onclick="window.openExportModal()" style="background:var(--yellow);color:#1a1a18;border:none;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">📄 Export PDF</button><button onclick="window.openExportModal()" style="background:var(--yellow);color:#1a1a18;border:none;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">📄 Export PDF</button><div style="display:flex;align-items:center;gap:6px">
     <button class="notif-bell" id="notif-bell" onclick="window.toggleNotifPanel()" title="Notifications">
       🔔 <span id="notif-count" class="notif-badge" style="display:none">0</span>
     </button>
@@ -2326,6 +2374,108 @@ function renderSparkline(agent){
     + '<circle cx="'+lastX.toFixed(1)+'" cy="'+lastY.toFixed(1)+'" r="2.5" fill="'+lineColor+'"/>'
     + '</svg></span>';
 }
+
+// ══════════════════════════════════════
+// MODAL EXPORT PDF
+// ══════════════════════════════════════
+var MOIS_LABELS = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
+var MOIS_FULL   = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+
+window.openExportModal = function(){
+  if(!D) return;
+  // Populate projet select
+  var projSel = document.getElementById('exp-projet');
+  projSel.innerHTML = '<option value="tous">Tous les projets</option>';
+  D.projects.forEach(function(p){ var o=document.createElement('option'); o.value=p; o.textContent=p; projSel.appendChild(o); });
+
+  // Populate agent select
+  var agentSel = document.getElementById('exp-agent');
+  agentSel.innerHTML = '';
+  D.agents.filter(function(a){return a.active;}).forEach(function(a){
+    var o=document.createElement('option'); o.value=a.id; o.textContent=a.name+' ('+a.proj+')'; agentSel.appendChild(o);
+  });
+
+  // Set default month to last month
+  var lastM = D.months[D.months.length-1];
+  if(lastM){
+    var parts = lastM.split(' ');
+    var mIdx = MOIS_LABELS.indexOf(parts[0]);
+    var yr = parts[1] ? '20'+parts[1] : '2025';
+    if(mIdx !== -1) document.getElementById('exp-mois').selectedIndex = mIdx;
+    var annSel = document.getElementById('exp-annee');
+    for(var i=0;i<annSel.options.length;i++){ if(annSel.options[i].value===yr){ annSel.selectedIndex=i; break; } }
+  }
+
+  document.getElementById('export-modal-overlay').classList.add('on');
+};
+
+window.closeExportModal = function(){
+  document.getElementById('export-modal-overlay').classList.remove('on');
+};
+
+window.selectExportType = function(btn){
+  document.querySelectorAll('.export-type-btn').forEach(function(b){ b.classList.remove('on'); });
+  btn.classList.add('on');
+  var type = btn.dataset.type;
+  // Show/hide agent selector
+  document.getElementById('exp-agent-wrap').style.display = type==='agent' ? '' : 'none';
+};
+
+window.togglePeriode = function(){
+  var isPlage = document.getElementById('exp-periode-plage').checked;
+  document.getElementById('export-un-mois').style.display = isPlage ? 'none' : '';
+  document.getElementById('export-plage-mois').style.display = isPlage ? '' : 'none';
+};
+
+window.doExportPDF = function(){
+  if(!D){ alert('Donnees non chargees.'); return; }
+  var type = (document.querySelector('.export-type-btn.on')||{dataset:{type:'complet'}}).dataset.type;
+  var isPlage = document.getElementById('exp-periode-plage').checked;
+  var inclDem = document.getElementById('exp-dem').checked;
+  var inclObj = document.getElementById('exp-obj').checked;
+  var projFilter = document.getElementById('exp-projet').value;
+  var agentFilter = document.getElementById('exp-agent').value;
+
+  // Build months list
+  var selectedMonths = [];
+  if(isPlage){
+    var dM = document.getElementById('exp-debut-mois').selectedIndex;
+    var dY = document.getElementById('exp-debut-annee').value;
+    var fM = document.getElementById('exp-fin-mois').selectedIndex;
+    var fY = document.getElementById('exp-fin-annee').value;
+    var dKey = MOIS_LABELS[dM]+' '+dY.slice(2);
+    var fKey = MOIS_LABELS[fM]+' '+fY.slice(2);
+    var inRange = false;
+    D.months.forEach(function(m){
+      if(m===dKey) inRange=true;
+      if(inRange) selectedMonths.push(m);
+      if(m===fKey) inRange=false;
+    });
+    if(!selectedMonths.length) selectedMonths = D.months;
+  } else {
+    var mIdx = document.getElementById('exp-mois').selectedIndex;
+    var yr = document.getElementById('exp-annee').value;
+    var mKey = MOIS_LABELS[mIdx]+' '+yr.slice(2);
+    selectedMonths = D.months.indexOf(mKey)!==-1 ? [mKey] : [D.months[D.months.length-1]];
+  }
+
+  // Build period label
+  var periodLabel = selectedMonths.length===1 ? selectedMonths[0] : selectedMonths[0]+' → '+selectedMonths[selectedMonths.length-1];
+
+  // Close modal
+  window.closeExportModal();
+
+  // Call PDF generator with options
+  window._exportPDFWithOptions({
+    type: type,
+    months: selectedMonths,
+    periodLabel: periodLabel,
+    inclDem: inclDem,
+    inclObj: inclObj,
+    projFilter: projFilter,
+    agentFilter: agentFilter
+  });
+};
 window._qaGo = function(dest){
   if(dest === 'mois'){
     var btn = document.querySelector('.nb-dropdown-item[data-page="mois"]');
@@ -3010,8 +3160,18 @@ window._delComment = async function(agentId, idx){
 }
 
 
-window._exportPDF = function(){
+window._exportPDF = function(){ window.openExportModal(); };
+
+window._exportPDFWithOptions = function(opts){
   if(!D){ alert('Donnees non chargees.'); return; }
+  var opts = opts || {type:'complet', months:D.months, periodLabel:D.months[D.months.length-1], inclDem:false, inclObj:true, projFilter:'tous', agentFilter:null};
+  var selectedMonths = opts.months || D.months;
+  var periodLabel = opts.periodLabel || selectedMonths[selectedMonths.length-1];
+  var inclDem = opts.inclDem || false;
+  var inclObj = opts.inclObj !== false;
+  var projFilter = opts.projFilter || 'tous';
+  var agentFilter = opts.agentFilter || null;
+  var exportType = opts.type || 'complet';
   var jsPDF = window.jspdf.jsPDF;
   var doc = new jsPDF({orientation:'portrait', unit:'mm', format:'a4'});
   var W = doc.internal.pageSize.getWidth();
@@ -5122,6 +5282,123 @@ setInterval(function(){
   <div class="drawer-header" id="drawer-header"></div>
   <div class="drawer-body" id="drawer-body"></div>
   <div class="drawer-footer" id="drawer-footer"></div>
+</div>
+
+<!-- MODAL EXPORT PDF -->
+<div class="export-modal-overlay" id="export-modal-overlay">
+  <div class="export-modal">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+      <div class="export-modal-title">📄 Exporter en PDF</div>
+      <button onclick="window.closeExportModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted)">✕</button>
+    </div>
+    <div class="export-modal-sub">Configurez votre rapport avant de générer</div>
+
+    <!-- FORMAT -->
+    <div class="export-section">
+      <div class="export-section-label">Format du rapport</div>
+      <div class="export-row" id="export-type-btns">
+        <button class="export-type-btn on" data-type="complet" onclick="window.selectExportType(this)">
+          <span class="icon">📋</span><span class="label">Complet</span><span class="desc">Tout inclus</span>
+        </button>
+        <button class="export-type-btn" data-type="synthese" onclick="window.selectExportType(this)">
+          <span class="icon">⚡</span><span class="label">Synthèse</span><span class="desc">KPIs + Top 3</span>
+        </button>
+        <button class="export-type-btn" data-type="projet" onclick="window.selectExportType(this)">
+          <span class="icon">🏢</span><span class="label">Par projet</span><span class="desc">1 projet</span>
+        </button>
+        <button class="export-type-btn" data-type="agent" onclick="window.selectExportType(this)">
+          <span class="icon">👤</span><span class="label">Fiche agent</span><span class="desc">1 agent</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- PÉRIODE -->
+    <div class="export-section">
+      <div class="export-section-label">Période</div>
+      <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center">
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
+          <input type="radio" name="export-periode" value="un" id="exp-periode-un" checked onchange="window.togglePeriode()"> Un mois
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
+          <input type="radio" name="export-periode" value="plage" id="exp-periode-plage" onchange="window.togglePeriode()"> Plage de mois
+        </label>
+      </div>
+      <!-- Un mois -->
+      <div id="export-un-mois" class="export-period-row">
+        <select id="exp-mois" style="font-size:13px">
+          <option>Janvier</option><option>Février</option><option>Mars</option>
+          <option>Avril</option><option>Mai</option><option>Juin</option>
+          <option>Juillet</option><option>Août</option><option>Septembre</option>
+          <option selected>Octobre</option><option>Novembre</option><option>Décembre</option>
+        </select>
+        <select id="exp-annee" style="font-size:13px">
+          <option>2025</option><option>2026</option><option>2027</option><option>2028</option><option>2029</option><option>2030</option>
+        </select>
+      </div>
+      <!-- Plage -->
+      <div id="export-plage-mois" style="display:none">
+        <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center">
+          <div>
+            <div style="font-size:11px;color:var(--muted);margin-bottom:4px">De</div>
+            <div style="display:flex;gap:4px">
+              <select id="exp-debut-mois" style="font-size:12px;flex:1">
+                <option>Jan</option><option>Fév</option><option>Mar</option><option>Avr</option>
+                <option>Mai</option><option>Jun</option><option>Jul</option><option>Aoû</option>
+                <option>Sep</option><option selected>Oct</option><option>Nov</option><option>Déc</option>
+              </select>
+              <select id="exp-debut-annee" style="font-size:12px;flex:1">
+                <option selected>2025</option><option>2026</option><option>2027</option><option>2028</option>
+              </select>
+            </div>
+          </div>
+          <div style="color:var(--muted);font-size:18px;padding-top:16px">→</div>
+          <div>
+            <div style="font-size:11px;color:var(--muted);margin-bottom:4px">À</div>
+            <div style="display:flex;gap:4px">
+              <select id="exp-fin-mois" style="font-size:12px;flex:1">
+                <option>Jan</option><option>Fév</option><option>Mar</option><option selected>Avr</option>
+                <option>Mai</option><option>Jun</option><option>Jul</option><option>Aoû</option>
+                <option>Sep</option><option>Oct</option><option>Nov</option><option>Déc</option>
+              </select>
+              <select id="exp-fin-annee" style="font-size:12px;flex:1">
+                <option>2025</option><option selected>2026</option><option>2027</option><option>2028</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CONTENU -->
+    <div class="export-section">
+      <div class="export-section-label">Contenu</div>
+      <div class="export-select-row">
+        <div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:4px">Projet</div>
+          <select id="exp-projet" style="font-size:13px">
+            <option value="tous">Tous les projets</option>
+          </select>
+        </div>
+        <div id="exp-agent-wrap" style="display:none">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:4px">Agent</div>
+          <select id="exp-agent" style="font-size:13px"></select>
+        </div>
+      </div>
+      <label class="export-toggle">
+        <span class="export-toggle-label">Inclure les agents démissionnaires</span>
+        <input type="checkbox" id="exp-dem">
+      </label>
+      <label class="export-toggle">
+        <span class="export-toggle-label">Inclure les objectifs commerciaux</span>
+        <input type="checkbox" id="exp-obj" checked>
+      </label>
+    </div>
+
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px">
+      <button class="btn" onclick="window.closeExportModal()">Annuler</button>
+      <button class="btn yellow" onclick="window.doExportPDF()" id="exp-generate-btn">📄 Générer le PDF</button>
+    </div>
+  </div>
 </div>
 </body>
 </html>
