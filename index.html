@@ -685,7 +685,7 @@
     .sparkline-wrap { display: inline-block; vertical-align: middle; margin-left: 8px; }
     .sparkline-svg { overflow: visible; }
   </style>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
 
@@ -3008,420 +3008,1910 @@ window._delComment = async function(agentId, idx){
 }
 
 
-window._exportExcel = async function(){
+window._exportExcel = function(){
   if(!D){ alert('Donnees non chargees.'); return; }
-  if(typeof ExcelJS === 'undefined'){ alert('Librairie Excel non chargee, reessayez dans quelques secondes.'); return; }
+  if(typeof XLSX === 'undefined'){ alert('Librairie Excel non chargee, reessayez dans quelques secondes.'); return; }
 
-  // ─── Helpers scoring ───
+  var wb = XLSX.utils.book_new();
+
+  // ─── Helpers ───
   function sc2(perf,qual,pres,eng,avert){
     if(!perf&&!qual) return 0;
     var e=0;
     if(typeof eng==='object'&&eng!==null){
       var cnt=(eng.briefs?1:0)+(eng.remontees?1:0)+(eng.comportement?1:0);
       e=cnt===3?0.10:cnt===2?0.07:cnt===1?0.03:0;
-    } else { e=((eng||3)/5)*0.10; }
+    } else { e=(eng/5)*0.10; }
     var r=(perf/100*0.4)+(qual/100*0.3)+(pres/100*0.2)+e;
     var m=avert>=3?0:1-avert*0.1;
     return Math.round(r*m*1000)/10;
   }
-  var lastM = D.months[D.months.length-1];
   function agentScore(a){
+    var lastM = D.months[D.months.length-1];
     var s=a.scores[lastM];
     if(!s||(s.perf===0&&s.qual===0)) return 0;
     return sc2(s.perf||0,s.qual||0,s.pres||100,s.eng||{briefs:true,remontees:true,comportement:true},s.avert||0);
   }
-  var active = D.agents.filter(function(a){return a.active;});
-  var sorted_all = active.slice().sort(function(a,b){return agentScore(b)-agentScore(a);});
-  var top5ids = sorted_all.slice(0,5).map(function(a){return a.id;});
   function agentRank(a){
-    var score=agentScore(a);
-    if(top5ids.indexOf(a.id)!==-1) return 'A';
+    var score = agentScore(a);
+    var active = D.agents.filter(function(x){return x.active;});
+    var sorted = active.slice().sort(function(x,y){return agentScore(y)-agentScore(x);});
+    var top5 = sorted.slice(0,5).map(function(x){return x.id;});
+    if(top5.indexOf(a.id)!==-1) return 'A';
     if(score>=80) return 'B';
     if(score>=65) return 'C';
     return 'E2';
   }
-  var scores_all = active.map(function(a){return agentScore(a);}).filter(function(s){return s>0;});
-  var avg = scores_all.length ? Math.round(scores_all.reduce(function(t,s){return t+s;},0)/scores_all.length*10)/10 : 0;
-  var ranks_all = active.map(function(a){return agentRank(a);});
-  var cA=ranks_all.filter(function(r){return r==='A';}).length;
-  var cB=ranks_all.filter(function(r){return r==='B';}).length;
-  var cC=ranks_all.filter(function(r){return r==='C';}).length;
-  var cE2=ranks_all.filter(function(r){return r==='E2';}).length;
+  var active = D.agents.filter(function(a){return a.active;});
+  var lastM = D.months[D.months.length-1];
+  var scores = active.map(function(a){return agentScore(a);}).filter(function(s){return s>0;});
+  var avg = scores.length ? Math.round(scores.reduce(function(t,s){return t+s;},0)/scores.length*10)/10 : 0;
+  var ranks = active.map(function(a){return agentRank(a);});
+  var cA=ranks.filter(function(r){return r==='A';}).length;
+  var cB=ranks.filter(function(r){return r==='B';}).length;
+  var cC=ranks.filter(function(r){return r==='C';}).length;
+  var cE2=ranks.filter(function(r){return r==='E2';}).length;
 
-  // ─── Couleurs ───
-  var C = {
-    BLACK:'1A1A18', YELLOW:'F5C800', YELLOW_L:'FFFBE6',
-    GREEN:'1D9E75', GREEN_L:'E8F8F2',
-    BLUE:'378ADD',  BLUE_L:'EBF4FF',
-    PURPLE:'7F77DD',PURPLE_L:'F0EFFF',
-    RED:'E24B4A',   RED_L:'FFF0F0',
-    GRAY:'F5F5F3',  WHITE:'FFFFFF', MUTED:'888882'
-  };
-  function argb(hex){ return 'FF'+hex.toUpperCase(); }
-  function fillColor(hex){ return {type:'pattern',pattern:'solid',fgColor:{argb:argb(hex)}}; }
-  function fontStyle(opts){
-    return {name:'Arial',bold:opts.bold||false,size:opts.size||10,color:{argb:argb(opts.color||C.BLACK)},italic:opts.italic||false};
-  }
-  function border(){
-    var s={style:'thin',color:{argb:'FFD0CEC8'}};
-    return {top:s,bottom:s,left:s,right:s};
-  }
-  function rankStyle(r){
-    if(r==='A') return {bg:C.GREEN_L,  fg:C.GREEN,  label:'🏆 Rang A'};
-    if(r==='B') return {bg:C.BLUE_L,   fg:C.BLUE,   label:'⭐ Rang B'};
-    if(r==='C') return {bg:C.PURPLE_L, fg:C.PURPLE, label:'✅ Rang C'};
-    return           {bg:C.RED_L,    fg:C.RED,    label:'⚠️ Rang E2'};
-  }
-  function scoreColor(s){
-    if(s>=80) return C.GREEN;
-    if(s>=65) return C.BLUE;
-    return C.RED;
-  }
-
-  // ─── Helpers mise en forme ───
-  function styleHeader(row, bgHex, fgHex){
-    row.height = 22;
-    row.eachCell(function(cell){
-      cell.fill = fillColor(bgHex);
-      cell.font = fontStyle({bold:true,size:10,color:fgHex});
-      cell.alignment = {horizontal:'center',vertical:'middle'};
-      cell.border = border();
-    });
-  }
-  function styleTitle(ws, rowNum, value, bgHex, fgHex, colSpan){
-    var row = ws.getRow(rowNum);
-    row.height = 30;
-    var cell = row.getCell(1);
-    cell.value = value;
-    cell.fill = fillColor(bgHex);
-    cell.font = fontStyle({bold:true,size:14,color:fgHex});
-    cell.alignment = {horizontal:'center',vertical:'middle'};
-    cell.border = border();
-    ws.mergeCells(rowNum,1,rowNum,colSpan);
-  }
-  function styleDataRow(row, alt){
-    row.height = 18;
-    var bg = alt ? C.GRAY : C.WHITE;
-    row.eachCell({includeEmpty:true}, function(cell){
-      if(!cell.fill || cell.fill.type==='none') cell.fill = fillColor(bg);
-      cell.border = border();
-      if(!cell.font) cell.font = fontStyle({size:10});
-      if(!cell.alignment) cell.alignment = {horizontal:'left',vertical:'middle'};
-    });
-  }
-
-  var wb = new ExcelJS.Workbook();
-  wb.creator = 'Altius Contact';
-  wb.created = new Date();
-
-  // ══════════════════════════════════════
-  // ONGLET 1 — SYNTHÈSE
-  // ══════════════════════════════════════
-  var ws1 = wb.addWorksheet('📊 Synthèse', {views:[{showGridLines:false}]});
-  ws1.columns = [
-    {width:6},{width:24},{width:18},{width:14},{width:14},{width:16},{width:14},{width:14},{width:14},{width:14}
-  ];
-
-  styleTitle(ws1, 1, 'ALTIUS CONTACT — RAPPORT DE PERFORMANCE', C.BLACK, C.YELLOW, 10);
-
-  ws1.mergeCells(2,1,2,10);
-  var r2 = ws1.getRow(2);
-  r2.height = 20;
-  var c2 = r2.getCell(1);
-  c2.value = 'Période : '+lastM+' · '+active.length+' agents actifs · '+D.projects.length+' projets';
-  c2.fill = fillColor(C.BLACK);
-  c2.font = fontStyle({size:11,color:C.YELLOW,italic:true});
-  c2.alignment = {horizontal:'center',vertical:'middle'};
-
-  ws1.getRow(3).height = 8;
-
-  // Section KPI
-  var secRow = ws1.getRow(4);
-  secRow.height = 20;
-  ws1.mergeCells(4,1,4,10);
-  var secCell = secRow.getCell(1);
-  secCell.value = '  KPI GLOBAUX';
-  secCell.fill = fillColor(C.YELLOW);
-  secCell.font = fontStyle({bold:true,size:11,color:C.BLACK});
-  secCell.alignment = {horizontal:'left',vertical:'middle'};
-  secCell.border = border();
-
-  var kpis = [
-    {label:'Agents actifs', val:active.length, bg:C.BLUE_L, fg:C.BLUE},
-    {label:'Score moyen', val:avg+'%', bg:C.YELLOW_L, fg:C.BLACK},
-    {label:'Rang A (Elite)', val:cA, bg:C.GREEN_L, fg:C.GREEN},
-    {label:'Rang B', val:cB, bg:C.BLUE_L, fg:C.BLUE},
-    {label:'Rang C', val:cC, bg:C.PURPLE_L, fg:C.PURPLE},
-    {label:'Rang E2', val:cE2, bg:C.RED_L, fg:C.RED}
-  ];
-  var kpiCols = [1,2,4,5,7,8];
-  ws1.getRow(5).height = 16;
-  ws1.getRow(6).height = 32;
-  ws1.getRow(7).height = 6;
-
-  kpis.forEach(function(kpi, idx){
-    var col = kpiCols[idx];
-    // Label
-    ws1.mergeCells(5,col,5,col+1);
-    var lc = ws1.getRow(5).getCell(col);
-    lc.value = kpi.label;
-    lc.fill = fillColor(kpi.bg);
-    lc.font = fontStyle({size:9,color:C.MUTED});
-    lc.alignment = {horizontal:'center',vertical:'middle'};
-    lc.border = border();
-    // Value
-    ws1.mergeCells(6,col,6,col+1);
-    var vc = ws1.getRow(6).getCell(col);
-    vc.value = kpi.val;
-    vc.fill = fillColor(kpi.bg);
-    vc.font = fontStyle({bold:true,size:20,color:kpi.fg});
-    vc.alignment = {horizontal:'center',vertical:'middle'};
-    vc.border = border();
-    // Accent bar
-    ws1.mergeCells(7,col,7,col+1);
-    var bc = ws1.getRow(7).getCell(col);
-    bc.fill = fillColor(kpi.fg);
-    bc.border = border();
-  });
-
-  ws1.getRow(8).height = 10;
-
-  // Top 3
-  var t3Row = ws1.getRow(9);
-  t3Row.height = 20;
-  ws1.mergeCells(9,1,9,10);
-  var t3Cell = t3Row.getCell(1);
-  t3Cell.value = '  TOP 3 AGENTS DU MOIS';
-  t3Cell.fill = fillColor(C.YELLOW);
-  t3Cell.font = fontStyle({bold:true,size:11,color:C.BLACK});
-  t3Cell.alignment = {horizontal:'left',vertical:'middle'};
-  t3Cell.border = border();
-
+  // ─── ONGLET 1 : Synthèse ───
+  var synth = [];
+  synth.push(['ALTIUS CONTACT — RAPPORT DE PERFORMANCE','','','','','','','','','']);
+  synth.push(['Période : '+lastM+' · '+active.length+' agents actifs · '+D.projects.length+' projets','','','','','','','','','']);
+  synth.push([]);
+  synth.push(['KPI GLOBAUX','','','','','','','','','']);
+  synth.push(['Agents actifs','Score moyen','Rang A (Elite)','Rang B','Rang C','Rang E2 (Critique)','','','','']);
+  synth.push([active.length, avg+'%', cA, cB, cC, cE2,'','','','']);
+  synth.push([]);
+  synth.push(['TOP 3 AGENTS DU MOIS','','','','','','','','','']);
+  synth.push(['#','Nom','Projet','Score','Rang','','','','','']);
+  var top3 = active.slice().sort(function(a,b){return agentScore(b)-agentScore(a);}).slice(0,3);
   var medals = ['🥇','🥈','🥉'];
-  var medalBgs = [C.YELLOW_L, C.GRAY, 'FFF0E8'];
-  sorted_all.slice(0,3).forEach(function(agent, idx){
-    var rowN = 10+idx;
-    var row = ws1.getRow(rowN);
-    row.height = 24;
-    var score = agentScore(agent);
-    var rk = agentRank(agent);
-    var rs = rankStyle(rk);
-    var mbg = medalBgs[idx];
-
-    ws1.getRow(rowN).getCell(1).value = medals[idx];
-    ws1.getRow(rowN).getCell(1).alignment = {horizontal:'center',vertical:'middle'};
-
-    ws1.mergeCells(rowN,2,rowN,5);
-    var nc = ws1.getRow(rowN).getCell(2);
-    nc.value = agent.name;
-    nc.font = fontStyle({bold:true,size:12});
-
-    ws1.mergeCells(rowN,6,rowN,7);
-    var pc = ws1.getRow(rowN).getCell(6);
-    pc.value = agent.proj;
-    pc.font = fontStyle({size:10,color:C.MUTED});
-    pc.alignment = {horizontal:'center',vertical:'middle'};
-
-    ws1.mergeCells(rowN,8,rowN,9);
-    var sc_cell = ws1.getRow(rowN).getCell(8);
-    sc_cell.value = score.toFixed(1)+'%';
-    sc_cell.font = fontStyle({bold:true,size:14,color:scoreColor(score)});
-    sc_cell.alignment = {horizontal:'center',vertical:'middle'};
-
-    var rk_cell = ws1.getRow(rowN).getCell(10);
-    rk_cell.value = rs.label;
-    rk_cell.fill = fillColor(rs.bg);
-    rk_cell.font = fontStyle({bold:true,size:9,color:rs.fg});
-    rk_cell.alignment = {horizontal:'center',vertical:'middle'};
-
-    row.eachCell({includeEmpty:true},function(cell){
-      if(!cell.fill||cell.fill.type==='none') cell.fill=fillColor(mbg);
-      cell.border=border();
-    });
+  top3.forEach(function(a,i){
+    synth.push([medals[i], a.name, a.proj, agentScore(a).toFixed(1)+'%', agentRank(a),'','','','','']);
+  });
+  synth.push([]);
+  synth.push(['RÉPARTITION DES RANGS','','','','','','','','','']);
+  synth.push(['Rang','Nb agents','% du total','','','','','','','']);
+  [['Rang A',cA],['Rang B',cB],['Rang C',cC],['Rang E2',cE2]].forEach(function(row){
+    synth.push([row[0], row[1], ranks.length?(Math.round(row[1]/ranks.length*100)+'%'):'0%','','','','','','','']);
   });
 
-  ws1.getRow(13).height = 10;
+  var wsSynth = XLSX.utils.aoa_to_sheet(synth);
+  wsSynth['!cols'] = [{wch:28},{wch:22},{wch:18},{wch:14},{wch:14},{wch:18}];
+  XLSX.utils.book_append_sheet(wb, wsSynth, '📊 Synthèse');
 
-  // Répartition rangs
-  var rrRow = ws1.getRow(14);
-  rrRow.height = 20;
-  ws1.mergeCells(14,1,14,10);
-  var rrCell = rrRow.getCell(1);
-  rrCell.value = '  RÉPARTITION DES RANGS';
-  rrCell.fill = fillColor(C.YELLOW);
-  rrCell.font = fontStyle({bold:true,size:11,color:C.BLACK});
-  rrCell.alignment = {horizontal:'left',vertical:'middle'};
-  rrCell.border = border();
-
-  var rankRows = [
-    {label:'Rang A — Elite', count:cA, bg:C.GREEN_L, fg:C.GREEN},
-    {label:'Rang B', count:cB, bg:C.BLUE_L, fg:C.BLUE},
-    {label:'Rang C', count:cC, bg:C.PURPLE_L, fg:C.PURPLE},
-    {label:'Rang E2 — Critique', count:cE2, bg:C.RED_L, fg:C.RED}
-  ];
-  rankRows.forEach(function(rr, idx){
-    var rowN = 15+idx;
-    var row = ws1.getRow(rowN);
-    row.height = 22;
-    var pct = ranks_all.length ? Math.round(rr.count/ranks_all.length*100) : 0;
-    var barLen = Math.round(pct/100*6);
-
-    ws1.mergeCells(rowN,1,rowN,2);
-    var lc = row.getCell(1);
-    lc.value = rr.label;
-    lc.fill = fillColor(rr.bg);
-    lc.font = fontStyle({bold:true,size:10,color:rr.fg});
-    lc.alignment = {horizontal:'center',vertical:'middle'};
-    lc.border = border();
-
-    var nc = row.getCell(3);
-    nc.value = rr.count;
-    nc.fill = fillColor(rr.bg);
-    nc.font = fontStyle({bold:true,size:13,color:rr.fg});
-    nc.alignment = {horizontal:'center',vertical:'middle'};
-    nc.border = border();
-
-    for(var b=4;b<=9;b++){
-      var bc = row.getCell(b);
-      bc.fill = fillColor((b-4)<barLen ? rr.fg : rr.bg);
-      bc.border = border();
-    }
-
-    var pc_cell = row.getCell(10);
-    pc_cell.value = pct+'%';
-    pc_cell.fill = fillColor(rr.bg);
-    pc_cell.font = fontStyle({bold:true,size:10,color:rr.fg});
-    pc_cell.alignment = {horizontal:'center',vertical:'middle'};
-    pc_cell.border = border();
-  });
-
-  // ══════════════════════════════════════
-  // ONGLET 2 — CLASSEMENT GÉNÉRAL
-  // ══════════════════════════════════════
-  var ws2 = wb.addWorksheet('🏆 Classement', {views:[{showGridLines:false,state:'frozen',ySplit:2}]});
-  ws2.columns = [{width:5},{width:26},{width:20},{width:12},{width:14},{width:14},{width:12},{width:12}];
-
-  styleTitle(ws2, 1, 'CLASSEMENT GÉNÉRAL — '+lastM, C.BLACK, C.WHITE, 8);
-  var hdr2 = ws2.addRow(['#','Nom agent','Projet','Score','Rang','Performance','Qualite','Presence']);
-  styleHeader(hdr2, C.BLACK, C.WHITE);
-
-  sorted_all.forEach(function(agent, idx){
-    var score = agentScore(agent);
-    var rk = agentRank(agent);
-    var rs = rankStyle(rk);
-    var s = agent.scores[lastM]||{};
-    var row = ws2.addRow([
-      idx+1, agent.name, agent.proj,
-      score.toFixed(1)+'%', rs.label,
-      (s.perf||0)+'%', (s.qual||0)+'%', (s.pres||100)+'%'
+  // ─── ONGLET 2 : Classement général ───
+  var classement = [];
+  classement.push(['CLASSEMENT GÉNÉRAL — '+lastM,'','','','','','','']);
+  classement.push(['#','Nom agent','Projet','Score','Rang','Performance','Qualite','Presence']);
+  var sorted_all = active.slice().sort(function(a,b){return agentScore(b)-agentScore(a);});
+  sorted_all.forEach(function(a,idx){
+    var s = a.scores[lastM]||{};
+    classement.push([
+      idx+1, a.name, a.proj,
+      agentScore(a).toFixed(1)+'%',
+      agentRank(a),
+      (s.perf||0)+'%',
+      (s.qual||0)+'%',
+      (s.pres||100)+'%'
     ]);
-    styleDataRow(row, idx%2===1);
-    row.getCell(4).font = fontStyle({bold:true,size:11,color:scoreColor(score)});
-    row.getCell(5).fill = fillColor(rs.bg);
-    row.getCell(5).font = fontStyle({bold:true,size:9,color:rs.fg});
-    row.getCell(5).alignment = {horizontal:'center',vertical:'middle'};
   });
+  var wsClass = XLSX.utils.aoa_to_sheet(classement);
+  wsClass['!cols'] = [{wch:5},{wch:26},{wch:20},{wch:12},{wch:12},{wch:14},{wch:12},{wch:12}];
+  XLSX.utils.book_append_sheet(wb, wsClass, '🏆 Classement général');
 
-  // ══════════════════════════════════════
-  // ONGLETS PAR PROJET
-  // ══════════════════════════════════════
+  // ─── ONGLETS PAR PROJET ───
   var projEmojis = {
     'JAPHY':'🐾','WALTER SANTÉ':'❤️','ALTERNANCE':'🎓',
     'EURO-PARE-BRISE':'🚗','EDEN-ENERGIE':'⚡','ENERIX':'🔋',
     'VITALIVET':'🌿','AEC':'📋'
   };
-  var avertLabels = {0:'Aucun',1:'Verbal',2:'Ecrit',3:'Mise a pied'};
-
   D.projects.forEach(function(proj){
     var emoji = projEmojis[proj]||'📁';
     var projAgents = active.filter(function(a){return a.proj===proj;})
       .sort(function(a,b){return agentScore(b)-agentScore(a);});
-    var pScores = projAgents.map(function(a){return agentScore(a);}).filter(function(s){return s>0;});
-    var pAvg = pScores.length ? Math.round(pScores.reduce(function(t,s){return t+s;},0)/pScores.length*10)/10 : 0;
-    var sheetName = (emoji+' '+proj).slice(0,31);
-    var wsp = wb.addWorksheet(sheetName, {views:[{showGridLines:false,state:'frozen',ySplit:2}]});
-    wsp.columns = [{width:5},{width:26},{width:12},{width:14},{width:14},{width:12},{width:12},{width:14},{width:16}];
+    var projScores = projAgents.map(function(a){return agentScore(a);}).filter(function(s){return s>0;});
+    var projAvg = projScores.length ? Math.round(projScores.reduce(function(t,s){return t+s;},0)/projScores.length*10)/10 : 0;
 
-    styleTitle(wsp, 1, emoji+' '+proj+' — '+lastM+' · '+projAgents.length+' agents · Moy: '+pAvg+'%', C.BLACK, C.WHITE, 9);
-    var hdrP = wsp.addRow(['#','Nom','Score','Rang','Performance %','Qualite %','Presence %','Engagement','Avertissement']);
-    styleHeader(hdrP, '2D2D2A', C.WHITE);
+    var rows = [];
+    rows.push([emoji+' '+proj+' — '+lastM,'','','','','','','','']);
+    rows.push(['Moyenne du projet : '+projAvg+'%','','','','','','','','']);
+    rows.push(['#','Nom','Score','Rang','Performance %','Qualité %','Présence %','Engagement','Avertissement']);
 
-    projAgents.forEach(function(agent, idx){
-      var score = agentScore(agent);
-      var rk = agentRank(agent);
-      var rs = rankStyle(rk);
-      var s = agent.scores[lastM]||{};
+    projAgents.forEach(function(a,idx){
+      var s = a.scores[lastM]||{};
       var eng = s.eng||{};
       var engStr = typeof eng==='object'
-        ? ((eng.briefs?1:0)+(eng.remontees?1:0)+(eng.comportement?1:0))+'/3 criteres'
+        ? ((eng.briefs?1:0)+(eng.remontees?1:0)+(eng.comportement?1:0))+'/3'
         : (eng||3)+'/5';
-      var row = wsp.addRow([
-        idx+1, agent.name,
-        score.toFixed(1)+'%', rs.label,
-        (s.perf||0)+'%', (s.qual||0)+'%', (s.pres||100)+'%',
+      var avertLabels = {0:'Aucun',1:'Verbal',2:'Écrit',3:'Mise à pied'};
+      rows.push([
+        idx+1, a.name,
+        agentScore(a).toFixed(1)+'%',
+        agentRank(a),
+        (s.perf||0)+'%',
+        (s.qual||0)+'%',
+        (s.pres||100)+'%',
         engStr,
         avertLabels[s.avert||0]||'Aucun'
       ]);
-      styleDataRow(row, idx%2===1);
-      row.getCell(3).font = fontStyle({bold:true,size:11,color:scoreColor(score)});
-      row.getCell(4).fill = fillColor(rs.bg);
-      row.getCell(4).font = fontStyle({bold:true,size:9,color:rs.fg});
-      row.getCell(4).alignment = {horizontal:'center',vertical:'middle'};
-      if((s.avert||0)>0){
-        row.getCell(9).font = fontStyle({size:10,color:C.RED,bold:true});
-      }
     });
+    rows.push(['MOYENNE','',projAvg.toFixed(1)+'%','','','','','','']);
 
-    // Ligne moyenne
-    var avgRow = wsp.addRow(['MOYENNE DU PROJET','',pAvg.toFixed(1)+'%','','','','','','']);
-    avgRow.height = 22;
-    avgRow.eachCell({includeEmpty:true},function(cell){
-      cell.fill = fillColor(C.BLACK); cell.border = border();
-      cell.font = fontStyle({bold:true,size:10,color:C.WHITE});
-      cell.alignment = {horizontal:'center',vertical:'middle'};
-    });
-    avgRow.getCell(3).font = fontStyle({bold:true,size:13,color:C.YELLOW});
-    avgRow.getCell(3).fill = fillColor(C.BLACK);
-    wsp.mergeCells(projAgents.length+3, 1, projAgents.length+3, 2);
+    var wsProj = XLSX.utils.aoa_to_sheet(rows);
+    wsProj['!cols'] = [{wch:5},{wch:26},{wch:12},{wch:12},{wch:14},{wch:12},{wch:12},{wch:14},{wch:16}];
+    var sheetName = (emoji+' '+proj).slice(0,31);
+    XLSX.utils.book_append_sheet(wb, wsProj, sheetName);
   });
 
-  // ══════════════════════════════════════
-  // ONGLET OBJECTIFS COMMERCIAUX
-  // ══════════════════════════════════════
-  var wso = wb.addWorksheet('🎯 Objectifs', {views:[{showGridLines:false}]});
-  wso.columns = [{width:24},{width:14},{width:14},{width:14},{width:14},{width:20}];
-
-  styleTitle(wso, 1, 'OBJECTIFS COMMERCIAUX — '+lastM, C.BLACK, C.WHITE, 6);
-  var hdrO = wso.addRow(['Projet','Unite','Objectif','Realise','% Atteinte','Statut']);
-  styleHeader(hdrO, C.BLACK, C.WHITE);
-
-  D.projects.forEach(function(proj, idx){
+  // ─── ONGLET OBJECTIFS COMMERCIAUX ───
+  var objRows = [];
+  objRows.push(['OBJECTIFS COMMERCIAUX — '+lastM,'','','','','']);
+  objRows.push(['Projet','Unite','Objectif','Realise','% Atteinte','Statut']);
+  D.projects.forEach(function(proj){
     var obj = (D.objectifsComm||{})[proj]||{};
-    var pct = (obj.objectif&&obj.realise) ? Math.round(+obj.realise/+obj.objectif*100) : null;
-    var statut = pct!==null ? (pct>=100?'✅ Atteint':pct>=80?'⚠️ Proche':'❌ Sous objectif') : 'A renseigner';
-    var row = wso.addRow([
-      proj, obj.unite||'A definir',
-      obj.objectif||'—', obj.realise||'—',
-      pct!==null ? pct+'%' : '—', statut
+    var pct = (obj.objectif&&obj.realise) ? Math.round(+obj.realise/+obj.objectif*100)+'%' : '—';
+    var statut = (obj.objectif&&obj.realise)
+      ? (+obj.realise/+obj.objectif>=1?'✅ Atteint':+obj.realise/+obj.objectif>=0.8?'⚠️ Proche':'❌ Sous objectif')
+      : 'À renseigner';
+    objRows.push([
+      proj,
+      obj.unite||'À définir',
+      obj.objectif||'—',
+      obj.realise||'—',
+      pct,
+      statut
     ]);
-    styleDataRow(row, idx%2===1);
-    if(pct!==null){
-      var statColor = pct>=100?C.GREEN:pct>=80?'BA7517':C.RED;
-      row.getCell(6).font = fontStyle({bold:true,size:10,color:statColor});
-      row.getCell(5).font = fontStyle({bold:true,size:10,color:statColor});
-    }
   });
+  var wsObj = XLSX.utils.aoa_to_sheet(objRows);
+  wsObj['!cols'] = [{wch:24},{wch:14},{wch:14},{wch:14},{wch:14},{wch:20}];
+  XLSX.utils.book_append_sheet(wb, wsObj, '🎯 Objectifs commerciaux');
 
-  // ─── Téléchargement ───
+  // ─── Télécharger ───
   var filename = 'Rapport_Altius_'+lastM.replace(' ','_')+'.xlsx';
-  var buf = await wb.xlsx.writeBuffer();
-  var blob = new Blob([buf], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
-  var url = URL.createObjectURL(blob);
-  var a = document.createElement('a');
-  a.href = url; a.download = filename;
-  document.body.appendChild(a); a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  XLSX.writeFile(wb, filename);
 };
 
 
+window.renderHist = function() {
+  if (!D) return;
+  var agF = document.getElementById('hag').value;
+  var prF = document.getElementById('hpr').value;
+  var agents = D.agents.filter(function(a) {
+    if (!a.active) return false;
+    if (agF !== 'all' && a.id !== agF) return false;
+    if (prF !== 'all' && a.proj !== prF) return false;
+    return true;
+  });
+  if (!agents.length) {
+    document.getElementById('hist-body').innerHTML = '<p style="color:#888;font-size:13px;padding:8px 0">Aucun agent.</p>';
+    return;
+  }
+  var th = '<table class="tbl"><thead><tr><th>Agent</th><th>Projet</th>';
+  for (var mi = 0; mi < D.months.length; mi++) {
+    th += '<th style="text-align:center">' + D.months[mi] + '</th>';
+  }
+  th += '<th>Moyenne</th></tr></thead><tbody>';
+  for (var ai2 = 0; ai2 < agents.length; ai2++) {
+    var ag = agents[ai2];
+    var mscores = [];
+    th += '<tr><td style="font-weight:600;white-space:nowrap">' + ag.name + '</td>';
+    th += '<td style="color:#888;font-size:12px">' + ag.proj + '</td>';
+    for (var mi2 = 0; mi2 < D.months.length; mi2++) {
+      var sc3 = ag.scores[D.months[mi2]];
+      if (sc3 && (sc3.perf || sc3.qual)) {
+        var sv = calcScore2(sc3);
+        mscores.push(sv);
+        th += '<td style="text-align:center;font-weight:600;color:' + col(sv) + '">' + sv.toFixed(1) + '%</td>';
+      } else {
+        th += '<td style="text-align:center;color:#ccc;font-size:11px">-</td>';
+      }
+    }
+    var mavg = mscores.length ? Math.round(mscores.reduce(function(a,b){return a+b;},0)/mscores.length*10)/10 : 0;
+    th += '<td style="font-weight:700;color:' + col(mavg) + '">' + mavg.toFixed(1) + '%</td></tr>';
+  }
+  th += '</tbody></table>';
+  document.getElementById('hist-body').innerHTML = th;
+};
+
+window.lockMonth = async function(mo) {
+  if (!D.lockedMonths) D.lockedMonths = [];
+  if (D.lockedMonths.indexOf(mo) === -1) {
+    D.lockedMonths.push(mo);
+    await saveD();
+    renderArchives();
+  }
+};
+
+window.unlockMonth = async function(mo) {
+  if (!confirm('Deverrouiller ce mois ?')) return;
+  D.lockedMonths = (D.lockedMonths || []).filter(function(m) { return m !== mo; });
+  await saveD();
+  renderArchives();
+};
+
+window.takeSnap = async function() {
+  var active = D.agents.filter(function(a) { return a.active; });
+  var scores = [];
+  for (var i = 0; i < active.length; i++) {
+    for (var mi = D.months.length - 1; mi >= 0; mi--) {
+      var s = active[i].scores[D.months[mi]];
+      if (s && (s.perf || s.qual)) {
+        scores.push(calcScore2(s));
+        break;
+      }
+    }
+  }
+  var avgScore = scores.length ? Math.round(scores.reduce(function(a,b){return a+b;},0)/scores.length) : 0;
+  var now = new Date();
+  var dateStr = now.toLocaleDateString('fr-FR', {day:'2-digit', month:'long', year:'numeric'});
+  if (!D.snapshots) D.snapshots = [];
+  D.snapshots.push({
+    label: 'Snapshot ' + dateStr,
+    date: dateStr,
+    agentCount: active.length,
+    avgScore: avgScore,
+    months: JSON.parse(JSON.stringify(D.months)),
+    agents: JSON.parse(JSON.stringify(D.agents)),
+    projects: JSON.parse(JSON.stringify(D.projects))
+  });
+  await saveD();
+  renderArchives();
+  setSyncBadge('sync-ok', 'Snapshot sauvegardee !');
+  setTimeout(function() { setSyncBadge('sync-ok', 'Synchronise'); }, 2500);
+};
+
+window.delSnap = async function(idx) {
+  if (!confirm('Supprimer cette snapshot ?')) return;
+  D.snapshots.splice(+idx, 1);
+  await saveD();
+  renderArchives();
+};
+
+
+window._updateOpsSel = function(){
+  var proj = document.getElementById('fp');
+  if(!proj) return;
+  var ops = (D.operations||{})[proj.value]||[];
+  var sel = document.getElementById('fop-sel');
+  if(!sel) return;
+  sel.innerHTML = '<option value="">-- Aucune --</option>' + ops.map(function(o){return '<option value="'+o+'">'+o+'</option>';}).join('');
+};
+
+
+function renderTeamleaders(){
+  if(!D) return;
+  var tls = D.teamleaders || [];
+  if(!tls.length){
+    document.getElementById('tl-body').innerHTML = '<div class="card" style="text-align:center;padding:2rem;color:var(--muted)"><div style="font-size:32px;margin-bottom:8px">&#128084;</div><div style="font-size:14px;font-weight:500;margin-bottom:4px">Aucun team leader</div><div style="font-size:12px">Ajoute des team leaders et assigne-leur des projets et operations</div></div>';
+    return;
+  }
+
+  // CLASSEMENT TEAM LEADERS
+  var supRanking = [];
+  for(var ri=0; ri<tls.length; ri++){
+    var rs = tls[ri];
+    var rAgents = getTeamLeaderAgents(rs);
+    var rScores = rAgents.map(function(a){var ls=lastScore(a);return ls?ls.score:0;}).filter(function(s){return s>0;});
+    var rAvg = rScores.length?Math.round(rScores.reduce(function(a,b){return a+b;},0)/rScores.length):0;
+    supRanking.push({sup:rs, agents:rAgents, avg:rAvg});
+  }
+  supRanking.sort(function(a,b){return b.avg-a.avg;});
+
+  var html = '';
+
+  // Classement
+  if(supRanking.length > 1){
+    html += '<div class="card" style="margin-bottom:12px">';
+    html += '<div class="stitle" style="margin-bottom:10px">Classement des team leaders</div>';
+    for(var ci=0; ci<supRanking.length; ci++){
+      var sr = supRanking[ci];
+      var av0 = avc(sr.sup.name);
+      var pos = ci===0?'1er':ci===1?'2eme':ci===2?'3eme':(ci+1)+'e';
+      var posBg = ci===0?'#fffbe6':ci===1?'#f5f5f5':ci===2?'#fdf6ee':'#f5f5f5';
+      var posBorder = ci===0?'#F5C800':ci===1?'#ccc':ci===2?'#cd7f32':'#e0e0e0';
+      html += '<div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:10px;margin-bottom:6px;background:'+posBg+';border:1px solid '+posBorder+'">';
+      html += '<div style="font-size:14px;font-weight:800;min-width:36px;color:'+posBorder+'">'+pos+'</div>';
+      html += '<div class="av" style="background:'+av0[0]+';color:'+av0[1]+';width:34px;height:34px;font-size:12px">'+ini(sr.sup.name)+'</div>';
+      html += '<div style="flex:1"><div style="font-size:14px;font-weight:700">'+sr.sup.name+'</div>';
+      html += '<div style="font-size:11px;color:var(--muted)">'+sr.agents.length+' agent'+(sr.agents.length>1?'s':'')+' - '+getTeamLeaderLabel(sr.sup)+'</div></div>';
+      html += '<div style="text-align:right"><div style="font-size:20px;font-weight:800;color:'+col(sr.avg)+'">'+sr.avg+'%</div>';
+      html += '<div style="font-size:10px;color:var(--muted)">score moy. equipe</div></div>';
+      html += '</div>';
+    }
+    html += '</div>';
+  }
+
+  // Detail par team leader
+  for(var si=0; si<tls.length; si++){
+    var sup = tls[si];
+    var agents = getTeamLeaderAgents(sup);
+    var scores = agents.map(function(a){var ls=lastScore(a);return ls?ls.score:0;}).filter(function(s){return s>0;});
+    var avg = scores.length?Math.round(scores.reduce(function(a,b){return a+b;},0)/scores.length):0;
+    var av1 = avc(sup.name);
+    html += '<div class="card" style="margin-bottom:12px">';
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">';
+    html += '<div style="display:flex;align-items:center;gap:10px">';
+    html += '<div class="av" style="background:'+av1[0]+';color:'+av1[1]+';width:40px;height:40px;font-size:14px">'+ini(sup.name)+'</div>';
+    html += '<div><div style="font-size:15px;font-weight:700">'+sup.name+'</div>';
+    html += '<div style="font-size:12px;color:var(--muted)">'+agents.length+' agent'+(agents.length>1?'s':'')+' - Score moy. <span style="color:'+col(avg)+';font-weight:700">'+avg+'%</span></div>';
+    html += '<div style="font-size:11px;color:var(--muted);margin-top:2px">'+getTeamLeaderLabel(sup)+'</div>';
+    html += '</div></div>';
+    html += '<div style="display:flex;gap:6px">';
+    html += '<button class="abtn" data-supid="'+sup.id+'" onclick="window._editTL(this.dataset.supid)">Modifier</button>';
+    html += '<button class="abtn red" data-supid="'+sup.id+'" onclick="window._delTL(this.dataset.supid)">Supprimer</button>';
+    html += '</div></div>';
+    // Agents list
+    if(agents.length){
+      html += '<div style="display:flex;flex-wrap:wrap;gap:6px">';
+      var sortedAgents = agents.slice().sort(function(a,b){
+        var sa=lastScore(a),sb=lastScore(b);
+        return(sb?sb.score:0)-(sa?sa.score:0);
+      });
+      for(var ai=0; ai<sortedAgents.length; ai++){
+        var ag = sortedAgents[ai];
+        var av2 = avc(ag.name);
+        var ls2 = lastScore(ag);
+        var sc2 = ls2?ls2.score:0;
+        html += '<div style="display:flex;align-items:center;gap:5px;background:var(--light);border-radius:8px;padding:5px 10px">';
+        html += '<div class="av" style="background:'+av2[0]+';color:'+av2[1]+';width:22px;height:22px;font-size:9px">'+ini(ag.name)+'</div>';
+        html += '<span style="font-size:12px;font-weight:500">'+ag.name+'</span>';
+        if(ag.operation) html += '<span style="font-size:10px;background:#f0f0f0;color:#555;padding:1px 6px;border-radius:20px">'+ag.operation+'</span>';
+        html += '<span style="font-size:12px;font-weight:700;color:'+col(sc2)+'">'+sc2.toFixed(0)+'%</span>';
+        html += '</div>';
+      }
+      html += '</div>';
+    } else {
+      html += '<p style="font-size:12px;color:var(--muted)">Aucun agent dans cette equipe.</p>';
+    }
+    html += '</div>';
+  }
+  document.getElementById('tl-body').innerHTML = html;
+}
+
+function getTeamLeaderAgents(sup){
+  var projets = sup.projets || [];
+  return D.agents.filter(function(a){
+    if(!a.active) return false;
+    for(var i=0; i<projets.length; i++){
+      var pEntry = projets[i];
+      // pEntry can be {proj, op} or just a string (old format)
+      if(typeof pEntry === 'string'){
+        if(a.proj === pEntry) return true;
+      } else {
+        if(a.proj === pEntry.proj){
+          // If operation specified, filter by it
+          if(pEntry.op && pEntry.op !== ''){
+            if(a.operation === pEntry.op) return true;
+          } else {
+            return true;
+          }
+        }
+      }
+    }
+    return false;
+  });
+}
+
+function getTeamLeaderLabel(sup){
+  var projets = sup.projets || [];
+  return projets.map(function(p){
+    if(typeof p === 'string') return p;
+    return p.proj + (p.op?' - '+p.op:'');
+  }).join(', ') || 'Aucune equipe assignee';
+}
+
+window.openAddTL = function(){
+  var projHtml = '';
+  for(var i=0; i<D.projects.length; i++){
+    var p = D.projects[i];
+    var ops = (D.operations||{})[p]||[];
+    projHtml += '<div style="margin-bottom:8px;padding:8px;border:1px solid var(--border);border-radius:8px">';
+    projHtml += '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600">';
+    projHtml += '<input type="checkbox" class="sup-proj-cb" value="'+p+'"> '+p+'</label>';
+    if(ops.length){
+      projHtml += '<div style="margin-top:6px;margin-left:20px"><div style="font-size:11px;color:var(--muted);margin-bottom:4px">Operation :</div>';
+      projHtml += '<select class="sup-op-sel" data-proj="'+p+'" style="font-size:12px;width:auto;padding:4px 8px">';
+      projHtml += '<option value="">Toutes les operations</option>';
+      for(var oi=0; oi<ops.length; oi++){
+        projHtml += '<option value="'+ops[oi]+'">'+ops[oi]+'</option>';
+      }
+      projHtml += '</select></div>';
+    }
+    projHtml += '</div>';
+  }
+  showModal('<div class="mhdr"><h3>Nouveau team leader</h3><button class="xbtn" onclick="closeM()">x</button></div>'
+    +'<div id="fa" class="alert-err"></div>'
+    +'<div style="margin-bottom:12px"><div class="flabel">Nom du team leader</div><input type="text" id="sup-name" placeholder="Ex: Dyhia"></div>'
+    +'<div style="margin-bottom:14px"><div class="flabel">Projets et operations assignes</div><div style="margin-top:6px">'+projHtml+'</div></div>'
+    +'<div class="frow"><button class="btn" onclick="closeM()">Annuler</button><button class="btn yellow" onclick="window._doAddTL()">Creer</button></div>');
+}
+
+window._doAddTL = async function(){
+  var name = document.getElementById('sup-name').value.trim();
+  if(!name){var e=document.getElementById('fa');e.textContent='Le nom est obligatoire.';e.style.display='block';return;}
+  var projets = [];
+  var cbs = document.querySelectorAll('.sup-proj-cb:checked');
+  for(var i=0; i<cbs.length; i++){
+    var proj = cbs[i].value;
+    var opSel = document.querySelector('.sup-op-sel[data-proj="'+proj+'"]');
+    var op = opSel ? opSel.value : '';
+    projets.push({proj:proj, op:op});
+  }
+  if(!D.teamleaders) D.teamleaders = [];
+  D.teamleaders.push({id:'tl'+Date.now(), name:name, projets:projets});
+  await saveD();
+  closeM();
+  renderTeamleaders();
+}
+
+window._editTL = function(id){
+  var sup = (D.teamleaders||[]).find(function(s){return s.id===id;});
+  if(!sup) return;
+  var projHtml = '';
+  for(var i=0; i<D.projects.length; i++){
+    var p = D.projects[i];
+    var ops = (D.operations||{})[p]||[];
+    var isChecked = (sup.projets||[]).some(function(pe){return typeof pe==='string'?pe===p:pe.proj===p;});
+    var currentOp = '';
+    if(isChecked){
+      var pe2 = (sup.projets||[]).find(function(pe){return typeof pe==='string'?pe===p:pe.proj===p;});
+      currentOp = pe2 && typeof pe2 !== 'string' ? pe2.op||'' : '';
+    }
+    projHtml += '<div style="margin-bottom:8px;padding:8px;border:1px solid var(--border);border-radius:8px">';
+    projHtml += '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600">';
+    projHtml += '<input type="checkbox" class="sup-proj-cb" value="'+p+'"'+(isChecked?' checked':'')+'>'+p+'</label>';
+    if(ops.length){
+      projHtml += '<div style="margin-top:6px;margin-left:20px"><div style="font-size:11px;color:var(--muted);margin-bottom:4px">Operation :</div>';
+      projHtml += '<select class="sup-op-sel" data-proj="'+p+'" style="font-size:12px;width:auto;padding:4px 8px">';
+      projHtml += '<option value="">Toutes les operations</option>';
+      for(var oi=0; oi<ops.length; oi++){
+        projHtml += '<option value="'+ops[oi]+'"'+(ops[oi]===currentOp?' selected':'')+'>'+ops[oi]+'</option>';
+      }
+      projHtml += '</select></div>';
+    }
+    projHtml += '</div>';
+  }
+  showModal('<div class="mhdr"><h3>Modifier le team leader</h3><button class="xbtn" onclick="closeM()">x</button></div>'
+    +'<div id="fa" class="alert-err"></div>'
+    +'<div style="margin-bottom:12px"><div class="flabel">Nom</div><input type="text" id="sup-name" value="'+sup.name+'"></div>'
+    +'<div style="margin-bottom:14px"><div class="flabel">Projets et operations assignes</div><div style="margin-top:6px">'+projHtml+'</div></div>'
+    +'<div class="frow"><button class="btn" onclick="closeM()">Annuler</button><button class="btn yellow" data-supid="'+id+'" onclick="window._doEditTL(this.dataset.supid)">Enregistrer</button></div>');
+}
+
+window._doEditTL = async function(id){
+  var sup = (D.teamleaders||[]).find(function(s){return s.id===id;});
+  if(!sup) return;
+  var name = document.getElementById('sup-name').value.trim();
+  if(!name){var e=document.getElementById('fa');e.textContent='Le nom est obligatoire.';e.style.display='block';return;}
+  sup.name = name;
+  sup.projets = [];
+  var cbs = document.querySelectorAll('.sup-proj-cb:checked');
+  for(var i=0; i<cbs.length; i++){
+    var proj = cbs[i].value;
+    var opSel = document.querySelector('.sup-op-sel[data-proj="'+proj+'"]');
+    var op = opSel ? opSel.value : '';
+    sup.projets.push({proj:proj, op:op});
+  }
+  await saveD();
+  closeM();
+  renderTeamleaders();
+}
+
+window._delTL = async function(id){
+  if(!confirm('Supprimer ce team leader ?')) return;
+  D.teamleaders = (D.teamleaders||[]).filter(function(s){return s.id!==id;});
+  await saveD();
+  renderTeamleaders();
+}
+
+
+// ==================
+// SYSTEME DE COMPTES
+// ==================
+var DEFAULT_ACCOUNTS = [
+  {id:'admin', username:'admin', password:'altius2026', role:'admin', nom:'Administrateur', projets:[], operations:[]}
+];
+
+var CURRENT_USER = null;
+
+var ROLES = {
+  admin:    {label:'Admin',                    badge:'role-patron',   desc:'Acces total'},
+  respo:    {label:'Responsable de production',badge:'role-chef',     desc:'Multi-projets, sans gestion comptes'},
+  chef:     {label:'Chef de projet',           badge:'role-chef',     desc:'Ses projets uniquement'},
+  teamlead: {label:'Manager',                  badge:'role-teamlead', desc:'Son equipe uniquement'},
+  qualite:  {label:'Qualticien',               badge:'role-qualite',  desc:'Scores qualite de son equipe'}
+};
+
+function getAccounts(){
+  return D && D.accounts && D.accounts.length ? D.accounts : DEFAULT_ACCOUNTS;
+}
+
+function checkLogin(){
+  var saved = localStorage.getItem('altius_session');
+  if(saved){
+    try{
+      var session = JSON.parse(saved);
+      // Chercher dans D.accounts ou DEFAULT_ACCOUNTS
+      var allAccounts = (D && D.accounts && D.accounts.length) ? D.accounts : DEFAULT_ACCOUNTS;
+      var acc = allAccounts.find(function(a){ return a.id === session.id && a.password === session.password; });
+      // Toujours vérifier aussi dans DEFAULT_ACCOUNTS (pour admin)
+      if(!acc && allAccounts !== DEFAULT_ACCOUNTS){
+        acc = DEFAULT_ACCOUNTS.find(function(a){ return a.id === session.id && a.password === session.password; });
+      }
+      if(acc){
+        CURRENT_USER = acc;
+        document.getElementById('loginOverlay').style.display = 'none';
+        document.getElementById('main-nav').style.display = '';
+        applyUserRole();
+        return;
+      }
+    }catch(e){}
+  }
+}
+
+function applyUserRole(){
+  if(!CURRENT_USER) return;
+  var role = CURRENT_USER.role;
+
+  // Define tab access per role
+  var tabAccess = {
+    admin:    ['overview','agents','mois','projets','archives','teamleaders','comptes','cal-dl'],
+    respo:    ['overview','chef','agents','mois','projets','archives','teamleaders','cal-dl'],
+    chef:     ['chef','agents','mois','projets','cal-dl'],
+    teamlead: ['chef','agents','cal-dl'],
+    qualite:  ['chef','agents','cal-dl']
+  };
+  var allowed = tabAccess[role] || ['overview'];
+
+  // Onglets principaux
+  var nbs = document.querySelectorAll('.nb[data-page]');
+  nbs.forEach(function(btn){
+    var pageId = btn.getAttribute('data-page');
+    btn.style.display = (allowed.indexOf(pageId) !== -1) ? '' : 'none';
+  });
+
+  // Dropdown items
+  var dropItems = document.querySelectorAll('.nb-dropdown-item[data-page]');
+  var adminVisible = false;
+  dropItems.forEach(function(btn){
+    var pageId = btn.getAttribute('data-page');
+    var vis = allowed.indexOf(pageId) !== -1;
+    btn.style.display = vis ? '' : 'none';
+    if(vis) adminVisible = true;
+  });
+  // Masquer le bouton Admin si aucun item visible
+  var adminWrap = document.getElementById('admin-dropdown-wrap');
+  if(adminWrap) adminWrap.style.display = adminVisible ? '' : 'none';
+
+  // Update header user info
+  var userInfo = document.getElementById('user-info');
+  if(userInfo){
+    userInfo.textContent = CURRENT_USER.nom + ' - ' + (ROLES[role]?ROLES[role].label:role);
+  }
+}
+
+window.doLogin = function(){
+  var username = document.getElementById('loginUser').value.trim();
+  var pass = document.getElementById('loginPass').value.trim();
+  var err = document.getElementById('loginErr');
+  var wait = document.getElementById('loginWait');
+  err.style.display = 'none';
+  if(wait) wait.style.display = 'none';
+  // Si Firebase pas encore chargé, on attend avec DEFAULT_ACCOUNTS
+  var allAccounts = (D && D.accounts && D.accounts.length) ? D.accounts : DEFAULT_ACCOUNTS;
+  var acc = allAccounts.find(function(a){ return a.username === username && a.password === pass; });
+  // Si pas trouvé dans D.accounts, essayer aussi DEFAULT_ACCOUNTS (sécurité)
+  if(!acc && allAccounts !== DEFAULT_ACCOUNTS){
+    acc = DEFAULT_ACCOUNTS.find(function(a){ return a.username === username && a.password === pass; });
+  }
+  if(acc){
+    CURRENT_USER = acc;
+    localStorage.setItem('altius_session', JSON.stringify({id:acc.id, password:acc.password}));
+    document.getElementById('loginOverlay').style.display = 'none';
+    document.getElementById('main-nav').style.display = '';
+    err.style.display = 'none';
+    // Ne pas appeler applyUserRole ici — onSnapshot le fera quand D sera chargé
+    // Afficher l'onboarding après que Firebase charge (onSnapshot -> renderAll -> onboarding)
+  } else {
+    err.style.display = 'block';
+    document.getElementById('loginPass').value = '';
+    document.getElementById('loginPass').focus();
+  }
+}
+
+function renderComptes(){
+  if(!D) return;
+  if(!D.accounts) D.accounts = JSON.parse(JSON.stringify(DEFAULT_ACCOUNTS));
+  var accounts = D.accounts;
+  var html = '';
+  for(var i=0; i<accounts.length; i++){
+    var acc = accounts[i];
+    var role = ROLES[acc.role] || ROLES.teamlead;
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border:1px solid var(--border);border-radius:10px;margin-bottom:8px;flex-wrap:wrap;gap:8px">';
+    html += '<div style="display:flex;align-items:center;gap:10px">';
+    var av = avc(acc.nom);
+    html += '<div class="av" style="background:'+av[0]+';color:'+av[1]+';width:36px;height:36px;font-size:13px">'+ini(acc.nom)+'</div>';
+    html += '<div><div style="font-size:14px;font-weight:700">'+acc.nom+'</div>';
+    html += '<div style="font-size:12px;color:var(--muted)">@'+acc.username+' &nbsp;·&nbsp; <span class="role-badge '+role.badge+'">'+role.label+'</span></div>';
+    if(acc.projets && acc.projets.length){
+      html += '<div style="font-size:11px;color:var(--muted);margin-top:2px">'+acc.projets.join(', ')+'</div>';
+    }
+    html += '</div></div>';
+    html += '<div style="display:flex;gap:6px">';
+    if(CURRENT_USER && CURRENT_USER.role === 'admin'){
+      html += '<button class="abtn" data-id="'+acc.id+'" onclick="window.editCompte(this.dataset.id)">Modifier</button>';
+      if(acc.id !== 'admin'){
+        html += '<button class="abtn red" data-id="'+acc.id+'" onclick="window.delCompte(this.dataset.id)">Suppr.</button>';
+      }
+    }
+    html += '</div></div>';
+  }
+  document.getElementById('comptes-body').innerHTML = html || '<p style="color:var(--muted);font-size:13px">Aucun compte.</p>';
+}
+
+window.openAddCompte = function(){
+  var projOpts = '<option value="">-- Aucun --</option>' + D.projects.map(function(p){return '<option value="'+p+'">'+p+'</option>';}).join('');
+  var roleOpts = Object.keys(ROLES).map(function(r){return '<option value="'+r+'">'+ROLES[r].label+' - '+ROLES[r].desc+'</option>';}).join('');
+  showModal('<div class="mhdr"><h3>Nouveau compte</h3><button class="xbtn" onclick="closeM()">x</button></div>'
+    +'<div id="fa" class="alert-err"></div>'
+    +'<div class="fgrid" style="margin-bottom:4px">'
+    +'<div style="grid-column:1/-1"><div class="flabel">Nom complet</div><input type="text" id="acc-nom" placeholder="Ex: Dyhia Amrani"></div>'
+    +'<div><div class="flabel">Nom utilisateur</div><input type="text" id="acc-user" placeholder="Ex: dyhia"></div>'
+    +'<div><div class="flabel">Mot de passe</div><input type="password" id="acc-pass" placeholder="Choisir un mot de passe"></div>'
+    +'<div><div class="flabel">Role</div><select id="acc-role" onchange="window.updateAccRoleFields()"><option value="admin">Admin</option><option value="respo">Responsable de production</option><option value="chef">Chef de projet</option><option value="teamlead" selected>Manager</option><option value="qualite">Qualticien</option></select></div>'
+    +'<div><div class="flabel">Projet assigne</div><select id="acc-proj" onchange="window.updateAccOps()">'+projOpts+'</select></div>'
+    +'</div>'
+    +'<div id="acc-proj-wrap"></div>'
+    +'<div style="margin-bottom:14px" id="acc-op-wrap"><div class="flabel">Operation</div><select id="acc-op"><option value="">-- Toutes --</option></select></div>'
+    +'<div class="frow"><button class="btn" onclick="closeM()">Annuler</button><button class="btn yellow" onclick="window.doAddCompte()">Creer</button></div>');
+  window.updateAccOps();
+}
+
+window.updateAccRoleFields = function(){
+  var role = document.getElementById('acc-role').value;
+  var wrap = document.getElementById('acc-op-wrap');
+  var projWrap = document.getElementById('acc-proj-wrap');
+  if(wrap) wrap.style.display = (role==='admin') ? 'none' : 'block';
+  // Respo can select multiple projets
+  if(projWrap){
+    projWrap.innerHTML = '';
+    if(role==='respo'){
+      projWrap.innerHTML = '<div class="flabel" style="margin-top:8px">Projets assignés (multi-sélection)</div>'
+        + '<div style="margin-top:4px;display:flex;flex-wrap:wrap;gap:6px" id="respo-projs">'
+        + (D?D.projects:[]).map(function(p){
+            return '<label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer">'
+              + '<input type="checkbox" value="'+p+'" class="respo-proj-cb"> '+p+'</label>';
+          }).join('')
+        + '</div>';
+    }
+  }
+}
+
+window.updateAccOps = function(){
+  var proj = document.getElementById('acc-proj');
+  var opSel = document.getElementById('acc-op');
+  if(!proj || !opSel) return;
+  var ops = (D.operations||{})[proj.value]||[];
+  opSel.innerHTML = '<option value="">-- Toutes --</option>' + ops.map(function(o){return '<option value="'+o+'">'+o+'</option>';}).join('');
+}
+
+window.doAddCompte = async function(){
+  var nom = document.getElementById('acc-nom').value.trim();
+  var user = document.getElementById('acc-user').value.trim().toLowerCase();
+  var pass = document.getElementById('acc-pass').value.trim();
+  var role = document.getElementById('acc-role').value;
+  var proj = document.getElementById('acc-proj') ? document.getElementById('acc-proj').value : '';
+  var op = document.getElementById('acc-op') ? document.getElementById('acc-op').value : '';
+  var fa = document.getElementById('fa');
+  if(!nom){fa.textContent='Le nom est obligatoire.';fa.style.display='block';return;}
+  if(!user){fa.textContent='Le nom utilisateur est obligatoire.';fa.style.display='block';return;}
+  if(!pass){fa.textContent='Le mot de passe est obligatoire.';fa.style.display='block';return;}
+  if(!D.accounts) D.accounts = [];
+  if(D.accounts.find(function(a){return a.username===user;})){fa.textContent='Ce nom utilisateur existe deja.';fa.style.display='block';return;}
+  // Multi-projet pour respo
+  var projets = [];
+  if(role==='respo'){
+    document.querySelectorAll('.respo-proj-cb:checked').forEach(function(cb){ projets.push(cb.value); });
+  } else if(proj){
+    projets = [proj];
+  }
+  D.accounts.push({
+    id:'acc'+Date.now(),
+    username:user,
+    password:pass,
+    role:role,
+    nom:nom,
+    projets:projets,
+    operation:op
+  });
+  await saveD();
+  closeM();
+  renderComptes();
+}
+
+window.editCompte = function(id){
+  var acc = (D.accounts||[]).find(function(a){return a.id===id;});
+  if(!acc) return;
+  var projOpts = '<option value="">-- Aucun --</option>' + D.projects.map(function(p){return '<option value="'+p+'"'+(acc.projets&&acc.projets[0]===p?' selected':'')+'>'+p+'</option>';}).join('');
+  var roleOpts = Object.keys(ROLES).map(function(r){return '<option value="'+r+'"'+(r===acc.role?' selected':'')+'>'+ROLES[r].label+'</option>';}).join('');
+  var currentProj = acc.projets && acc.projets[0] ? acc.projets[0] : '';
+  var ops = (D.operations||{})[currentProj]||[];
+  var opOpts = '<option value="">-- Toutes --</option>'+ops.map(function(o){return '<option value="'+o+'"'+(o===acc.operation?' selected':'')+'>'+o+'</option>';}).join('');
+  showModal('<div class="mhdr"><h3>Modifier le compte</h3><button class="xbtn" onclick="closeM()">x</button></div>'
+    +'<div id="fa" class="alert-err"></div>'
+    +'<div class="fgrid" style="margin-bottom:4px">'
+    +'<div style="grid-column:1/-1"><div class="flabel">Nom complet</div><input type="text" id="acc-nom" value="'+acc.nom+'"></div>'
+    +'<div><div class="flabel">Nom utilisateur</div><input type="text" id="acc-user" value="'+acc.username+'"></div>'
+    +'<div><div class="flabel">Nouveau mot de passe</div><input type="password" id="acc-pass" placeholder="Laisser vide = inchange"></div>'
+    +'<div><div class="flabel">Role</div><select id="acc-role">'+roleOpts+'</select></div>'
+    +'<div><div class="flabel">Projet assigne</div><select id="acc-proj">'+projOpts+'</select></div>'
+    +'</div>'
+    +'<div style="margin-bottom:14px"><div class="flabel">Operation</div><select id="acc-op">'+opOpts+'</select></div>'
+    +'<div class="frow"><button class="btn" onclick="closeM()">Annuler</button><button class="btn yellow" data-id="'+id+'" onclick="window.doEditCompte(this.dataset.id)">Enregistrer</button></div>');
+}
+
+window.doEditCompte = async function(id){
+  var acc = (D.accounts||[]).find(function(a){return a.id===id;});
+  if(!acc) return;
+  var nom = document.getElementById('acc-nom').value.trim();
+  var user = document.getElementById('acc-user').value.trim().toLowerCase();
+  var pass = document.getElementById('acc-pass').value.trim();
+  var fa = document.getElementById('fa');
+  if(!nom){fa.textContent='Le nom est obligatoire.';fa.style.display='block';return;}
+  acc.nom = nom;
+  acc.username = user;
+  if(pass) acc.password = pass;
+  acc.role = document.getElementById('acc-role').value;
+  var proj = document.getElementById('acc-proj').value;
+  acc.projets = proj ? [proj] : [];
+  acc.operation = document.getElementById('acc-op').value;
+  await saveD();
+  closeM();
+  renderComptes();
+}
+
+window.delCompte = async function(id){
+  if(!confirm('Supprimer ce compte ?')) return;
+  D.accounts = (D.accounts||[]).filter(function(a){return a.id!==id;});
+  await saveD();
+  renderComptes();
+}
+
+// Check on load
+setTimeout(function(){ checkLogin(); }, 100);
+
+// Add logout + user info in header
+window.addEventListener('load', function(){
+  var headerRight = document.querySelector('.header > div:last-child');
+  if(headerRight){
+    var userSpan = document.createElement('span');
+    userSpan.id = 'user-info';
+    userSpan.style.cssText = 'color:rgba(255,255,255,.6);font-size:11px;margin-right:8px;';
+    headerRight.insertBefore(userSpan, headerRight.firstChild);
+    var logoutBtn = document.createElement('button');
+    logoutBtn.textContent = 'Deconnexion';
+    logoutBtn.style.cssText = 'background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.2);border-radius:6px;padding:5px 12px;font-size:11px;cursor:pointer;font-family:inherit;margin-right:8px;';
+    logoutBtn.onclick = function(){
+      if(confirm('Se deconnecter ?')){
+        localStorage.removeItem('altius_session');
+        CURRENT_USER = null;
+        location.reload();
+      }
+    };
+    headerRight.insertBefore(logoutBtn, headerRight.firstChild);
+  }
+});
+
+
+// ==================
+// NOTIFICATIONS
+// ==================
+function generateNotifications(){
+  if(!D) return [];
+  var notifs = D.notifications || [];
+  var now = new Date().toLocaleDateString('fr-FR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+  var newNotifs = [];
+
+  // Check agents in Rang D
+  var active = D.agents.filter(function(a){ return a.active; });
+  for(var i=0; i<active.length; i++){
+    var a = active[i];
+    var ls = lastScore(a);
+    if(!ls) continue;
+    var r = rank(ls.score);
+    if(r === 'D'){
+      var key = 'rangD_'+a.id+'_'+ls.m;
+      if(!notifs.find(function(n){ return n.key===key; })){
+        newNotifs.push({
+          id: 'n'+Date.now()+Math.random(),
+          key: key,
+          type: 'danger',
+          icon: '⚠️',
+          msg: a.name+' est en Rang E2 ('+ls.score.toFixed(1)+'%) — '+a.proj+(a.operation?' - '+a.operation:''),
+          time: now,
+          unread: true
+        });
+      }
+    }
+    // Check big drop in rank
+    var history = [];
+    for(var mi=0; mi<D.months.length; mi++){
+      var s = a.scores[D.months[mi]];
+      if(s && (s.perf||s.qual)){
+        var rv = (s.perf/100*0.4)+(s.qual/100*0.3)+(s.pres/100*0.2)+((s.eng/5)*0.1);
+        var mv = s.avert>=3?0:1-s.avert*0.1;
+        history.push(Math.round(rv*mv*1000)/10);
+      }
+    }
+    if(history.length >= 2){
+      var last2 = history[history.length-1];
+      var prev2 = history[history.length-2];
+      var drop = prev2 - last2;
+      if(drop >= 20){
+        var key2 = 'drop_'+a.id+'_'+ls.m;
+        if(!notifs.find(function(n){ return n.key===key2; })){
+          newNotifs.push({
+            id: 'n'+Date.now()+Math.random(),
+            key: key2,
+            type: 'warning',
+            icon: '📉',
+            msg: a.name+' a chute de '+drop.toFixed(0)+'% ce mois ('+prev2.toFixed(0)+'% -> '+last2.toFixed(0)+'%)',
+            time: now,
+            unread: true
+          });
+        }
+      }
+    }
+  }
+
+  // Check objectifs commerciaux
+  if(D.objectifsComm){
+    var ps2 = projStats();
+    for(var pi=0; pi<ps2.length; pi++){
+      var p2 = ps2[pi];
+      var objC2 = D.objectifsComm[p2.name];
+      if(objC2 && objC2.objectif && objC2.realise){
+        var pct2 = Math.round(+objC2.realise/+objC2.objectif*100);
+        if(pct2 < 80){
+          var key3 = 'obj_'+p2.name+'_'+D.months[D.months.length-1];
+          if(!notifs.find(function(n){ return n.key===key3; })){
+            newNotifs.push({
+              id: 'n'+Date.now()+Math.random(),
+              key: key3,
+              type: 'warning',
+              icon: '🎯',
+              msg: p2.name+' : objectif commercial à '+pct2+'% ('+Number(objC2.realise).toLocaleString('fr-FR')+' / '+Number(objC2.objectif).toLocaleString('fr-FR')+' '+( objC2.unite||'')+')',
+              time: now,
+              unread: true
+            });
+          }
+        }
+      }
+    }
+  }
+
+  // Check upcoming evaluations (3 days warning)
+  var evals = D.evaluations || [];
+  var today2 = new Date(); today2.setHours(0,0,0,0);
+  for(var ei=0; ei<evals.length; ei++){
+    var ev2 = evals[ei];
+    var evDate2 = new Date(ev2.date);
+    var diff2 = Math.round((evDate2-today2)/(1000*60*60*24));
+    if(diff2 >= 0 && diff2 <= 3){
+      var key4 = 'eval_'+ev2.id;
+      if(!notifs.find(function(n){ return n.key===key4; })){
+        var when2 = diff2===0 ? "aujourd'hui" : (diff2===1?'demain':'dans '+diff2+' jours');
+        newNotifs.push({
+          id: 'n'+Date.now()+Math.random(),
+          key: key4,
+          type: 'info',
+          icon: '📅',
+          msg: 'Evaluation "'+ev2.titre+'" '+when2+(ev2.projet?' - '+ev2.projet:''),
+          time: now,
+          unread: true
+        });
+      }
+    }
+  }
+
+  return newNotifs;
+}
+
+async function saveNotifications(notifs){
+  if(!D) return;
+  D.notifications = notifs;
+  await saveD();
+}
+
+function renderNotifications(){
+  if(!D) return;
+  var allNotifs = D.notifications || [];
+  // Filter notifications for current user
+  var notifs = allNotifs.filter(function(n){
+    if(!CURRENT_USER) return true;
+    // If notification has no targetAccId — it's global (Rang D, etc)
+    if(!n.targetAccId) return true;
+    // Otherwise only show if targeted at this user
+    return n.targetAccId === CURRENT_USER.id;
+  });
+  // Replace D.notifications with filtered for display
+  var origNotifs = D.notifications;
+  D.notifications = notifs;
+  var newNotifs = generateNotifications();
+
+  // Add new notifications
+  if(newNotifs.length){
+    notifs = notifs.concat(newNotifs);
+    D.notifications = notifs;
+    saveD();
+  }
+
+  // Filter notifications by user's project if not admin/respo
+  if(CURRENT_USER && CURRENT_USER.role !== 'admin' && CURRENT_USER.role !== 'respo'){
+    var userProj = CURRENT_USER.projets || [];
+    var userOp = CURRENT_USER.operation || '';
+    notifs = notifs.filter(function(n){
+      if(!n.targetProjet) return true; // General notification
+      if(userProj.indexOf(n.targetProjet) === -1) return false;
+      if(n.targetOperation && userOp && n.targetOperation !== userOp) return false;
+      return true;
+    });
+  }
+  // Sort by most recent
+  notifs = notifs.slice().reverse();
+
+  // Update badge using localStorage for per-user read state
+  var readIds = getReadNotifIds();
+  var unread = notifs.filter(function(n){ return readIds.indexOf(n.id) === -1; }).length;
+  var badge = document.getElementById('notif-count');
+  if(badge){
+    badge.textContent = unread > 9 ? '9+' : unread;
+    badge.style.display = unread > 0 ? 'flex' : 'none';
+  }
+
+  // Render list
+  var list = document.getElementById('notif-list');
+  if(!list) return;
+  if(!notifs.length){
+    list.innerHTML = '<div class="notif-empty">Aucune notification</div>';
+    return;
+  }
+  var html = '';
+  for(var i=0; i<Math.min(notifs.length, 20); i++){
+    var n = notifs[i];
+    var isUnread = readIds.indexOf(n.id) === -1;
+    html += '<div class="notif-item'+(isUnread?' unread':'')+'">';
+    html += '<div class="notif-icon">'+n.icon+'</div>';
+    html += '<div class="notif-content">';
+    html += '<div class="notif-msg">'+n.msg+'</div>';
+    html += '<div class="notif-time">'+n.time+'</div>';
+    html += '</div></div>';
+  }
+  list.innerHTML = html;
+  // Restore full notifications
+  if(origNotifs !== undefined) D.notifications = origNotifs;
+}
+
+function getReadNotifIds(){
+  var userId = CURRENT_USER ? CURRENT_USER.id : 'guest';
+  try{ return JSON.parse(localStorage.getItem('readNotifs_'+userId)||'[]'); }catch(e){ return []; }
+}
+function markAllRead(){
+  if(!D || !D.notifications) return;
+  var userId = CURRENT_USER ? CURRENT_USER.id : 'guest';
+  var ids = D.notifications.map(function(n){ return n.id; });
+  localStorage.setItem('readNotifs_'+userId, JSON.stringify(ids));
+  var badge = document.getElementById('notif-count');
+  if(badge) badge.style.display = 'none';
+}
+
+window.toggleNotifPanel = function(){
+  var panel = document.getElementById('notif-panel');
+  if(!panel) return;
+  panel.classList.toggle('open');
+  if(panel.classList.contains('open')){
+    markAllRead();
+    renderNotifications();
+  }
+}
+
+window.clearNotifs = async function(){
+  if(!confirm('Effacer toutes les notifications ?')) return;
+  if(D){ D.notifications = []; await saveD(); }
+  renderNotifications();
+  var panel = document.getElementById('notif-panel');
+  if(panel) panel.classList.remove('open');
+}
+
+// Close panel when clicking outside
+document.addEventListener('click', function(e){
+  var panel = document.getElementById('notif-panel');
+  var bell = document.getElementById('notif-bell');
+  if(panel && bell && !panel.contains(e.target) && !bell.contains(e.target)){
+    panel.classList.remove('open');
+  }
+});
+
+
+
+var EVENT_CATEGORIES = {
+  'Evaluation': { icon: '📋', color: '#378ADD', targets: 'individuel',
+    desc: 'Personne concernee + Chef de projet + Responsable' },
+  'Copil':      { icon: '🏢', color: '#7F77DD', targets: 'projet',
+    desc: 'Toutes les personnes du projet + Responsable' },
+  'Entretien':  { icon: '💬', color: '#1D9E75', targets: 'individuel',
+    desc: 'Personne concernee + Chef de projet + Responsable' },
+  'Brief':      { icon: '📝', color: '#F5C800', targets: 'projet',
+    desc: 'Toutes les personnes du projet' },
+  'Formation':  { icon: '🎓', color: '#E24B4A', targets: 'individuel_chef',
+    desc: 'Personne concernee + Chef de projet' },
+  'Reunion':    { icon: '👥', color: '#BA7517', targets: 'projet_respo',
+    desc: 'Toutes les personnes du projet + Responsable' },
+  'Audit':      { icon: '🔍', color: '#E24B4A', targets: 'admin',
+    desc: 'Tout le monde' },
+  'Autre':      { icon: '📌', color: '#666', targets: 'individuel_only',
+    desc: 'Personne concernee uniquement' }
+};
+
+// Get accounts who should receive a notification for an event
+function getEventTargetAccounts(categorie, projet, concerneNom){
+  var allAccounts = getAccounts();
+  var targets = (EVENT_CATEGORIES[categorie]||{}).targets || 'individuel';
+  var result = [];
+
+  allAccounts.forEach(function(acc){
+    var role = acc.role;
+    var accProjets = acc.projets || [];
+
+    if(targets === 'admin'){
+      // Tout le monde
+      result.push(acc.id);
+    } else if(targets === 'projet' || targets === 'projet_respo'){
+      // Personnes sur ce projet
+      if(projet && accProjets.indexOf(projet) !== -1) result.push(acc.id);
+      if(role === 'admin') result.push(acc.id);
+      if(targets === 'projet_respo' && role === 'respo') result.push(acc.id);
+    } else if(targets === 'individuel' || targets === 'individuel_chef' || targets === 'individuel_only'){
+      // Personne concernée
+      if(concerneNom && acc.nom === concerneNom) result.push(acc.id);
+      // Chef de projet du même projet
+      if(targets !== 'individuel_only'){
+        if(projet && accProjets.indexOf(projet) !== -1 && (role === 'chef' || role === 'respo')) result.push(acc.id);
+      }
+      // Responsable
+      if(targets === 'individuel' && role === 'respo') result.push(acc.id);
+      // Admin toujours
+      if(role === 'admin') result.push(acc.id);
+    }
+  });
+
+  // Deduplicate
+  return result.filter(function(id, idx, arr){ return arr.indexOf(id) === idx; });
+}
+function renderCalendrier(){
+  if(!D) return;
+  var evals = D.evaluations || [];
+  var now = new Date();
+  now.setHours(0,0,0,0);
+
+  var upcoming = evals.filter(function(e){ return new Date(e.date) >= now; }).sort(function(a,b){ return new Date(a.date)-new Date(b.date); });
+  var past = evals.filter(function(e){ return new Date(e.date) < now; }).sort(function(a,b){ return new Date(b.date)-new Date(a.date); });
+
+  // Render upcoming
+  var upHtml = '';
+  if(!upcoming.length){
+    upHtml = '<p style="color:var(--muted);font-size:13px">Aucune evaluation planifiee.</p>';
+  } else {
+    for(var i=0; i<upcoming.length; i++){
+      var ev = upcoming[i];
+      var evDate = new Date(ev.date);
+      var isToday = evDate.toDateString() === now.toDateString();
+      var dayDiff = Math.round((evDate-now)/(1000*60*60*24));
+      var cls = isToday ? 'today' : 'upcoming';
+      var when = isToday ? "Aujourd'hui !" : (dayDiff===1?'Demain':dayDiff+' jours');
+      upHtml += '<div class="cal-event '+cls+'">';
+      upHtml += '<div style="display:flex;align-items:center;justify-content:space-between">';
+      var evCatInfo = ev.categorie ? (EVENT_CATEGORIES[ev.categorie]||{icon:'📌'}) : {icon:'📋'};
+      upHtml += '<div style="display:flex;align-items:center;gap:8px">';
+      upHtml += '<span style="font-size:16px">'+evCatInfo.icon+'</span>';
+      upHtml += '<div class="cal-event-title">'+ev.titre+'</div>';
+      if(ev.categorie) upHtml += '<span style="font-size:10px;background:var(--light);color:var(--muted);padding:2px 8px;border-radius:20px;font-weight:600">'+ev.categorie+'</span>';
+      upHtml += '</div>';
+      upHtml += '<div style="font-size:11px;font-weight:700;color:'+(isToday?'#1D9E75':'#BA7517')+'">'+when+'</div>';
+      upHtml += '</div>';
+      upHtml += '<div class="cal-event-meta">'+evDate.toLocaleDateString('fr-FR',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
+      upHtml += ' &nbsp;·&nbsp; '+(ev.projet||'Tous projets')+(ev.operation?' - '+ev.operation:'');
+      if(ev.concerne) upHtml += ' &nbsp;·&nbsp; 👤 '+ev.concerne;
+      upHtml += '</div>';
+      if(ev.note) upHtml += '<div style="font-size:12px;color:var(--muted);margin-top:4px">'+ev.note+'</div>';
+      upHtml += '<div style="display:flex;gap:4px;margin-top:8px">';
+      upHtml += '<button class="abtn" data-id="'+ev.id+'" onclick="window.editEval(this.dataset.id)">Modifier</button>';
+      upHtml += '<button class="abtn red" data-id="'+ev.id+'" onclick="window.delEval(this.dataset.id)">Suppr.</button>';
+      upHtml += '</div></div>';
+    }
+  }
+  document.getElementById('cal-upcoming').innerHTML = upHtml;
+
+  // Render past
+  var pastHtml = '';
+  if(!past.length){
+    pastHtml = '<p style="color:var(--muted);font-size:13px">Aucune evaluation passee.</p>';
+  } else {
+    for(var j=0; j<Math.min(past.length,10); j++){
+      var ep = past[j];
+      var epDate = new Date(ep.date);
+      pastHtml += '<div class="cal-event past">';
+      pastHtml += '<div class="cal-event-title">'+ep.titre+'</div>';
+      pastHtml += '<div class="cal-event-meta">'+epDate.toLocaleDateString('fr-FR',{day:'2-digit',month:'long',year:'numeric'});
+      pastHtml += ' &nbsp;·&nbsp; '+ep.projet+(ep.operation?' - '+ep.operation:'')+'</div>';
+      if(ep.note) pastHtml += '<div style="font-size:12px;color:var(--muted);margin-top:3px">'+ep.note+'</div>';
+      pastHtml += '</div>';
+    }
+  }
+  document.getElementById('cal-past').innerHTML = pastHtml;
+
+  // Hide add button for non-admin/respo
+  var addBtn = document.getElementById('add-eval-btn');
+  if(addBtn && CURRENT_USER){
+    addBtn.style.display = (CURRENT_USER.role==='admin'||CURRENT_USER.role==='respo') ? '' : 'none';
+  }
+}
+
+window.openAddEval = function(){
+  var projOpts = D.projects.map(function(p){return '<option value="'+p+'">'+p+'</option>';}).join('');
+  var today = new Date().toISOString().slice(0,10);
+  var catOpts = Object.keys(EVENT_CATEGORIES).map(function(k){
+    return '<option value="'+k+'">'+EVENT_CATEGORIES[k].icon+' '+k+'</option>';
+  }).join('');
+  var allAccounts = getAccounts();
+  var personneOpts = '<option value="">-- Sélectionner --</option>'
+    + allAccounts.filter(function(a){return a.role!=='admin';}).map(function(a){
+        return '<option value="'+a.nom+'">'+a.nom+' ('+( ROLES[a.role]?ROLES[a.role].label:a.role)+')</option>';
+      }).join('');
+
+  showModal('<div class="mhdr"><h3>Planifier un evenement</h3><button class="xbtn" onclick="closeM()">✕</button></div>'
+    +'<div id="fa" class="alert-err"></div>'
+    // Catégorie
+    +'<div style="margin-bottom:12px">'
+      +'<div class="flabel">Categorie</div>'
+      +'<select id="ev-cat" onchange="window.updateEvalCat()">'+ catOpts +'</select>'
+      +'<div id="ev-cat-desc" style="font-size:11px;color:var(--muted);margin-top:4px"></div>'
+    +'</div>'
+    // Titre
+    +'<div style="margin-bottom:12px"><div class="flabel">Titre</div><input type="text" id="ev-titre" placeholder="Ex: Evaluation mensuelle JAPHY"></div>'
+    // Date + Projet
+    +'<div class="fgrid" style="margin-bottom:12px">'
+      +'<div><div class="flabel">Date</div><input type="date" id="ev-date" value="'+today+'"></div>'
+      +'<div><div class="flabel">Projet</div><select id="ev-proj" onchange="window.updateEvalOps();window.updateEvalCat()"><option value="">-- Tous --</option>'+projOpts+'</select></div>'
+    +'</div>'
+    // Opération
+    +'<div style="margin-bottom:12px"><div class="flabel">Operation</div><select id="ev-op"><option value="">-- Toutes --</option></select></div>'
+    // Personne concernée (pour catégories individuelles)
+    +'<div style="margin-bottom:12px" id="ev-personne-wrap">'
+      +'<div class="flabel">Personne(s) concernee(s)</div>'
+      +'<select id="ev-personne">'+personneOpts+'</select>'
+    +'</div>'
+    // Note
+    +'<div style="margin-bottom:14px"><div class="flabel">Note (optionnel)</div><input type="text" id="ev-note" placeholder="Ex: Apporter les fiches de suivi"></div>'
+    +'<div id="ev-notif-preview" style="background:var(--light);border-radius:8px;padding:10px 12px;font-size:12px;color:var(--muted);margin-bottom:12px"></div>'
+    +'<div class="frow"><button class="btn" onclick="closeM()">Annuler</button><button class="btn yellow" onclick="window.doAddEval()">Planifier</button></div>');
+  window.updateEvalOps();
+  window.updateEvalCat();
+}
+
+window.updateEvalCat = function(){
+  var cat = document.getElementById('ev-cat');
+  var desc = document.getElementById('ev-cat-desc');
+  var personneWrap = document.getElementById('ev-personne-wrap');
+  var preview = document.getElementById('ev-notif-preview');
+  if(!cat) return;
+  var info = EVENT_CATEGORIES[cat.value] || {};
+  if(desc) desc.textContent = info.desc || '';
+  // Show/hide personne field based on targets
+  var showPersonne = ['individuel','individuel_chef','individuel_only'].indexOf(info.targets) !== -1;
+  if(personneWrap) personneWrap.style.display = showPersonne ? '' : 'none';
+  // Notif preview
+  var proj = document.getElementById('ev-proj');
+  var projVal = proj ? proj.value : '';
+  var targets = getEventTargetAccounts(cat.value, projVal, '');
+  if(preview){
+    preview.innerHTML = '🔔 Notification envoyée à : <strong>'
+      + (targets.length ? targets.length+' personne(s)' : 'personne (complétez le formulaire)')
+      + '</strong> — ' + (info.desc||'');
+  }
+}
+
+window.updateEvalOps = function(){
+  var proj = document.getElementById('ev-proj');
+  var opSel = document.getElementById('ev-op');
+  if(!proj||!opSel) return;
+  var ops = (D.operations||{})[proj.value]||[];
+  opSel.innerHTML = '<option value="">-- Toutes --</option>'+ops.map(function(o){return '<option value="'+o+'">'+o+'</option>';}).join('');
+}
+
+window.doAddEval = async function(){
+  var titre = document.getElementById('ev-titre').value.trim();
+  var date  = document.getElementById('ev-date').value;
+  var fa    = document.getElementById('fa');
+  if(!titre){fa.textContent='Le titre est obligatoire.';fa.style.display='block';return;}
+  if(!date) {fa.textContent='La date est obligatoire.';fa.style.display='block';return;}
+  if(!D.evaluations) D.evaluations = [];
+
+  var categorie = document.getElementById('ev-cat') ? document.getElementById('ev-cat').value : 'Evaluation';
+  var projet    = document.getElementById('ev-proj').value;
+  var operation = document.getElementById('ev-op').value;
+  var perWrap   = document.getElementById('ev-personne-wrap');
+  var concerneNom = (perWrap && perWrap.style.display !== 'none' && document.getElementById('ev-personne'))
+    ? document.getElementById('ev-personne').value : '';
+
+  var catInfo = EVENT_CATEGORIES[categorie] || {icon:'📌'};
+  var evId = 'ev'+Date.now();
+
+  D.evaluations.push({
+    id: evId,
+    titre: titre,
+    date: date,
+    categorie: categorie,
+    projet: projet,
+    operation: operation,
+    concerne: concerneNom,
+    note: document.getElementById('ev-note').value.trim(),
+    createdBy: CURRENT_USER ? CURRENT_USER.nom : 'Admin'
+  });
+
+  // Notifications ciblées
+  if(!D.notifications) D.notifications = [];
+  var dateStr = new Date(date).toLocaleDateString('fr-FR',{weekday:'long',day:'2-digit',month:'long'});
+  var targetIds = getEventTargetAccounts(categorie, projet, concerneNom);
+  var contextStr = projet ? projet+(operation?' - '+operation:'') : '';
+  var msg = catInfo.icon+' '+categorie+' : "'+titre+'" — '+dateStr+(contextStr?' ('+contextStr+')':'')+(concerneNom?' — Concerne : '+concerneNom:'');
+
+  targetIds.forEach(function(accId){
+    D.notifications.push({
+      id: 'n'+Date.now()+Math.random().toString(36).slice(2,5),
+      key: 'event_'+evId+'_'+accId,
+      type: 'info',
+      icon: catInfo.icon,
+      categorie: categorie,
+      msg: msg,
+      time: new Date().toLocaleDateString('fr-FR',{day:'2-digit',month:'short'})+' '+new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}),
+      unread: true,
+      targetAccId: accId,
+      targetProjet: projet,
+      createdBy: CURRENT_USER ? CURRENT_USER.nom : 'Admin'
+    });
+  });
+
+  await saveD();
+  closeM();
+  renderCalendrier();
+  renderNotifications();
+}
+
+window.editEval = function(id){
+  var ev = (D.evaluations||[]).find(function(e){return e.id===id;});
+  if(!ev) return;
+  var projOpts = '<option value="">-- Tous --</option>'+D.projects.map(function(p){return '<option value="'+p+'"'+(p===ev.projet?' selected':'')+'>'+p+'</option>';}).join('');
+  var ops = (D.operations||{})[ev.projet]||[];
+  var opOpts = '<option value="">-- Toutes --</option>'+ops.map(function(o){return '<option value="'+o+'"'+(o===ev.operation?' selected':'')+'>'+o+'</option>';}).join('');
+  showModal('<div class="mhdr"><h3>Modifier</h3><button class="xbtn" onclick="closeM()">x</button></div>'
+    +'<div id="fa" class="alert-err"></div>'
+    +'<div style="margin-bottom:10px"><div class="flabel">Titre</div><input type="text" id="ev-titre" value="'+ev.titre+'"></div>'
+    +'<div class="fgrid" style="margin-bottom:10px">'
+    +'<div><div class="flabel">Date</div><input type="date" id="ev-date" value="'+ev.date+'"></div>'
+    +'<div><div class="flabel">Projet</div><select id="ev-proj">'+projOpts+'</select></div>'
+    +'</div>'
+    +'<div style="margin-bottom:10px"><div class="flabel">Operation</div><select id="ev-op">'+opOpts+'</select></div>'
+    +'<div style="margin-bottom:14px"><div class="flabel">Note</div><input type="text" id="ev-note" value="'+ev.note+'"></div>'
+    +'<div class="frow"><button class="btn" onclick="closeM()">Annuler</button><button class="btn yellow" data-id="'+id+'" onclick="window.doEditEval(this.dataset.id)">Enregistrer</button></div>');
+}
+
+window.doEditEval = async function(id){
+  var ev = (D.evaluations||[]).find(function(e){return e.id===id;});
+  if(!ev) return;
+  ev.titre = document.getElementById('ev-titre').value.trim();
+  ev.date = document.getElementById('ev-date').value;
+  ev.projet = document.getElementById('ev-proj').value;
+  ev.operation = document.getElementById('ev-op').value;
+  ev.note = document.getElementById('ev-note').value.trim();
+  await saveD();
+  closeM();
+  renderCalendrier();
+}
+
+window.delEval = async function(id){
+  if(!confirm('Supprimer cette evaluation ?')) return;
+  D.evaluations = (D.evaluations||[]).filter(function(e){return e.id!==id;});
+  await saveD();
+  renderCalendrier();
+}
+
+function showModal(html, wide){
+  const mb=document.getElementById('mbox');
+  mb.className='modal'+(wide?' wide':'');
+  mb.innerHTML=html;
+  document.getElementById('ov').classList.add('on');
+}
+window.closeM=function(){document.getElementById('ov').classList.remove('on');}
+function showFA(msg){const e=document.getElementById('fa');if(e){e.textContent=msg;e.style.display='block';}}
+document.getElementById('ov').addEventListener('click',e=>{if(e.target===document.getElementById('ov'))closeM();});
+
+
+var PAGE_LABELS = {
+  'overview':    {section:'', page:'Tableau de bord'},
+  'agents':      {section:'', page:'Agents'},
+  'projets':     {section:'', page:'Projets'},
+  'cal-dl':      {section:'', page:'Calendrier & Deadlines'},
+  'chef':        {section:'', page:'Mon projet'},
+  'mois':        {section:'Administration', page:'Mois & Scores'},
+  'archives':    {section:'Administration', page:'Archives'},
+  'teamleaders': {section:'Administration', page:'Team Leaders'},
+  'comptes':     {section:'Administration', page:'Comptes'},
+};
+
+function updateBreadcrumb(id){
+  var bc   = document.getElementById('breadcrumb');
+  var sec  = document.getElementById('bc-section');
+  var sep2 = document.getElementById('bc-sep2');
+  var cur  = document.getElementById('bc-current');
+  if(!bc) return;
+  var info = PAGE_LABELS[id] || {section:'', page:id};
+  if(id === 'overview'){
+    bc.classList.remove('visible');
+    return;
+  }
+  bc.classList.add('visible');
+  if(info.section){
+    sec.textContent  = info.section;
+    sep2.style.display = '';
+    cur.textContent  = info.page;
+  } else {
+    sec.textContent  = info.page;
+    sep2.style.display = 'none';
+    cur.textContent  = '';
+  }
+}
+window.goPage=function(id,btn){
+  document.querySelectorAll('.pg').forEach(p=>p.classList.remove('on'));
+  document.querySelectorAll('.nb').forEach(b=>b.classList.remove('on'));
+  document.querySelectorAll('.nb-dropdown-item').forEach(b=>b.classList.remove('on'));
+  // Marquer actif le bouton admin si page admin
+  var adminPages = ['mois','archives','teamleaders','comptes'];
+  var adminBtn = document.getElementById('admin-nav-btn');
+  if(adminBtn) adminBtn.classList.toggle('admin-active', adminPages.indexOf(id)!==-1);
+  updateBreadcrumb(id);
+  // Page virtuelle cal-dl
+  if(id==='cal-dl'){
+    document.getElementById('pg-cal-dl').classList.add('on');
+    if(btn) btn.classList.add('on');
+    renderCalDl();
+    return;
+  }
+  // Page chef de projet
+  if(id==='chef'){
+    document.getElementById('pg-chef').classList.add('on');
+    if(btn) btn.classList.add('on');
+    renderChef();
+    return;
+  }
+  document.getElementById('pg-'+id).classList.add('on');
+  if(btn) btn.classList.add('on');
+  if(id==='mois')renderMois();
+  if(id==='projets')renderProjects();
+  if(id==='agents')renderAgents();
+  if(id==='archives')renderArchives();
+  if(id==='calendrier')renderCalendrier();
+  if(id==='teamleaders')renderTeamleaders();
+  if(id==='comptes')renderComptes();
+  if(id==='deadlines')renderDeadlines();
+}
+
+window.toggleAdminMenu = function(e){
+  e.stopPropagation();
+  var menu = document.getElementById('admin-nav-menu');
+  if(menu) menu.style.display = menu.style.display==='none' ? '' : 'none';
+}
+window.closeAdminMenu = function(){
+  var menu = document.getElementById('admin-nav-menu');
+  if(menu) menu.style.display = 'none';
+}
+document.addEventListener('click', function(){
+  window.closeAdminMenu();
+});
+
+var CAL_DL_CURRENT = 'cal';
+window.switchCalDl = function(tab){
+  CAL_DL_CURRENT = tab;
+  var secCal = document.getElementById('caldl-section-cal');
+  var secDl  = document.getElementById('caldl-section-dl');
+  var btnCal = document.getElementById('caldl-tab-cal');
+  var btnDl  = document.getElementById('caldl-tab-dl');
+  if(tab==='cal'){
+    secCal.style.display=''; secDl.style.display='none';
+    btnCal.style.borderBottomColor='var(--yellow)'; btnCal.style.color='var(--text)';
+    btnDl.style.borderBottomColor='transparent'; btnDl.style.color='var(--muted)';
+    renderCalendrier2();
+  } else {
+    secCal.style.display='none'; secDl.style.display='';
+    btnDl.style.borderBottomColor='var(--yellow)'; btnDl.style.color='var(--text)';
+    btnCal.style.borderBottomColor='transparent'; btnCal.style.color='var(--muted)';
+    renderDeadlines2();
+  }
+}
+
+function renderCalDl(){
+  if(CAL_DL_CURRENT==='cal') renderCalendrier2();
+  else renderDeadlines2();
+}
+
+function renderCalendrier2(){
+  if(!D) return;
+  // Render into cal-upcoming2 and cal-past2
+  var evals = D.evaluations || [];
+  var now = new Date(); now.setHours(0,0,0,0);
+  var upcoming = evals.filter(function(e){ return new Date(e.date) >= now; }).sort(function(a,b){ return new Date(a.date)-new Date(b.date); });
+  var past = evals.filter(function(e){ return new Date(e.date) < now; }).sort(function(a,b){ return new Date(b.date)-new Date(a.date); });
+  var upEl = document.getElementById('cal-upcoming2');
+  var paEl = document.getElementById('cal-past2');
+  if(!upEl||!paEl) return;
+  // Reuse renderCalendrier logic by temporarily swapping element IDs
+  var origUp = document.getElementById('cal-upcoming');
+  var origPa = document.getElementById('cal-past');
+  // swap
+  if(origUp) origUp.id='cal-upcoming-hidden';
+  if(origPa) origPa.id='cal-past-hidden';
+  upEl.id='cal-upcoming'; paEl.id='cal-past';
+  renderCalendrier();
+  // swap back
+  upEl.id='cal-upcoming2'; paEl.id='cal-past2';
+  if(origUp) origUp.id='cal-upcoming';
+  if(origPa) origPa.id='cal-past';
+}
+
+function renderDeadlines2(){
+  if(!D) return;
+  var origKpi = document.getElementById('dl-kpi-row');
+  var origAct = document.getElementById('dl-active-section');
+  var origDon = document.getElementById('dl-done-section');
+  var kpi2 = document.getElementById('dl-kpi-row2');
+  var act2 = document.getElementById('dl-active-section2');
+  var don2 = document.getElementById('dl-done-section2');
+  if(!kpi2||!act2||!don2) return;
+  if(origKpi) origKpi.id='dl-kpi-row-hidden';
+  if(origAct) origAct.id='dl-active-section-hidden';
+  if(origDon) origDon.id='dl-done-section-hidden';
+  kpi2.id='dl-kpi-row'; act2.id='dl-active-section'; don2.id='dl-done-section';
+  renderDeadlines();
+  kpi2.id='dl-kpi-row2'; act2.id='dl-active-section2'; don2.id='dl-done-section2';
+  if(origKpi) origKpi.id='dl-kpi-row';
+  if(origAct) origAct.id='dl-active-section';
+  if(origDon) origDon.id='dl-done-section';
+}
+
+setSyncBadge('sync-loading','⏳ Connexion...');
+onSnapshot(REF,async(snap)=>{
+  if(snap.exists()){
+    D=snap.data();
+    setSyncBadge('sync-ok','✅ En direct');
+  }else{
+    D=JSON.parse(JSON.stringify(DEF));
+    await setDoc(REF,D);
+    setSyncBadge('sync-ok','✅ Initialisé');
+  }
+  if(CURRENT_USER){
+    document.getElementById('main-nav').style.display = '';
+  }
+  renderAll();
+  // Onboarding après premier chargement complet
+  if(CURRENT_USER && !_onboardingShown){
+    _onboardingShown = true;
+    setTimeout(window.showOnboarding, 500);
+  }
+},(err)=>{
+  setSyncBadge('sync-err','❌ Hors ligne');
+  console.error(err);
+  if(!D){D=JSON.parse(JSON.stringify(DEF));}
+  if(CURRENT_USER){
+    document.getElementById('main-nav').style.display = '';
+  }
+  renderAll();
+});
+
+
+// ══════════════════════════════════════════════════════
+// SYSTÈME DEADLINES & ALARMES
+// ══════════════════════════════════════════════════════
+
+var DL_ALARM_AUDIO = null;
+var DL_SHOWN_ALARMS = JSON.parse(localStorage.getItem('dl_shown_alarms')||'[]');
+
+function dlDaysLeft(dateStr){
+  var now = new Date(); now.setHours(0,0,0,0);
+  var d = new Date(dateStr); d.setHours(0,0,0,0);
+  return Math.round((d - now) / (1000*60*60*24));
+}
+
+function dlStatus(dl){
+  if(dl.done) return 'done';
+  var days = dlDaysLeft(dl.date);
+  if(days < 0)  return 'expired';
+  if(days === 0) return 'critical';
+  if(days === 1) return 'urgent';
+  if(days <= 3)  return 'warn';
+  return 'ok';
+}
+
+function dlStatusLabel(dl){
+  if(dl.done) return {cls:'done', txt:'✅ Terminée', icon:'✅'};
+  var days = dlDaysLeft(dl.date);
+  if(days < 0)   return {cls:'expired',  txt:'❌ Expirée ('+ Math.abs(days) +'j)', icon:'❌'};
+  if(days === 0) return {cls:'critical', txt:"🚨 AUJOURD'HUI !", icon:'🚨'};
+  if(days === 1) return {cls:'urgent',   txt:'🔴 Demain !', icon:'🔴'};
+  if(days <= 3)  return {cls:'warn',     txt:'⚠️ J-'+days, icon:'⚠️'};
+  return {cls:'ok', txt:'🟢 J-'+days, icon:'🟢'};
+}
+
+function dlPrioIcon(p){ return p==='high'?'🔴':p==='medium'?'🟡':'🟢'; }
+function dlPrioCls(p){ return p==='high'?'p-high':p==='medium'?'p-medium':'p-low'; }
+
+function dlFilterForUser(dls){
+  if(!CURRENT_USER) return dls;
+  var role = CURRENT_USER.role;
+  if(role==='admin'||role==='respo') return dls;
+  var userProjets = CURRENT_USER.projets||[];
+  var userOp = CURRENT_USER.operation||'';
+  return dls.filter(function(dl){
+    if(!dl.projet) return true;
+    if(userProjets.indexOf(dl.projet)===-1) return false;
+    if(dl.operation && userOp && dl.operation !== userOp) return false;
+    return true;
+  });
+}
+
+function renderDeadlines(){
+  if(!D) return;
+  if(!D.deadlines) D.deadlines = [];
+  var dls = dlFilterForUser(D.deadlines);
+
+  // KPIs
+  var total = dls.length;
+  var active = dls.filter(function(d){return !d.done && dlDaysLeft(d.date)>=0;}).length;
+  var critical = dls.filter(function(d){return !d.done && dlDaysLeft(d.date)<=1 && dlDaysLeft(d.date)>=0;}).length;
+  var expired = dls.filter(function(d){return !d.done && dlDaysLeft(d.date)<0;}).length;
+  var done = dls.filter(function(d){return d.done;}).length;
+
+  document.getElementById('dl-kpi-row').innerHTML =
+    '<div class="dl-kpi"><div class="dl-kpi-label">Total</div><div class="dl-kpi-val">'+total+'</div></div>'+
+    '<div class="dl-kpi"><div class="dl-kpi-label">Actives</div><div class="dl-kpi-val" style="color:var(--blue)">'+active+'</div></div>'+
+    '<div class="dl-kpi" style="border-color:'+(critical?'#E24B4A':'var(--border)')+'"><div class="dl-kpi-label">Critiques</div><div class="dl-kpi-val" style="color:var(--red)">'+critical+'</div></div>'+
+    '<div class="dl-kpi"><div class="dl-kpi-label">Expirées</div><div class="dl-kpi-val" style="color:#888">'+expired+'</div></div>'+
+    '<div class="dl-kpi"><div class="dl-kpi-label">Terminées</div><div class="dl-kpi-val" style="color:var(--green)">'+done+'</div></div>';
+
+  // Active deadlines
+  var activeDls = dls.filter(function(d){return !d.done;}).sort(function(a,b){
+    return new Date(a.date) - new Date(b.date);
+  });
+  var doneDls = dls.filter(function(d){return d.done;}).sort(function(a,b){
+    return new Date(b.date) - new Date(a.date);
+  });
+
+  function renderCard(dl){
+    var st = dlStatusLabel(dl);
+    var prio = dl.prio||'medium';
+    var cardCls = dl.done ? 'dl-done' : (dlStatus(dl)==='expired'?'dl-expired':dlStatus(dl)==='critical'?'dl-critical':dlStatus(dl)==='urgent'?'dl-urgent':dlStatus(dl)==='warn'?'dl-warn':'dl-ok');
+    var dateStr = new Date(dl.date).toLocaleDateString('fr-FR',{weekday:'short',day:'2-digit',month:'long',year:'numeric'});
+    var canEdit = CURRENT_USER && (CURRENT_USER.role==='admin'||CURRENT_USER.role==='respo'||dl.createdBy===CURRENT_USER.id);
+    return '<div class="dl-card '+cardCls+'" id="dlcard-'+dl.id+'">'
+      +'<div class="dl-prio '+dlPrioCls(prio)+'" title="Priorité '+prio+'">'+dlPrioIcon(prio)+'</div>'
+      +'<div class="dl-body">'
+        +'<div class="dl-title">'+dl.titre+'</div>'
+        +'<div class="dl-meta">'
+          +'<span>📅 '+dateStr+'</span>'
+          +(dl.projet?'<span>🏢 '+dl.projet+(dl.operation?' · '+dl.operation:'')+'</span>':'')
+          +(dl.createdByName?'<span>👤 '+dl.createdByName+'</span>':'')
+        +'</div>'
+        +(dl.desc?'<div class="dl-desc">'+dl.desc+'</div>':'')
+        +'<span class="dl-countdown '+st.cls+'">'+st.txt+'</span>'
+      +'</div>'
+      +'<div class="dl-actions">'
+        +(!dl.done?'<button class="abtn green" data-id="'+dl.id+'" onclick="window.dlMarkDone(this.dataset.id)" title="Marquer terminée">✅</button>':'')
+        +(canEdit?'<button class="abtn" data-id="'+dl.id+'" onclick="window.dlEdit(this.dataset.id)" title="Modifier">✏️</button>':'')
+        +(canEdit?'<button class="abtn red" data-id="'+dl.id+'" onclick="window.dlDelete(this.dataset.id)" title="Supprimer">🗑️</button>':'')
+      +'</div>'
+    +'</div>';
+  }
+
+  // Active section
+  var activeHtml = '';
+  if(activeDls.length){
+    activeHtml = '<div class="dl-section-title">Deadlines actives ('+activeDls.length+')</div>';
+    activeHtml += activeDls.map(renderCard).join('');
+  } else {
+    activeHtml = '<div style="text-align:center;padding:2rem;color:var(--muted)">'
+      +'<div style="font-size:32px;margin-bottom:8px">🎉</div>'
+      +'<div style="font-size:14px;font-weight:500">Aucune deadline active</div>'
+      +'<div style="font-size:12px;margin-top:4px">Crée ta première deadline avec le bouton + ci-dessus</div>'
+      +'</div>';
+  }
+  document.getElementById('dl-active-section').innerHTML = activeHtml;
+
+  // Done section
+  var doneHtml = '';
+  if(doneDls.length){
+    doneHtml = '<div class="dl-section-title" style="cursor:pointer" onclick="window.dlToggleDone()">Terminées / Archivées ('+doneDls.length+') <span id="dl-done-toggle">▼</span></div>';
+    doneHtml += '<div id="dl-done-list" style="display:none">'+doneDls.map(renderCard).join('')+'</div>';
+  }
+  document.getElementById('dl-done-section').innerHTML = doneHtml;
+
+  // Check alarms
+  dlCheckAlarms(activeDls);
+}
+
+window.dlToggleDone = function(){
+  var el = document.getElementById('dl-done-list');
+  var tog = document.getElementById('dl-done-toggle');
+  if(!el) return;
+  if(el.style.display==='none'){ el.style.display=''; if(tog) tog.textContent='▲'; }
+  else { el.style.display='none'; if(tog) tog.textContent='▼'; }
+}
+
+function dlCheckAlarms(activeDls){
+  if(!activeDls) return;
+  activeDls.forEach(function(dl){
+    var days = dlDaysLeft(dl.date);
+    var alarmKey = dl.id+'_'+dl.date;
+    if(DL_SHOWN_ALARMS.indexOf(alarmKey) !== -1) return;
+
+    if(days === 0 || days === 1 || days === 3){
+      var st = dlStatusLabel(dl);
+      var level = days===0?'critical':days===1?'urgent':'warn';
+      dlShowToast(dl, st, level);
+      DL_SHOWN_ALARMS.push(alarmKey);
+      localStorage.setItem('dl_shown_alarms', JSON.stringify(DL_SHOWN_ALARMS.slice(-50)));
+      if(days <= 1) dlPlaySound(days===0?'critical':'urgent');
+    }
+  });
+}
+
+function dlShowToast(dl, st, level){
+  var banner = document.getElementById('alarm-banner');
+  if(!banner) return;
+  var toastId = 'toast-'+dl.id;
+  if(document.getElementById(toastId)) return;
+  var toast = document.createElement('div');
+  toast.className = 'alarm-toast '+level;
+  toast.id = toastId;
+  var proj = dl.projet ? ' · '+dl.projet+(dl.operation?' - '+dl.operation:'') : '';
+  toast.innerHTML = '<div class="alarm-toast-icon">'+st.icon+'</div>'
+    +'<div class="alarm-toast-body">'
+      +'<div class="alarm-toast-title">'+dl.titre+'</div>'
+      +'<div class="alarm-toast-sub">'+st.txt+proj+'</div>'
+    +'</div>'
+    +'<button class="alarm-toast-close" onclick="this.parentElement.remove()">✕</button>';
+  banner.appendChild(toast);
+  // Auto-remove après 8 secondes (sauf critical)
+  if(level !== 'critical'){
+    setTimeout(function(){ if(toast.parentElement) toast.remove(); }, 8000);
+  }
+}
+
+function dlPlaySound(type){
+  try {
+    var ctx = new (window.AudioContext || window.webkitAudioContext)();
+    var patterns = {
+      critical: [{f:880,d:.1},{f:0,d:.05},{f:880,d:.1},{f:0,d:.05},{f:880,d:.15}],
+      urgent:   [{f:660,d:.12},{f:0,d:.06},{f:660,d:.12}]
+    };
+    var pts = patterns[type] || patterns.urgent;
+    var t = ctx.currentTime;
+    pts.forEach(function(p){
+      if(p.f > 0){
+        var o = ctx.createOscillator();
+        var g = ctx.createGain();
+        o.connect(g); g.connect(ctx.destination);
+        o.frequency.value = p.f;
+        o.type = 'sine';
+        g.gain.setValueAtTime(0.3, t);
+        g.gain.exponentialRampToValueAtTime(0.001, t + p.d);
+        o.start(t); o.stop(t + p.d);
+      }
+      t += p.d;
+    });
+  } catch(e) { /* Audio non disponible */ }
+}
+
+window.openAddDeadline = function(){
+  if(!D) return;
+  var projOpts = '<option value="">-- Tous les projets --</option>'
+    + D.projects.map(function(p){ return '<option value="'+p+'">'+p+'</option>'; }).join('');
+  // Pre-select user's project
+  var userProj = (CURRENT_USER && CURRENT_USER.projets && CURRENT_USER.projets[0]) || '';
+  if(userProj) projOpts = projOpts.replace('value="'+userProj+'"', 'value="'+userProj+'" selected');
+
+  var today = new Date().toISOString().slice(0,10);
+  showModal('<div class="mhdr"><h3>⏰ Nouvelle deadline</h3><button class="xbtn" onclick="closeM()">✕</button></div>'
+    +'<div id="fa" class="alert-err"></div>'
+    +'<div style="margin-bottom:10px"><div class="flabel">Titre *</div><input type="text" id="dl-titre" placeholder="Ex: Livraison grille scoring JAPHY"></div>'
+    +'<div class="fgrid" style="margin-bottom:10px">'
+      +'<div><div class="flabel">Date limite *</div><input type="date" id="dl-date" value="'+today+'"></div>'
+      +'<div><div class="flabel">Priorité</div><select id="dl-prio"><option value="low">🟢 Basse</option><option value="medium" selected>🟡 Moyenne</option><option value="high">🔴 Haute</option></select></div>'
+    +'</div>'
+    +'<div class="fgrid" style="margin-bottom:10px">'
+      +'<div><div class="flabel">Projet</div><select id="dl-projet" onchange="window.dlUpdateOps()">'+projOpts+'</select></div>'
+      +'<div><div class="flabel">Opération</div><select id="dl-op"><option value="">-- Toutes --</option></select></div>'
+    +'</div>'
+    +'<div style="margin-bottom:14px"><div class="flabel">Description (optionnel)</div><textarea id="dl-desc" placeholder="Détails de la deadline..." style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;resize:vertical;min-height:60px;outline:none"></textarea></div>'
+    +'<div class="frow"><button class="btn" onclick="closeM()">Annuler</button><button class="btn yellow" onclick="window.dlDoAdd()">➕ Créer</button></div>');
+  window.dlUpdateOps();
+}
+
+window.dlUpdateOps = function(){
+  var proj = document.getElementById('dl-projet');
+  var opSel = document.getElementById('dl-op');
+  if(!proj||!opSel) return;
+  var ops = (D.operations||{})[proj.value]||[];
+  opSel.innerHTML = '<option value="">-- Toutes --</option>'+ops.map(function(o){return '<option value="'+o+'">'+o+'</option>';}).join('');
+}
+
+window.dlDoAdd = async function(){
+  var titre = (document.getElementById('dl-titre').value||'').trim();
+  var date  = document.getElementById('dl-date').value;
+  var fa = document.getElementById('fa');
+  if(!titre){ fa.textContent='Le titre est obligatoire.'; fa.style.display='block'; return; }
+  if(!date){  fa.textContent='La date est obligatoire.';  fa.style.display='block'; return; }
+  if(!D.deadlines) D.deadlines = [];
+  var newDl = {
+    id: 'dl'+Date.now(),
+    titre: titre,
+    date: date,
+    prio: document.getElementById('dl-prio').value,
+    projet: document.getElementById('dl-projet').value,
+    operation: document.getElementById('dl-op').value,
+    desc: (document.getElementById('dl-desc').value||'').trim(),
+    done: false,
+    createdBy: CURRENT_USER ? CURRENT_USER.id : 'admin',
+    createdByName: CURRENT_USER ? CURRENT_USER.nom : 'Admin',
+    createdAt: new Date().toISOString()
+  };
+  D.deadlines.push(newDl);
+  await saveD();
+  closeM();
+  renderDeadlines();
+  // Immediate alarm check for new deadline
+  var days = dlDaysLeft(date);
+  if(days <= 1 && days >= 0){
+    var st = dlStatusLabel(newDl);
+    dlShowToast(newDl, st, days===0?'critical':'urgent');
+    dlPlaySound(days===0?'critical':'urgent');
+  }
+}
+
+window.dlEdit = function(id){
+  var dl = (D.deadlines||[]).find(function(d){ return d.id===id; });
+  if(!dl) return;
+  var projOpts = '<option value="">-- Tous --</option>'
+    + D.projects.map(function(p){ return '<option value="'+p+'"'+(p===dl.projet?' selected':'')+'>'+p+'</option>'; }).join('');
+  var ops = (D.operations||{})[dl.projet]||[];
+  var opOpts = '<option value="">-- Toutes --</option>'+ops.map(function(o){return '<option value="'+o+'"'+(o===dl.operation?' selected':'')+'>'+o+'</option>';}).join('');
+  showModal('<div class="mhdr"><h3>✏️ Modifier la deadline</h3><button class="xbtn" onclick="closeM()">✕</button></div>'
+    +'<div id="fa" class="alert-err"></div>'
+    +'<div style="margin-bottom:10px"><div class="flabel">Titre *</div><input type="text" id="dl-titre" value="'+dl.titre+'"></div>'
+    +'<div class="fgrid" style="margin-bottom:10px">'
+      +'<div><div class="flabel">Date limite *</div><input type="date" id="dl-date" value="'+dl.date+'"></div>'
+      +'<div><div class="flabel">Priorité</div><select id="dl-prio"><option value="low"'+(dl.prio==='low'?' selected':'')+'>🟢 Basse</option><option value="medium"'+(dl.prio==='medium'?' selected':'')+'>🟡 Moyenne</option><option value="high"'+(dl.prio==='high'?' selected':'')+'>🔴 Haute</option></select></div>'
+    +'</div>'
+    +'<div class="fgrid" style="margin-bottom:10px">'
+      +'<div><div class="flabel">Projet</div><select id="dl-projet">'+projOpts+'</select></div>'
+      +'<div><div class="flabel">Opération</div><select id="dl-op">'+opOpts+'</select></div>'
+    +'</div>'
+    +'<div style="margin-bottom:14px"><div class="flabel">Description</div><textarea id="dl-desc" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;resize:vertical;min-height:60px;outline:none">'+( dl.desc||'')+'</textarea></div>'
+    +'<div class="frow"><button class="btn" onclick="closeM()">Annuler</button><button class="btn yellow" data-id="'+id+'" onclick="window.dlDoEdit(this.dataset.id)">💾 Enregistrer</button></div>');
+}
+
+window.dlDoEdit = async function(id){
+  var dl = (D.deadlines||[]).find(function(d){ return d.id===id; });
+  if(!dl) return;
+  var titre = (document.getElementById('dl-titre').value||'').trim();
+  var date  = document.getElementById('dl-date').value;
+  var fa = document.getElementById('fa');
+  if(!titre){ fa.textContent='Le titre est obligatoire.'; fa.style.display='block'; return; }
+  if(!date){  fa.textContent='La date est obligatoire.';  fa.style.display='block'; return; }
+  dl.titre = titre; dl.date = date;
+  dl.prio = document.getElementById('dl-prio').value;
+  dl.projet = document.getElementById('dl-projet').value;
+  dl.operation = document.getElementById('dl-op').value;
+  dl.desc = (document.getElementById('dl-desc').value||'').trim();
+  dl.done = false; // Réactiver si modifiée
+  // Reset alarm for this deadline
+  DL_SHOWN_ALARMS = DL_SHOWN_ALARMS.filter(function(k){ return k.indexOf(id)===-1; });
+  localStorage.setItem('dl_shown_alarms', JSON.stringify(DL_SHOWN_ALARMS));
+  await saveD();
+  closeM();
+  renderDeadlines();
+}
+
+window.dlMarkDone = async function(id){
+  var dl = (D.deadlines||[]).find(function(d){ return d.id===id; });
+  if(!dl) return;
+  dl.done = true;
+  dl.doneAt = new Date().toISOString();
+  dl.doneBy = CURRENT_USER ? CURRENT_USER.nom : 'Admin';
+  await saveD();
+  renderDeadlines();
+}
+
+window.dlDelete = async function(id){
+  if(!confirm('Supprimer cette deadline ?')) return;
+  D.deadlines = (D.deadlines||[]).filter(function(d){ return d.id!==id; });
+  await saveD();
+  renderDeadlines();
+}
+
+// Vérification automatique toutes les minutes
+setInterval(function(){
+  if(D && D.deadlines && document.getElementById('pg-deadlines').classList.contains('on')){
+    renderDeadlines();
+  }
+  // Alarmes même si pas sur l'onglet
+  if(D && D.deadlines){
+    var active = dlFilterForUser(D.deadlines).filter(function(d){return !d.done && dlDaysLeft(d.date)>=0 && dlDaysLeft(d.date)<=3;});
+    dlCheckAlarms(active);
+  }
+}, 60000);
+
+
+</script>
+
+
+<!-- NOTIFICATION PANEL -->
+<div class="notif-panel" id="notif-panel">
+  <div class="notif-header">
+    <div class="notif-title">Notifications</div>
+    <button class="notif-clear" onclick="window.clearNotifs()">Tout effacer</button>
+  </div>
+  <div id="notif-list"></div>
+</div>
+<!-- LOGIN SCREEN -->
+
+<!-- ONBOARDING SCREEN -->
+<div id="onboarding-overlay" class="onboarding-overlay" style="display:none">
+  <div class="onboarding-box">
+    <div class="onboarding-header">
+      <div class="onboarding-logo">📊</div>
+      <div class="onboarding-title">Bienvenue sur Altius Dashboard</div>
+      <div class="onboarding-sub" id="onboarding-sub">Tableau de bord de performance commerciale</div>
+    </div>
+    <div class="onboarding-steps" id="onboarding-steps"></div>
+    <div class="onboarding-skip" onclick="window.closeOnboarding()">Passer → Aller directement au dashboard</div>
+  </div>
+</div>
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-box">
+    <div class="login-logo">
+      <svg width="52" height="52" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="100" height="100" rx="16" fill="#1a1a18"/>
+        <polygon points="10,88 30,12 42,12 26,88" fill="#ffffff"/>
+        <polygon points="58,12 72,12 90,88 72,88" fill="#ffffff"/>
+        <polygon points="28,62 36,38 60,38 52,62" fill="#F5C800"/>
+      </svg>
+    </div>
+    <div class="login-title">ALTIUS Contact</div>
+    <div class="login-sub">Performance Sales Dashboard</div>
+    <input type="text" class="login-input" id="loginUser" placeholder="Nom d'utilisateur" style="letter-spacing:0;margin-bottom:8px" onkeydown="if(event.key==='Enter')document.getElementById('loginPass').focus()">
+    <input type="password" class="login-input" id="loginPass" placeholder="Mot de passe" onkeydown="if(event.key==='Enter')window.doLogin()">
+    <button class="login-btn" onclick="window.doLogin()">Connexion</button>
+    <div class="login-err" id="loginErr">Identifiants incorrects</div>
+    <div class="login-err" id="loginWait" style="display:none;background:rgba(245,200,0,.15);color:#7a5e00;border-color:rgba(245,200,0,.4)">⏳ Connexion au serveur en cours, veuillez patienter...</div>
+    <div class="login-hint">Contactez votre administrateur si vous avez oublie vos identifiants</div>
+  </div>
+</div>
+
+<!-- DRAWER FICHE AGENT -->
+<div class="drawer-overlay" id="drawer-overlay" onclick="window.closeDrawer()"></div>
+<div class="drawer" id="agent-drawer">
+  <div class="drawer-header" id="drawer-header"></div>
+  <div class="drawer-body" id="drawer-body"></div>
+  <div class="drawer-footer" id="drawer-footer"></div>
+</div>
+</body>
+</html>
