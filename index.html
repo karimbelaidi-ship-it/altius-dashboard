@@ -177,6 +177,77 @@
     .avert-select { width: 110px !important; padding: 5px 6px !important; font-size: 11px !important; }
     @media(max-width: 600px) { .main { padding: 12px; } .header { padding: 0 14px; } .nav { padding: 0 14px; } }
 
+    /* RESPONSIVE MOBILE */
+    @media(max-width: 768px){
+      .header { height: 52px; padding: 0 12px; }
+      .logo-name { font-size: 13px; }
+      .logo-sub { display: none; }
+      .logo-icon svg { width: 28px; height: 28px; }
+      .sync-badge { font-size: 10px; padding: 3px 8px; }
+      .header-aide-btn, .header-export-btn { display: none !important; }
+      #main-nav { display: none !important; }
+      .breadcrumb { display: none !important; }
+      .main { padding: 12px 10px 80px !important; }
+      .kgrid { grid-template-columns: 1fr 1fr; gap: 10px; }
+      .kval { font-size: 22px; }
+      .kcard { padding: 12px 14px; }
+      .top3-grid { grid-template-columns: 1fr; gap: 10px; }
+      .top3-score { font-size: 20px; }
+      .twrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+      .tbl { font-size: 12px; min-width: 500px; }
+      .tbl th, .tbl td { padding: 7px 8px; }
+      .score-input { width: 58px !important; font-size: 14px !important; padding: 6px 4px !important; }
+      .avert-select { width: 95px !important; font-size: 11px !important; }
+      .overlay { padding: 0 !important; align-items: flex-end !important; }
+      .modal { border-radius: 18px 18px 0 0 !important; max-width: 100% !important; margin: 0 !important; padding: 20px 16px !important; max-height: 90vh !important; overflow-y: auto !important; }
+      .drawer { width: 100% !important; }
+      .pgrid { grid-template-columns: 1fr 1fr; gap: 10px; }
+      .pscore { font-size: 20px; }
+      .card { padding: 12px 14px; }
+      .fbrow { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; }
+      .fb { flex-shrink: 0; }
+      .alert-d { padding: 10px 12px; }
+      .onboarding-box { padding: 24px 16px; margin: 12px; }
+      .twocol { grid-template-columns: 1fr !important; }
+    }
+
+    /* BOTTOM NAV MOBILE */
+    #mobile-nav {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      height: 64px;
+      background: #1a1a18;
+      border-top: 1px solid rgba(255,255,255,.1);
+      z-index: 200;
+      align-items: center;
+      justify-content: space-around;
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+      box-shadow: 0 -4px 20px rgba(0,0,0,.3);
+      display: none;
+    }
+    @media(max-width: 768px){
+      #mobile-nav { display: flex; }
+    }
+    .mnb {
+      display: flex; flex-direction: column; align-items: center; gap: 3px;
+      padding: 6px 10px; border: none; background: none;
+      color: rgba(255,255,255,.4); font-family: inherit;
+      font-size: 10px; font-weight: 500; cursor: pointer;
+      border-radius: 10px; transition: all .2s; min-width: 56px;
+    }
+    .mnb .mnb-icon { font-size: 22px; line-height: 1; transition: transform .2s; }
+    .mnb.on { color: var(--yellow); }
+    .mnb.on .mnb-icon { transform: translateY(-3px); }
+    .mnb.mnb-center {
+      background: var(--yellow); color: #1a1a18;
+      border-radius: 16px; padding: 8px 14px;
+      margin-bottom: 10px;
+      box-shadow: 0 4px 16px rgba(245,200,0,.45);
+      font-weight: 700;
+    }
+    .mnb.mnb-center.on { color: #1a1a18; background: #e6ba00; }
+    @media(min-width: 769px){ #mobile-nav { display: none !important; } }
+
     /* TIMELINE */
     .timeline { position: relative; padding-left: 24px; }
     .timeline::before { content:''; position:absolute; left:8px; top:0; bottom:0; width:2px; background:var(--border); }
@@ -3935,6 +4006,7 @@ function checkLogin(){
         document.getElementById('loginOverlay').style.display = 'none';
         document.getElementById('main-nav').style.display = '';
         applyUserRole();
+        if(typeof showMobileNav === 'function') showMobileNav();
         return;
       }
     }catch(e){}
@@ -4003,6 +4075,7 @@ window.doLogin = function(){
     document.getElementById('main-nav').style.display = '';
     err.style.display = 'none';
     applyUserRole(); // Appliquer les restrictions de rôle immédiatement sans attendre Firebase
+    if(typeof showMobileNav === 'function') showMobileNav();
     if(!_onboardingShown){
       _onboardingShown = true;
       setTimeout(window.showOnboarding, 300);
@@ -5420,5 +5493,106 @@ setInterval(function(){
     </div>
   </div>
 </div>
+
+<!-- BOTTOM NAV MOBILE -->
+<div id="mobile-nav" style="display:none">
+  <button class="mnb" data-page="overview" onclick="mobileGoPage('overview',this)">
+    <span class="mnb-icon">📋</span>Dashboard
+  </button>
+  <button class="mnb" data-page="agents" onclick="mobileGoPage('agents',this)">
+    <span class="mnb-icon">👥</span>Agents
+  </button>
+  <button class="mnb mnb-center" data-page="mois" onclick="mobileGoPage('mois',this)">
+    <span class="mnb-icon">📅</span>Scores
+  </button>
+  <button class="mnb" data-page="cal-dl" onclick="mobileGoPage('cal-dl',this)">
+    <span class="mnb-icon">⏰</span>Agenda
+  </button>
+  <button class="mnb" id="mnb-more" onclick="window.toggleMobileMore()">
+    <span class="mnb-icon">☰</span>Plus
+  </button>
+</div>
+
+<!-- MENU "PLUS" MOBILE -->
+<div id="mobile-more-menu" style="display:none;position:fixed;bottom:64px;left:0;right:0;background:#1a1a18;border-top:1px solid rgba(255,255,255,.1);z-index:199;padding:8px 0;">
+  <button class="mnb-more-item" data-page="chef" onclick="mobileGoPage('chef',this);closeMobileMore()">🎯 Mon projet</button>
+  <button class="mnb-more-item" data-page="projets" onclick="mobileGoPage('projets',this);closeMobileMore()">🏢 Projets</button>
+  <button class="mnb-more-item" data-page="archives" onclick="mobileGoPage('archives',this);closeMobileMore()">🗂 Archives</button>
+  <button class="mnb-more-item" data-page="teamleaders" onclick="mobileGoPage('teamleaders',this);closeMobileMore()">👤 Team Leaders</button>
+  <button class="mnb-more-item" data-page="comptes" onclick="mobileGoPage('comptes',this);closeMobileMore()">🔑 Comptes</button>
+  <div style="border-top:1px solid rgba(255,255,255,.08);margin:8px 0"></div>
+  <button class="mnb-more-item" onclick="showOnboarding();closeMobileMore()">❓ Aide</button>
+  <button class="mnb-more-item" onclick="window.openExportModal();closeMobileMore()">📄 Export PDF</button>
+  <button class="mnb-more-item" style="color:#ff6b6b" onclick="window.doLogout()">🚪 Déconnexion</button>
+</div>
+
+<style>
+.mnb-more-item {
+  display: block; width: 100%; padding: 13px 24px;
+  background: none; border: none; color: rgba(255,255,255,.85);
+  font-family: inherit; font-size: 14px; font-weight: 500;
+  cursor: pointer; text-align: left; transition: background .15s;
+}
+.mnb-more-item:hover, .mnb-more-item:active { background: rgba(255,255,255,.07); }
+</style>
+
+<script>
+// Afficher la bottom nav uniquement après login
+function showMobileNav(){
+  if(window.innerWidth <= 768){
+    document.getElementById('mobile-nav').style.display = 'flex';
+  }
+}
+window.addEventListener('resize', function(){
+  var nav = document.getElementById('mobile-nav');
+  if(window.innerWidth <= 768 && window.CURRENT_USER){
+    nav.style.display = 'flex';
+  } else {
+    nav.style.display = 'none';
+  }
+});
+
+// Navigation mobile
+window.mobileGoPage = function(pageId, btn){
+  // Utiliser goPage existant
+  var desktopBtn = document.querySelector('.nb[data-page="'+pageId+'"]')
+    || document.querySelector('.nb-dropdown-item[data-page="'+pageId+'"]');
+  goPage(pageId, desktopBtn || btn);
+  // Sync bottom nav
+  document.querySelectorAll('.mnb[data-page]').forEach(function(b){
+    b.classList.toggle('on', b.dataset.page === pageId);
+  });
+  closeMobileMore();
+};
+
+// Menu "Plus"
+window.toggleMobileMore = function(){
+  var m = document.getElementById('mobile-more-menu');
+  m.style.display = m.style.display === 'none' ? 'block' : 'none';
+  document.getElementById('mnb-more').classList.toggle('on', m.style.display === 'block');
+};
+window.closeMobileMore = function(){
+  document.getElementById('mobile-more-menu').style.display = 'none';
+  document.getElementById('mnb-more').classList.remove('on');
+};
+
+// Sync bottom nav quand goPage est appelé depuis desktop ou onboarding
+var _origGoPage = window.goPage;
+window.goPage = function(pageId, btn){
+  _origGoPage(pageId, btn);
+  document.querySelectorAll('.mnb[data-page]').forEach(function(b){
+    b.classList.toggle('on', b.dataset.page === pageId);
+  });
+};
+
+// Fermer le menu Plus en cliquant ailleurs
+document.addEventListener('click', function(e){
+  var more = document.getElementById('mobile-more-menu');
+  var moreBtn = document.getElementById('mnb-more');
+  if(more && more.style.display === 'block' && !more.contains(e.target) && e.target !== moreBtn && !moreBtn.contains(e.target)){
+    closeMobileMore();
+  }
+});
+</script>
 </body>
 </html>
