@@ -4002,8 +4002,7 @@ window.doLogin = function(){
     document.getElementById('loginOverlay').style.display = 'none';
     document.getElementById('main-nav').style.display = '';
     err.style.display = 'none';
-    // Ne pas appeler applyUserRole ici — onSnapshot le fera quand D sera chargé
-    // Afficher l'onboarding après que Firebase charge (onSnapshot -> renderAll -> onboarding)
+    applyUserRole(); // Appliquer les restrictions de rôle immédiatement sans attendre Firebase
   } else {
     err.style.display = 'block';
     document.getElementById('loginPass').value = '';
