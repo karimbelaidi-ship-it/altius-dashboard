@@ -4003,6 +4003,10 @@ window.doLogin = function(){
     document.getElementById('main-nav').style.display = '';
     err.style.display = 'none';
     applyUserRole(); // Appliquer les restrictions de rôle immédiatement sans attendre Firebase
+    if(!_onboardingShown){
+      _onboardingShown = true;
+      setTimeout(window.showOnboarding, 300);
+    }
   } else {
     err.style.display = 'block';
     document.getElementById('loginPass').value = '';
@@ -4893,11 +4897,6 @@ onSnapshot(REF,async(snap)=>{
     document.getElementById('main-nav').style.display = '';
   }
   renderAll();
-  // Onboarding après premier chargement complet
-  if(CURRENT_USER && !_onboardingShown){
-    _onboardingShown = true;
-    setTimeout(window.showOnboarding, 500);
-  }
 },(err)=>{
   setSyncBadge('sync-err','❌ Hors ligne');
   console.error(err);
