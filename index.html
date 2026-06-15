@@ -2728,25 +2728,34 @@ window.renderScoreGrid=function(){
     const s=a.scores[m]||{perf:'',qual:'',pres:100,eng:{briefs:true,remontees:true,comportement:true},avert:0};
     const eng = (typeof s.eng==='object' && s.eng!==null) ? s.eng : {briefs:true,remontees:true,comportement:true};
     const preview=s.perf||s.qual?sc(+s.perf||0,+s.qual||0,+s.pres||100,eng,+s.avert||0).toFixed(1)+'%':'—';
+    // Permissions par rôle
+    const _role = CURRENT_USER ? CURRENT_USER.role : 'admin';
+    const canPerf = ['admin','respo','teamlead'].includes(_role);
+    const canQual = ['admin','respo','qualite'].includes(_role);
+    const canPres = ['admin','respo','teamlead'].includes(_role);
+    const canEng  = ['admin','respo','teamlead'].includes(_role);
+    const canAvert= ['admin','respo','teamlead'].includes(_role);
+    const roDisabled = 'style="background:var(--bg2,#f5f5f5);color:var(--muted);cursor:not-allowed;opacity:.6" readonly';
+    const chkDisabled = 'disabled style="cursor:not-allowed;opacity:.6"';
     return`<tr>
       <td style="font-weight:600;white-space:nowrap">${a.name}</td>
-      <td><input type="number" class="score-input" min="0" max="200" value="${s.perf||''}" id="p-${a.id}" oninput="window._upPrev('${a.id}')" placeholder="ex: 110"></td>
-      <td><input type="number" class="score-input" min="0" max="100" value="${s.qual||''}" id="q-${a.id}" oninput="window._upPrev('${a.id}')" placeholder="ex: 80"></td>
-      <td><input type="number" class="score-input" min="0" max="100" value="${s.pres||100}" id="r-${a.id}" oninput="window._upPrev('${a.id}')"></td>
+      <td><input type="number" class="score-input" min="0" max="200" value="${s.perf||''}" id="p-${a.id}" oninput="window._upPrev('${a.id}')" placeholder="ex: 110" ${canPerf?'':''+roDisabled}></td>
+      <td><input type="number" class="score-input" min="0" max="100" value="${s.qual||''}" id="q-${a.id}" oninput="window._upPrev('${a.id}')" placeholder="ex: 80" ${canQual?'':''+roDisabled}></td>
+      <td><input type="number" class="score-input" min="0" max="100" value="${s.pres||100}" id="r-${a.id}" oninput="window._upPrev('${a.id}')" ${canPres?'':''+roDisabled}></td>
       <td>
         <div style="display:flex;flex-direction:column;gap:4px;min-width:160px">
-          <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer">
-            <input type="checkbox" id="eb-${a.id}" ${eng.briefs?'checked':''} onchange="window._upPrev('${a.id}')"> Présent aux briefs
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;${canEng?'cursor:pointer':'cursor:not-allowed;opacity:.6'}">
+            <input type="checkbox" id="eb-${a.id}" ${eng.briefs?'checked':''} onchange="window._upPrev('${a.id}')" ${canEng?'':chkDisabled}> Présent aux briefs
           </label>
-          <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer">
-            <input type="checkbox" id="er-${a.id}" ${eng.remontees?'checked':''} onchange="window._upPrev('${a.id}')"> Remontées terrain
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;${canEng?'cursor:pointer':'cursor:not-allowed;opacity:.6'}">
+            <input type="checkbox" id="er-${a.id}" ${eng.remontees?'checked':''} onchange="window._upPrev('${a.id}')" ${canEng?'':chkDisabled}> Remontées terrain
           </label>
-          <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer">
-            <input type="checkbox" id="ec-${a.id}" ${eng.comportement?'checked':''} onchange="window._upPrev('${a.id}')"> Comportement équipe
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;${canEng?'cursor:pointer':'cursor:not-allowed;opacity:.6'}">
+            <input type="checkbox" id="ec-${a.id}" ${eng.comportement?'checked':''} onchange="window._upPrev('${a.id}')" ${canEng?'':chkDisabled}> Comportement équipe
           </label>
         </div>
       </td>
-      <td><select id="av-${a.id}" class="avert-select" onchange="window._upPrev('${a.id}')">${[['0','Aucun'],['1','Verbal'],['2','Ecrit'],['3','Mise a pied']].map(([v,l])=>`<option value="${v}"${+v==+s.avert?' selected':''}>${l}</option>`).join('')}</select></td>
+      <td><select id="av-${a.id}" class="avert-select" onchange="window._upPrev('${a.id}')" ${canAvert?'':'disabled '+roDisabled}>${[['0','Aucun'],['1','Verbal'],['2','Ecrit'],['3','Mise a pied']].map(([v,l])=>`<option value="${v}"${+v==+s.avert?' selected':''}>${l}</option>`).join('')}</select></td>
       <td><span id="pv-${a.id}" style="font-weight:700;color:${col(parseFloat(preview)||0)}">${preview}</span></td>
     </tr>`;
   }).join('')}</tbody></table>`;
@@ -2769,13 +2778,26 @@ window._upPrev=function(id){
 window.saveScores=async function(){
   const m=document.getElementById('msel').value;
   const p=document.getElementById('psel').value;
+  const _srole = CURRENT_USER ? CURRENT_USER.role : 'admin';
+  const _canPerf = ['admin','respo','teamlead'].includes(_srole);
+  const _canQual = ['admin','respo','qualite'].includes(_srole);
+  const _canPres = ['admin','respo','teamlead'].includes(_srole);
+  const _canEng  = ['admin','respo','teamlead'].includes(_srole);
+  const _canAvert= ['admin','respo','teamlead'].includes(_srole);
   D.agents.filter(a=>a.proj===p&&a.active).forEach(a=>{
     const pi=document.getElementById('p-'+a.id);if(!pi)return;
+    const existing = a.scores[m]||{perf:0,qual:0,pres:100,eng:{briefs:true,remontees:true,comportement:true},avert:0};
     const ebS=document.getElementById('eb-'+a.id);
     const erS=document.getElementById('er-'+a.id);
     const ecS=document.getElementById('ec-'+a.id);
-    const engVal = ebS ? {briefs:ebS.checked, remontees:erS.checked, comportement:ecS.checked} : {briefs:true,remontees:true,comportement:true};
-    a.scores[m]={perf:+pi.value||0,qual:+document.getElementById('q-'+a.id).value||0,pres:+document.getElementById('r-'+a.id).value||100,eng:engVal,avert:+document.getElementById('av-'+a.id).value||0};
+    const engVal = (_canEng && ebS) ? {briefs:ebS.checked, remontees:erS.checked, comportement:ecS.checked} : existing.eng;
+    a.scores[m]={
+      perf:  _canPerf ? (+pi.value||0) : existing.perf,
+      qual:  _canQual ? (+document.getElementById('q-'+a.id).value||0) : existing.qual,
+      pres:  _canPres ? (+document.getElementById('r-'+a.id).value||100) : existing.pres,
+      eng:   engVal,
+      avert: _canAvert ? (+document.getElementById('av-'+a.id).value||0) : existing.avert
+    };
   });
   await saveD();renderOverview();renderTrend();
   setSyncBadge('sync-ok','✅ Scores enregistrés !');
