@@ -1352,6 +1352,36 @@ function prevScore(a){
 
 // Bonus progression : +10pts d'amélioration → +3%
 // ── Fonctions utilitaires agents ────────────────────────────────────────────
+function renderRankProgress(a){
+  try {
+    var months = D && D.months ? D.months : [];
+    if(!months.length) return '';
+    var rows = months.slice(-6).map(function(m){
+      var s = a.scores && a.scores[m] ? a.scores[m] : null;
+      if(!s || (!s.perf && !s.qual)) return null;
+      var sc = (s.perf||0)*0.4 + (s.qual||0)*0.3 + (s.pres||100)*0.2;
+      var eng = typeof s.eng==='object' ? s.eng : {briefs:true,remontees:true,comportement:true};
+      var engScore = ([eng.briefs,eng.remontees,eng.comportement].filter(Boolean).length/3)*100;
+      sc += engScore*0.1;
+      var avertDed = (s.avert||0)*5;
+      sc = Math.max(0, sc - avertDed);
+      return {m:m, sc:sc};
+    }).filter(Boolean);
+    if(!rows.length) return '';
+    return '<div class="drawer-section-title">📈 Évolution des scores</div>'
+      + '<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px">'
+      + rows.map(function(r){
+          return '<div style="display:flex;align-items:center;gap:8px">'
+            + '<span style="font-size:11px;color:var(--muted);width:30px;flex-shrink:0">'+r.m+'</span>'
+            + '<div style="flex:1;height:6px;background:var(--border);border-radius:3px;overflow:hidden">'
+              + '<div style="height:100%;width:'+Math.min(100,r.sc).toFixed(1)+'%;background:'+col(r.sc)+';border-radius:3px"></div>'
+            + '</div>'
+            + '<span style="font-size:11px;font-weight:600;color:'+col(r.sc)+';width:38px;text-align:right">'+r.sc.toFixed(1)+'%</span>'
+          + '</div>';
+        }).join('')
+      + '</div>';
+  } catch(e){ return ''; }
+}
 function renderMedalsHtml(a, activeList){
   try {
     var html = '';
