@@ -2523,6 +2523,13 @@ window._openFiche = function(id){
 
 // CHANGER DE PROJET avec conservation historique
 
+// ── _qaGo : navigation depuis les raccourcis rapides ────────────────────────
+window._qaGo = function(dest){
+  var btn = document.querySelector('.nb[data-page="'+dest+'"]')
+    || document.querySelector('.nb-dropdown-item[data-page="'+dest+'"]');
+  goPage(dest, btn);
+};
+
 // ── HISTORIQUE DES SCORES ─────────────────────────────────────────────────
 var AVERT_LABELS = ['Aucun','Verbal','Écrit','Mise à pied'];
 
