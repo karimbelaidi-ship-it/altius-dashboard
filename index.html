@@ -683,44 +683,165 @@
     .saisie-info-text strong { color: var(--text); }
 
     /* ── ONBOARDING ── */
+    /* ── AIDE ENRICHIE ── */
     .onboarding-overlay {
-      position: fixed; inset: 0; background: rgba(0,0,0,.6);
-      backdrop-filter: blur(4px); z-index: 950;
+      position: fixed; inset: 0; background: rgba(0,0,0,.55);
+      backdrop-filter: blur(6px); z-index: 950;
       display: flex; align-items: center; justify-content: center;
-      padding: 20px;
+      padding: 16px;
     }
     .onboarding-box {
       background: var(--surface); border: 1px solid var(--border);
-      border-radius: 20px; padding: 32px; width: 100%; max-width: 520px;
-      box-shadow: 0 24px 80px rgba(0,0,0,.4);
-      animation: modal-in .25s ease;
+      border-radius: 20px; width: 100%; max-width: 620px;
+      max-height: 88vh; display: flex; flex-direction: column;
+      box-shadow: 0 24px 80px rgba(0,0,0,.35);
+      animation: modal-in .25s ease; overflow: hidden;
     }
-    .onboarding-header { text-align: center; margin-bottom: 28px; }
-    .onboarding-logo {
-      width: 56px; height: 56px; background: var(--yellow);
-      border-radius: 14px; display: flex; align-items: center;
-      justify-content: center; margin: 0 auto 14px; font-size: 26px;
+    @media(max-width:768px){
+      .onboarding-box { max-width:100%; max-height:92vh; border-radius:18px 18px 0 0; margin-top:auto; }
+      .onboarding-overlay { align-items: flex-end; padding: 0; }
     }
-    .onboarding-title { font-size: 20px; font-weight: 900; margin-bottom: 6px; }
-    .onboarding-sub { font-size: 13px; color: var(--muted); }
-    .onboarding-steps { display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px; }
-    .onboarding-step {
+    /* Header */
+    .aide-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 18px 22px 14px; border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .aide-header-left { display: flex; align-items: center; gap: 12px; }
+    .aide-logo {
+      width: 40px; height: 40px; background: var(--yellow);
+      border-radius: 11px; display: flex; align-items: center;
+      justify-content: center; font-size: 20px; flex-shrink:0;
+    }
+    .aide-title { font-size: 16px; font-weight: 800; }
+    .aide-sub { font-size: 11px; color: var(--muted); margin-top:2px; }
+    .aide-close { background:none; border:none; cursor:pointer; color:var(--muted); font-size:22px; line-height:1; padding:4px; border-radius:6px; }
+    .aide-close:hover { background:var(--light); color:var(--text); }
+    /* Tabs */
+    .aide-tabs {
+      display: flex; border-bottom: 1px solid var(--border);
+      padding: 0 22px; flex-shrink:0; overflow-x:auto;
+    }
+    .aide-tab {
+      font-size: 12px; font-weight: 600; padding: 10px 14px;
+      border: none; background: none; color: var(--muted);
+      cursor: pointer; border-bottom: 2px solid transparent;
+      margin-bottom: -1px; white-space: nowrap; font-family:inherit;
+      transition: all .15s; display:flex; align-items:center; gap:5px;
+    }
+    .aide-tab:hover { color: var(--text); }
+    .aide-tab.on { color: #1a1a18; border-bottom-color: var(--yellow); }
+    /* Body */
+    .aide-body { flex: 1; overflow-y: auto; padding: 20px 22px; }
+    .aide-panel { display: none; }
+    .aide-panel.on { display: block; }
+    /* Guide steps */
+    .aide-section-title {
+      font-size: 11px; font-weight: 700; color: var(--muted);
+      text-transform: uppercase; letter-spacing: .07em;
+      margin: 18px 0 10px; display:flex; align-items:center; gap:6px;
+    }
+    .aide-section-title:first-child { margin-top:0; }
+    .guide-step {
       display: flex; gap: 14px; align-items: flex-start;
       background: var(--light); border: 1px solid var(--border);
-      border-radius: 12px; padding: 14px 16px; cursor: pointer;
-      transition: all .15s;
+      border-radius: 12px; padding: 13px 15px; cursor: pointer;
+      transition: all .15s; margin-bottom: 8px;
     }
-    .onboarding-step:hover { background: rgba(245,200,0,.06); border-color: rgba(245,200,0,.3); }
-    .onboarding-step-icon {
-      width: 38px; height: 38px; border-radius: 10px;
+    .guide-step:hover { background: rgba(245,200,0,.07); border-color: rgba(245,200,0,.35); transform: translateX(3px); }
+    .guide-step-icon {
+      width: 36px; height: 36px; border-radius: 10px;
       background: rgba(245,200,0,.12); display: flex;
       align-items: center; justify-content: center;
-      font-size: 18px; flex-shrink: 0;
+      font-size: 17px; flex-shrink: 0;
     }
-    .onboarding-step-title { font-size: 13px; font-weight: 700; margin-bottom: 3px; }
-    .onboarding-step-desc { font-size: 12px; color: var(--muted); line-height: 1.5; }
-    .onboarding-skip { text-align: center; font-size: 12px; color: var(--muted); cursor: pointer; }
-    .onboarding-skip:hover { color: var(--text); }
+    .guide-step-title { font-size: 13px; font-weight: 700; margin-bottom: 3px; }
+    .guide-step-desc { font-size: 12px; color: var(--muted); line-height: 1.5; }
+    .guide-step-arr { margin-left:auto; font-size:16px; color:var(--muted); flex-shrink:0; align-self:center; }
+    /* Tips */
+    .tip-card {
+      border-radius: 12px; padding: 13px 15px; margin-bottom: 8px;
+      border: 1px solid; display:flex; gap:12px; align-items:flex-start;
+    }
+    .tip-card.yellow { background:rgba(245,200,0,.07); border-color:rgba(245,200,0,.3); }
+    .tip-card.green  { background:rgba(29,158,117,.06); border-color:rgba(29,158,117,.25); }
+    .tip-card.blue   { background:rgba(55,138,221,.06); border-color:rgba(55,138,221,.22); }
+    .tip-card.purple { background:rgba(127,119,221,.06); border-color:rgba(127,119,221,.22); }
+    .tip-card.red    { background:rgba(226,75,74,.05); border-color:rgba(226,75,74,.2); }
+    .tip-icon { font-size: 20px; flex-shrink:0; }
+    .tip-title { font-size: 13px; font-weight: 700; margin-bottom: 3px; }
+    .tip-desc { font-size: 12px; color: var(--muted); line-height: 1.5; }
+    /* FAQ */
+    .faq-item { border: 1px solid var(--border); border-radius: 12px; margin-bottom: 8px; overflow: hidden; }
+    .faq-q {
+      padding: 13px 15px; font-size: 13px; font-weight: 600;
+      cursor: pointer; display:flex; justify-content:space-between; align-items:center;
+      transition: background .15s;
+    }
+    .faq-q:hover { background: var(--light); }
+    .faq-q .faq-arr { font-size:14px; color:var(--muted); transition: transform .2s; flex-shrink:0; }
+    .faq-item.open .faq-q { background: rgba(245,200,0,.06); }
+    .faq-item.open .faq-arr { transform: rotate(90deg); }
+    .faq-a {
+      display: none; padding: 0 15px 13px;
+      font-size: 12px; color: var(--muted); line-height: 1.6;
+      border-top: 1px solid var(--border);
+    }
+    .faq-item.open .faq-a { display: block; padding-top: 12px; }
+    /* IA Chat */
+    .ia-chat-wrap {
+      display: flex; flex-direction: column; height: 360px;
+    }
+    .ia-messages {
+      flex: 1; overflow-y: auto; display:flex; flex-direction:column; gap:10px;
+      padding-bottom: 8px;
+    }
+    .ia-msg {
+      max-width: 85%; padding: 10px 14px; border-radius: 14px;
+      font-size: 13px; line-height: 1.5;
+    }
+    .ia-msg.bot {
+      background: var(--light); border: 1px solid var(--border);
+      align-self: flex-start; border-bottom-left-radius: 4px;
+    }
+    .ia-msg.user {
+      background: #1a1a18; color: #fff;
+      align-self: flex-end; border-bottom-right-radius: 4px;
+    }
+    .ia-msg.typing { opacity: .6; font-style: italic; }
+    .ia-input-row {
+      display: flex; gap: 8px; margin-top: 12px;
+      border-top: 1px solid var(--border); padding-top: 12px; flex-shrink:0;
+    }
+    .ia-input {
+      flex:1; padding: 9px 13px; border: 1px solid var(--border);
+      border-radius: 10px; font-size: 13px; font-family:inherit;
+      background: var(--surface); color: var(--text); outline:none;
+      transition: border-color .15s;
+    }
+    .ia-input:focus { border-color: var(--yellow); }
+    .ia-send {
+      padding: 9px 16px; background: var(--yellow); color: #1a1a18;
+      border: none; border-radius: 10px; font-weight: 700;
+      font-size: 13px; cursor: pointer; font-family:inherit;
+      transition: background .15s; flex-shrink:0;
+    }
+    .ia-send:hover { background: #e6ba00; }
+    .ia-send:disabled { opacity:.5; cursor:not-allowed; }
+    /* Suggestions rapides IA */
+    .ia-suggestions { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px; }
+    .ia-sug {
+      font-size: 11px; padding: 5px 11px; border-radius: 20px;
+      border: 1px solid var(--border); background: var(--surface);
+      color: var(--muted); cursor: pointer; font-family:inherit;
+      transition: all .15s;
+    }
+    .ia-sug:hover { background: #1a1a18; color:#fff; border-color:#1a1a18; }
+    /* Ancien onboarding step compat */
+    .onboarding-step { display:none; }
+    .onboarding-steps { display:none; }
+    .onboarding-skip { display:none; }
+    .onboarding-header { display:none; }
 
     /* ── BADGES MÉDAILLES ── */
     .medal-wrap { display:flex; gap:4px; flex-wrap:wrap; margin-top:4px; }
@@ -2298,6 +2419,110 @@ window.onboardingGo = function(dest){
     || document.querySelector('.nb-dropdown-item[data-page="'+dest+'"]');
   goPage(dest, btn);
 };
+
+// ── AIDE : switch onglets ────────────────────────────────────────────────────
+window.switchAideTab = function(tab, btn){
+  document.querySelectorAll('.aide-tab').forEach(function(b){ b.classList.remove('on'); });
+  document.querySelectorAll('.aide-panel').forEach(function(p){ p.classList.remove('on'); });
+  btn.classList.add('on');
+  var panel = document.getElementById('aide-panel-'+tab);
+  if(panel) panel.classList.add('on');
+  // Init IA si premier accès
+  if(tab === 'ia' && !window._iaInitDone){
+    window._iaInitDone = true;
+  }
+};
+
+// ── AIDE : FAQ accordion ─────────────────────────────────────────────────────
+window.toggleFaq = function(qEl){
+  var item = qEl.parentElement;
+  var isOpen = item.classList.contains('open');
+  document.querySelectorAll('.faq-item.open').forEach(function(el){ el.classList.remove('open'); });
+  if(!isOpen) item.classList.add('open');
+};
+
+// ── AIDE : Assistant IA ──────────────────────────────────────────────────────
+var _iaHistory = [];
+
+window.iaSendSug = function(btn){
+  var txt = btn.textContent.trim();
+  document.getElementById('ia-suggestions').style.display = 'none';
+  _iaDoSend(txt);
+};
+
+window.iaSend = function(){
+  var input = document.getElementById('ia-input');
+  var txt = input.value.trim();
+  if(!txt) return;
+  input.value = '';
+  document.getElementById('ia-suggestions').style.display = 'none';
+  _iaDoSend(txt);
+};
+
+function _iaDoSend(txt){
+  var msgs = document.getElementById('ia-messages');
+  // Message utilisateur
+  var uMsg = document.createElement('div');
+  uMsg.className = 'ia-msg user';
+  uMsg.textContent = txt;
+  msgs.appendChild(uMsg);
+  // Message typing
+  var typingMsg = document.createElement('div');
+  typingMsg.className = 'ia-msg bot typing';
+  typingMsg.textContent = '⏳ En train de répondre...';
+  msgs.appendChild(typingMsg);
+  msgs.scrollTop = msgs.scrollHeight;
+  // Désactiver bouton
+  var sendBtn = document.getElementById('ia-send-btn');
+  if(sendBtn) sendBtn.disabled = true;
+  // Ajouter au contexte
+  _iaHistory.push({ role: 'user', content: txt });
+  // Appel API
+  var systemPrompt = \`Tu es l'assistant intelligent intégré au dashboard Altius Contact, un outil de performance commerciale pour un centre de contact (call center) basé en Algérie.
+
+CONTEXTE DU DASHBOARD :
+- Agents téléconseillers assignés à des projets (JAPHY, Walter Santé, Enerix, Euro-Pare-Brise, etc.)
+- Scoring mensuel : Performance (×40%) + Qualité (×30%) + Présence (×20%) + Engagement (×10%)
+- Rangs : A (≥90%), B (≥70%), C (≥50%), E2 (<50%)
+- Rôles : Admin, Respo (Responsable de production), Chef de projet, Manager, Qualticien
+- Permissions scoring : Admin/Respo = tout | Manager = Perf+Présence+Engagement | Qualticien = Qualité uniquement
+- Fonctionnalités : tableau de bord KPI, Top 5, alertes E2, export PDF, calendrier/deadlines, fiches agents, badges (Top 5, Régularité 3 mois consécutifs en Rang A)
+- Synchronisation Firebase Firestore en temps réel
+
+Tu réponds en français, de façon concise et pratique. Si la question ne concerne pas le dashboard Altius, réponds brièvement que tu es spécialisé sur cet outil.\`;
+
+  fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 1000,
+      system: systemPrompt,
+      messages: _iaHistory
+    })
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(data){
+    typingMsg.remove();
+    var reply = (data.content && data.content[0] && data.content[0].text) ? data.content[0].text : "Désolé, je n'ai pas pu obtenir de réponse. Réessayez.";
+    _iaHistory.push({ role: 'assistant', content: reply });
+    var botMsg = document.createElement('div');
+    botMsg.className = 'ia-msg bot';
+    botMsg.innerHTML = reply.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\n/g,'<br>');
+    msgs.appendChild(botMsg);
+    msgs.scrollTop = msgs.scrollHeight;
+    if(sendBtn) sendBtn.disabled = false;
+  })
+  .catch(function(){
+    typingMsg.remove();
+    var errMsg = document.createElement('div');
+    errMsg.className = 'ia-msg bot';
+    errMsg.textContent = '⚠️ Erreur de connexion. Vérifiez votre connexion internet et réessayez.';
+    msgs.appendChild(errMsg);
+    msgs.scrollTop = msgs.scrollHeight;
+    if(sendBtn) sendBtn.disabled = false;
+  });
+}
 
 // ══════════════════════════════════════
 // BADGES MÉDAILLES
@@ -5339,14 +5564,183 @@ setInterval(function(){
 <!-- ONBOARDING SCREEN -->
 <div id="onboarding-overlay" class="onboarding-overlay" style="display:none">
   <div class="onboarding-box">
-    <div class="onboarding-header">
-      <div class="onboarding-logo">📊</div>
-      <div class="onboarding-title">Bienvenue sur Altius Dashboard</div>
-      <div class="onboarding-sub" id="onboarding-sub">Tableau de bord de performance commerciale</div>
+
+    <!-- HEADER -->
+    <div class="aide-header">
+      <div class="aide-header-left">
+        <div class="aide-logo">❓</div>
+        <div>
+          <div class="aide-title">Centre d'aide Altius</div>
+          <div class="aide-sub" id="onboarding-sub">Tableau de bord de performance commerciale</div>
+        </div>
+      </div>
+      <button class="aide-close" onclick="window.closeOnboarding()">✕</button>
     </div>
-    <div class="onboarding-steps" id="onboarding-steps"></div>
-    <div class="onboarding-skip" onclick="window.closeOnboarding()">Passer → Aller directement au dashboard</div>
-  </div>
+
+    <!-- ONGLETS -->
+    <div class="aide-tabs">
+      <button class="aide-tab on" onclick="window.switchAideTab('guide',this)">🗺️ Guide</button>
+      <button class="aide-tab" onclick="window.switchAideTab('astuces',this)">💡 Astuces</button>
+      <button class="aide-tab" onclick="window.switchAideTab('faq',this)">❓ FAQ</button>
+      <button class="aide-tab" onclick="window.switchAideTab('ia',this)">🤖 Assistant IA</button>
+    </div>
+
+    <!-- BODY -->
+    <div class="aide-body">
+
+      <!-- ── GUIDE ── -->
+      <div class="aide-panel on" id="aide-panel-guide">
+        <div id="aide-guide-role-label" class="aide-section-title">📋 Vos raccourcis principaux</div>
+        <div id="onboarding-steps"></div>
+
+        <div class="aide-section-title" style="margin-top:20px">📖 Tous les onglets</div>
+
+        <div class="guide-step" onclick="window.onboardingGo('overview')">
+          <div class="guide-step-icon">📋</div>
+          <div><div class="guide-step-title">Tableau de bord</div><div class="guide-step-desc">Vue globale : KPIs, Top 5 agents, alertes Rang E2, évolution mensuelle et accès rapide à toutes les sections.</div></div>
+          <div class="guide-step-arr">›</div>
+        </div>
+        <div class="guide-step" onclick="window.onboardingGo('mois')">
+          <div class="guide-step-icon">📅</div>
+          <div><div class="guide-step-title">Mois & Scores</div><div class="guide-step-desc">Saisissez les scores mensuels par agent et par projet : Performance (%), Qualité (%), Présence (%), Engagement (3 critères) et avertissements.</div></div>
+          <div class="guide-step-arr">›</div>
+        </div>
+        <div class="guide-step" onclick="window.onboardingGo('agents')">
+          <div class="guide-step-icon">👥</div>
+          <div><div class="guide-step-title">Agents</div><div class="guide-step-desc">Consultez et gérez tous les agents. Cliquez sur un agent pour ouvrir sa fiche individuelle : historique, badges, rang et commentaires.</div></div>
+          <div class="guide-step-arr">›</div>
+        </div>
+        <div class="guide-step" onclick="window.onboardingGo('chef')">
+          <div class="guide-step-icon">🎯</div>
+          <div><div class="guide-step-title">Mon projet</div><div class="guide-step-desc">Vue ciblée sur votre projet : classement équipe, score moyen, évolution et alertes spécifiques à votre périmètre.</div></div>
+          <div class="guide-step-arr">›</div>
+        </div>
+        <div class="guide-step" onclick="window.onboardingGo('projets')">
+          <div class="guide-step-icon">🏢</div>
+          <div><div class="guide-step-title">Projets</div><div class="guide-step-desc">Comparaison inter-projets, scores moyens, objectifs commerciaux (leads, CA) et taux d'atteinte automatique.</div></div>
+          <div class="guide-step-arr">›</div>
+        </div>
+        <div class="guide-step" onclick="window.onboardingGo('cal-dl')">
+          <div class="guide-step-icon">⏰</div>
+          <div><div class="guide-step-title">Calendrier & Deadlines</div><div class="guide-step-desc">Planifiez vos évaluations, formations, réunions. Gérez les deadlines avec alertes automatiques par rôle et catégorie.</div></div>
+          <div class="guide-step-arr">›</div>
+        </div>
+        <div class="guide-step" onclick="window.onboardingGo('comptes')">
+          <div class="guide-step-icon">🔑</div>
+          <div><div class="guide-step-title">Comptes (Admin)</div><div class="guide-step-desc">Créez et gérez les comptes utilisateurs. Assignez les rôles : Admin, Respo, Chef de projet, Manager, Qualticien.</div></div>
+          <div class="guide-step-arr">›</div>
+        </div>
+      </div>
+
+      <!-- ── ASTUCES ── -->
+      <div class="aide-panel" id="aide-panel-astuces">
+        <div class="aide-section-title">⚡ Productivité</div>
+        <div class="tip-card yellow">
+          <div class="tip-icon">⌨️</div>
+          <div><div class="tip-title">Saisie rapide des scores</div><div class="tip-desc">Dans Mois & Scores, utilisez la touche <strong>Tab</strong> pour passer d'un champ à l'autre sans cliquer. Gain de temps considérable sur 20+ agents.</div></div>
+        </div>
+        <div class="tip-card green">
+          <div class="tip-icon">📌</div>
+          <div><div class="tip-title">Filtrer par projet rapidement</div><div class="tip-desc">Les boutons de filtre projet en haut de chaque liste sont cliquables en un tap. Combinez filtre projet + filtre rang pour cibler instantanément.</div></div>
+        </div>
+        <div class="tip-card blue">
+          <div class="tip-icon">🔔</div>
+          <div><div class="tip-title">Notifications ciblées</div><div class="tip-desc">La cloche en haut à droite affiche uniquement les alertes de votre rôle. Les deadlines à moins de 3 jours apparaissent en rouge automatiquement.</div></div>
+        </div>
+
+        <div class="aide-section-title">📊 Scoring</div>
+        <div class="tip-card purple">
+          <div class="tip-icon">🧮</div>
+          <div><div class="tip-title">Formule de calcul du score final</div><div class="tip-desc"><strong>Score = Perf×40% + Qualité×30% + Présence×20% + Engagement×10%</strong><br>Chaque avertissement déduit des points. Rang A ≥ 90%, B ≥ 70%, C ≥ 50%, E2 &lt; 50%.</div></div>
+        </div>
+        <div class="tip-card yellow">
+          <div class="tip-icon">🏆</div>
+          <div><div class="tip-title">Bonus Rang A</div><div class="tip-desc">Les 5 meilleurs agents du mois reçoivent automatiquement un badge Top 5. Les agents Rang A 3 mois consécutifs obtiennent le badge Régularité.</div></div>
+        </div>
+        <div class="tip-card red">
+          <div class="tip-icon">⚠️</div>
+          <div><div class="tip-title">Alertes Rang E2</div><div class="tip-desc">Tout agent passant en Rang E2 apparaît immédiatement dans la section Alertes du tableau de bord. Agissez rapidement : accompagnement ou plan d'action.</div></div>
+        </div>
+
+        <div class="aide-section-title">📱 Mobile</div>
+        <div class="tip-card green">
+          <div class="tip-icon">📲</div>
+          <div><div class="tip-title">Navigation bottom bar</div><div class="tip-desc">Sur mobile, utilisez la barre en bas pour accéder à Dashboard, Agents, Scores et Agenda. Le bouton "Plus" donne accès au reste et à la déconnexion.</div></div>
+        </div>
+        <div class="tip-card blue">
+          <div class="tip-icon">↔️</div>
+          <div><div class="tip-title">Tableaux scrollables</div><div class="tip-desc">Sur téléphone, les tableaux agents et scores se scrollent horizontalement. Glissez le doigt de droite à gauche pour voir toutes les colonnes.</div></div>
+        </div>
+      </div>
+
+      <!-- ── FAQ ── -->
+      <div class="aide-panel" id="aide-panel-faq">
+        <div class="aide-section-title">❓ Questions fréquentes</div>
+
+        <div class="faq-item">
+          <div class="faq-q" onclick="window.toggleFaq(this)">Comment ajouter un nouvel agent ? <span class="faq-arr">›</span></div>
+          <div class="faq-a">Allez dans <strong>Agents</strong> → cliquez sur <strong>+ Ajouter un agent</strong>. Renseignez son nom, prénom, projet et date d'entrée. L'agent apparaîtra immédiatement dans la liste de saisie des scores.</div>
+        </div>
+        <div class="faq-item">
+          <div class="faq-q" onclick="window.toggleFaq(this)">Comment saisir les scores du mois ? <span class="faq-arr">›</span></div>
+          <div class="faq-a">Allez dans <strong>Administration → Mois & Scores</strong>. Sélectionnez le mois et le projet. Remplissez les colonnes pour chaque agent : Performance (objectif réalisé en %), Qualité (%), Présence (%) et cochez les critères d'Engagement. Cliquez sur <strong>Enregistrer</strong>.</div>
+        </div>
+        <div class="faq-item">
+          <div class="faq-q" onclick="window.toggleFaq(this)">Qui peut modifier quels champs du scoring ? <span class="faq-arr">›</span></div>
+          <div class="faq-a"><strong>Admin / Respo :</strong> tous les champs.<br><strong>Manager :</strong> Performance, Présence, Engagement et Avertissements.<br><strong>Qualticien :</strong> Qualité uniquement.<br><strong>Chef de projet :</strong> lecture seule sur le scoring.</div>
+        </div>
+        <div class="faq-item">
+          <div class="faq-q" onclick="window.toggleFaq(this)">Comment fonctionne le calcul des rangs ? <span class="faq-arr">›</span></div>
+          <div class="faq-a">Le score final est calculé automatiquement : <strong>Perf×40% + Qualité×30% + Présence×20% + Engagement×10%</strong>, avec déduction par avertissement. Les seuils : <strong>Rang A</strong> ≥ 90% · <strong>Rang B</strong> ≥ 70% · <strong>Rang C</strong> ≥ 50% · <strong>Rang E2</strong> &lt; 50%.</div>
+        </div>
+        <div class="faq-item">
+          <div class="faq-q" onclick="window.toggleFaq(this)">Comment créer un nouveau compte utilisateur ? <span class="faq-arr">›</span></div>
+          <div class="faq-a">Réservé aux <strong>Admins</strong>. Allez dans <strong>Administration → Comptes</strong>. Cliquez sur <strong>+ Nouveau compte</strong>, choisissez le rôle et définissez les identifiants. Le compte est actif immédiatement.</div>
+        </div>
+        <div class="faq-item">
+          <div class="faq-q" onclick="window.toggleFaq(this)">Comment exporter un rapport PDF ? <span class="faq-arr">›</span></div>
+          <div class="faq-a">Cliquez sur <strong>📄 Export PDF</strong> dans le header (desktop) ou dans le menu <strong>Plus</strong> (mobile). Choisissez le périmètre (tous les projets ou un seul), le mois et les sections à inclure. Cliquez sur <strong>Générer</strong>.</div>
+        </div>
+        <div class="faq-item">
+          <div class="faq-q" onclick="window.toggleFaq(this)">Les données sont-elles sauvegardées automatiquement ? <span class="faq-arr">›</span></div>
+          <div class="faq-a">Oui. Après chaque clic sur <strong>Enregistrer</strong>, les données sont synchronisées en temps réel sur Firebase Firestore. Le badge <strong>✅ Synchronisé</strong> en haut à droite confirme la sauvegarde. Une connexion internet est nécessaire.</div>
+        </div>
+        <div class="faq-item">
+          <div class="faq-q" onclick="window.toggleFaq(this)">Comment planifier une évaluation dans le calendrier ? <span class="faq-arr">›</span></div>
+          <div class="faq-a">Allez dans <strong>Calendrier & Deadlines</strong>. Cliquez sur un jour ou sur <strong>+ Ajouter</strong>. Renseignez le titre, la catégorie (Évaluation, Formation, Réunion…), les rôles destinataires et une date limite si nécessaire.</div>
+        </div>
+        <div class="faq-item">
+          <div class="faq-q" onclick="window.toggleFaq(this)">Que signifie le badge "Régularité" ? <span class="faq-arr">›</span></div>
+          <div class="faq-a">Ce badge est attribué automatiquement aux agents qui maintiennent le <strong>Rang A pendant 3 mois consécutifs</strong>. Il apparaît sur la fiche de l'agent et dans le classement Top 5.</div>
+        </div>
+        <div class="faq-item">
+          <div class="faq-q" onclick="window.toggleFaq(this)">Puis-je voir l'historique d'un agent sur plusieurs mois ? <span class="faq-arr">›</span></div>
+          <div class="faq-a">Oui. Dans <strong>Agents</strong>, cliquez sur un agent pour ouvrir sa fiche. Vous y trouverez un graphique d'évolution mensuelle, l'historique des rangs, les badges obtenus et les commentaires.</div>
+        </div>
+      </div>
+
+      <!-- ── ASSISTANT IA ── -->
+      <div class="aide-panel" id="aide-panel-ia">
+        <div class="ia-suggestions" id="ia-suggestions">
+          <button class="ia-sug" onclick="window.iaSendSug(this)">Comment saisir les scores ?</button>
+          <button class="ia-sug" onclick="window.iaSendSug(this)">Expliquer la formule de rang</button>
+          <button class="ia-sug" onclick="window.iaSendSug(this)">Que faire avec un agent Rang E2 ?</button>
+          <button class="ia-sug" onclick="window.iaSendSug(this)">Différence Manager vs Qualticien</button>
+          <button class="ia-sug" onclick="window.iaSendSug(this)">Comment exporter un PDF ?</button>
+        </div>
+        <div class="ia-chat-wrap">
+          <div class="ia-messages" id="ia-messages">
+            <div class="ia-msg bot">👋 Bonjour ! Je suis votre assistant Altius. Posez-moi n'importe quelle question sur le dashboard, les scores, les rôles ou le fonctionnement de l'application.</div>
+          </div>
+          <div class="ia-input-row">
+            <input class="ia-input" id="ia-input" type="text" placeholder="Posez votre question..." onkeydown="if(event.key==='Enter')window.iaSend()">
+            <button class="ia-send" id="ia-send-btn" onclick="window.iaSend()">Envoyer</button>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /aide-body -->
+  </div><!-- /onboarding-box -->
 </div>
 <div class="login-overlay" id="loginOverlay">
   <div class="login-box">
