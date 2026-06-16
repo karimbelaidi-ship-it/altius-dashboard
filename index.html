@@ -2766,13 +2766,13 @@ window.renderScoreGrid=function(){
   // Bouton déverrouiller dans la bannière (admin/respo seulement)
   const unlockWrap = document.getElementById('lock-unlock-btn-wrap');
   if(unlockWrap) unlockWrap.innerHTML = (_isLocked && _canLock)
-    ? '<button class="btn" onclick="window.toggleLockMonth(''+m+'')" style="font-size:12px;border-color:#F5C800;color:#a08200">🔓 Déverrouiller</button>' : '';
+    ? '<button class="btn" onclick="window.toggleLockMonth(\''+m+'\')" style="font-size:12px;border-color:#F5C800;color:#a08200">🔓 Déverrouiller</button>' : '';
   // Bouton verrouiller à côté des selects
   const lockBtnWrap = document.getElementById('lock-btn-wrap');
   if(lockBtnWrap) lockBtnWrap.innerHTML = _canLock
     ? (_isLocked
         ? ''
-        : '<button class="btn" onclick="window.toggleLockMonth(''+m+'')" style="font-size:12px;border-color:#F5C800;color:#a08200">🔒 Verrouiller ce mois</button>')
+        : '<button class="btn" onclick="window.toggleLockMonth(\''+m+'\')" style="font-size:12px;border-color:#F5C800;color:#a08200">🔒 Verrouiller ce mois</button>')
     : '';
   // Bouton Enregistrer
   const saveBtn = document.getElementById('save-scores-btn');
