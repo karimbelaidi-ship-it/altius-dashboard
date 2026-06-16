@@ -1386,20 +1386,29 @@ function renderMedalsHtml(a, activeList){
   try {
     var html = '';
     var months = D && D.months ? D.months : [];
-    // Badge Top 5 : dans le top 5 du dernier mois
-    if(months.length){
-      var lastM = months[months.length-1];
-      var scored = (activeList||[]).map(function(x){
-        var s = x.scores && x.scores[lastM] ? x.scores[lastM] : null;
-        if(!s) return null;
-        var sc = (s.perf||0)*0.4 + (s.qual||0)*0.3 + (s.pres||100)*0.2;
-        return {id:x.id, sc:sc};
-      }).filter(Boolean).sort(function(a,b){return b.sc-a.sc;});
-      var top5 = scored.slice(0,5).map(function(x){return x.id;});
-      if(top5.indexOf(a.id) !== -1) html += '<span style="font-size:11px;margin-left:4px">🥇</span>';
+    if(!months.length) return '';
+    // Badge Top 5 : utiliser scoreFinal pour un calcul cohérent avec le dashboard
+    var lastM = months[months.length-1];
+    var scored = (activeList||[]).map(function(x){
+      var s = x.scores && x.scores[lastM] ? x.scores[lastM] : null;
+      if(!s || (!s.perf && !s.qual)) return null;
+      var eng = typeof s.eng==='object' ? s.eng : {briefs:true,remontees:true,comportement:true};
+      var engScore = ([eng.briefs,eng.remontees,eng.comportement].filter(Boolean).length/3)*100;
+      var sc = (s.perf||0)*0.4 + (s.qual||0)*0.3 + (s.pres||100)*0.2 + engScore*0.1;
+      var avertDed = (s.avert||0)*5;
+      sc = Math.max(0, sc - avertDed);
+      return {id:x.id, sc:sc};
+    }).filter(Boolean).sort(function(a,b){return b.sc-a.sc;});
+    var top5 = scored.slice(0,5).map(function(x){return x.id;});
+    if(top5.indexOf(a.id) !== -1){
+      var pos = top5.indexOf(a.id)+1;
+      var medal = pos===1?'🥇':pos===2?'🥈':pos===3?'🥉':'🏅';
+      html += '<span title="Top '+pos+' ce mois" style="font-size:13px;margin-left:4px">'+medal+'</span>';
     }
     // Badge régularité
-    if(badgeRegularite(a)) html += '<span style="font-size:11px;margin-left:2px">⭐</span>';
+    if(badgeRegularite(a)){
+      html += '<span title="Rang A 3 mois consécutifs" style="font-size:13px;margin-left:2px">⭐</span>';
+    }
     return html;
   } catch(e){ return ''; }
 }
