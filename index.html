@@ -1011,10 +1011,19 @@
         <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:flex-end">
           <div><div class="flabel">Mois</div><select id="msel" onchange="renderScoreGrid()" style="width:auto"></select></div>
           <div><div class="flabel">Projet</div><select id="psel" onchange="renderScoreGrid()" style="width:auto"></select></div>
+          <div id="lock-btn-wrap" style="margin-left:auto"></div>
+        </div>
+        <div id="lock-banner" style="display:none;background:#fff8e1;border:1px solid #F5C800;border-radius:10px;padding:12px 16px;margin-bottom:12px;display:flex;align-items:center;gap:10px">
+          <span style="font-size:20px">🔒</span>
+          <div>
+            <div style="font-weight:700;font-size:13px">Mois verrouillé</div>
+            <div style="font-size:12px;color:var(--muted)">Ce mois est clôturé. Les scores ne peuvent plus être modifiés.</div>
+          </div>
+          <div id="lock-unlock-btn-wrap" style="margin-left:auto"></div>
         </div>
         <div class="twrap" id="sgrid"></div>
         <div style="display:flex;justify-content:flex-end;margin-top:12px">
-          <button class="btn yellow" onclick="saveScores()">💾 Enregistrer les scores</button>
+          <button class="btn yellow" id="save-scores-btn" onclick="saveScores()">💾 Enregistrer les scores</button>
         </div>
       </div>
       <div class="card">
@@ -2747,6 +2756,28 @@ window.renderScoreGrid=function(){
   const m=document.getElementById('msel').value;
   const p=document.getElementById('psel').value;
   const ags=D.agents.filter(a=>a.proj===p&&a.active);
+
+  // ── Verrouillage ──
+  const _isLocked = (D.lockedMonths||[]).includes(m);
+  const _canLock  = CURRENT_USER && ['admin','respo'].includes(CURRENT_USER.role);
+  // Bannière
+  const banner = document.getElementById('lock-banner');
+  if(banner) banner.style.display = _isLocked ? 'flex' : 'none';
+  // Bouton déverrouiller dans la bannière (admin/respo seulement)
+  const unlockWrap = document.getElementById('lock-unlock-btn-wrap');
+  if(unlockWrap) unlockWrap.innerHTML = (_isLocked && _canLock)
+    ? '<button class="btn" onclick="window.toggleLockMonth(''+m+'')" style="font-size:12px;border-color:#F5C800;color:#a08200">🔓 Déverrouiller</button>' : '';
+  // Bouton verrouiller à côté des selects
+  const lockBtnWrap = document.getElementById('lock-btn-wrap');
+  if(lockBtnWrap) lockBtnWrap.innerHTML = _canLock
+    ? (_isLocked
+        ? ''
+        : '<button class="btn" onclick="window.toggleLockMonth(''+m+'')" style="font-size:12px;border-color:#F5C800;color:#a08200">🔒 Verrouiller ce mois</button>')
+    : '';
+  // Bouton Enregistrer
+  const saveBtn = document.getElementById('save-scores-btn');
+  if(saveBtn){ saveBtn.disabled = _isLocked; saveBtn.style.opacity = _isLocked ? '.4' : '1'; saveBtn.style.cursor = _isLocked ? 'not-allowed' : ''; }
+
   if(!ags.length){document.getElementById('sgrid').innerHTML='<p style="font-size:13px;color:var(--muted);padding:8px 0">Aucun agent actif dans ce projet.</p>';return;}
   document.getElementById('sgrid').innerHTML=`<table class="tbl"><thead><tr>
     <th>Agent</th>
@@ -2767,27 +2798,34 @@ window.renderScoreGrid=function(){
     const canPres = ['admin','respo','teamlead'].includes(_role);
     const canEng  = ['admin','respo','teamlead'].includes(_role);
     const canAvert= ['admin','respo','teamlead'].includes(_role);
+    const _locked = (D.lockedMonths||[]).includes(m);
     const roDisabled = 'style="background:var(--bg2,#f5f5f5);color:var(--muted);cursor:not-allowed;opacity:.6" readonly';
     const chkDisabled = 'disabled style="cursor:not-allowed;opacity:.6"';
+    // Si mois verrouillé, tout est readonly quel que soit le rôle
+    const canPerfF = !_locked && canPerf;
+    const canQualF = !_locked && canQual;
+    const canPresF = !_locked && canPres;
+    const canEngF  = !_locked && canEng;
+    const canAvertF= !_locked && canAvert;
     return`<tr>
       <td style="font-weight:600;white-space:nowrap">${a.name}</td>
-      <td><input type="number" class="score-input" min="0" max="200" value="${s.perf||''}" id="p-${a.id}" oninput="window._upPrev('${a.id}')" placeholder="ex: 110" ${canPerf?'':''+roDisabled}></td>
-      <td><input type="number" class="score-input" min="0" max="100" value="${s.qual||''}" id="q-${a.id}" oninput="window._upPrev('${a.id}')" placeholder="ex: 80" ${canQual?'':''+roDisabled}></td>
-      <td><input type="number" class="score-input" min="0" max="100" value="${s.pres||100}" id="r-${a.id}" oninput="window._upPrev('${a.id}')" ${canPres?'':''+roDisabled}></td>
+      <td><input type="number" class="score-input" min="0" max="200" value="${s.perf||''}" id="p-${a.id}" oninput="window._upPrev('${a.id}')" placeholder="ex: 110" ${canPerfF?'':''+roDisabled}></td>
+      <td><input type="number" class="score-input" min="0" max="100" value="${s.qual||''}" id="q-${a.id}" oninput="window._upPrev('${a.id}')" placeholder="ex: 80" ${canQualF?'':''+roDisabled}></td>
+      <td><input type="number" class="score-input" min="0" max="100" value="${s.pres||100}" id="r-${a.id}" oninput="window._upPrev('${a.id}')" ${canPresF?'':''+roDisabled}></td>
       <td>
         <div style="display:flex;flex-direction:column;gap:4px;min-width:160px">
-          <label style="display:flex;align-items:center;gap:6px;font-size:12px;${canEng?'cursor:pointer':'cursor:not-allowed;opacity:.6'}">
-            <input type="checkbox" id="eb-${a.id}" ${eng.briefs?'checked':''} onchange="window._upPrev('${a.id}')" ${canEng?'':chkDisabled}> Présent aux briefs
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;${canEngF?'cursor:pointer':'cursor:not-allowed;opacity:.6'}">
+            <input type="checkbox" id="eb-${a.id}" ${eng.briefs?'checked':''} onchange="window._upPrev('${a.id}')" ${canEngF?'':chkDisabled}> Présent aux briefs
           </label>
-          <label style="display:flex;align-items:center;gap:6px;font-size:12px;${canEng?'cursor:pointer':'cursor:not-allowed;opacity:.6'}">
-            <input type="checkbox" id="er-${a.id}" ${eng.remontees?'checked':''} onchange="window._upPrev('${a.id}')" ${canEng?'':chkDisabled}> Remontées terrain
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;${canEngF?'cursor:pointer':'cursor:not-allowed;opacity:.6'}">
+            <input type="checkbox" id="er-${a.id}" ${eng.remontees?'checked':''} onchange="window._upPrev('${a.id}')" ${canEngF?'':chkDisabled}> Remontées terrain
           </label>
-          <label style="display:flex;align-items:center;gap:6px;font-size:12px;${canEng?'cursor:pointer':'cursor:not-allowed;opacity:.6'}">
-            <input type="checkbox" id="ec-${a.id}" ${eng.comportement?'checked':''} onchange="window._upPrev('${a.id}')" ${canEng?'':chkDisabled}> Comportement équipe
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;${canEngF?'cursor:pointer':'cursor:not-allowed;opacity:.6'}">
+            <input type="checkbox" id="ec-${a.id}" ${eng.comportement?'checked':''} onchange="window._upPrev('${a.id}')" ${canEngF?'':chkDisabled}> Comportement équipe
           </label>
         </div>
       </td>
-      <td><select id="av-${a.id}" class="avert-select" onchange="window._upPrev('${a.id}')" ${canAvert?'':'disabled '+roDisabled}>${[['0','Aucun'],['1','Verbal'],['2','Ecrit'],['3','Mise a pied']].map(([v,l])=>`<option value="${v}"${+v==+s.avert?' selected':''}>${l}</option>`).join('')}</select></td>
+      <td><select id="av-${a.id}" class="avert-select" onchange="window._upPrev('${a.id}')" ${canAvertF?'':'disabled '+roDisabled}>${[['0','Aucun'],['1','Verbal'],['2','Ecrit'],['3','Mise a pied']].map(([v,l])=>`<option value="${v}"${+v==+s.avert?' selected':''}>${l}</option>`).join('')}</select></td>
       <td><span id="pv-${a.id}" style="font-weight:700;color:${col(parseFloat(preview)||0)}">${preview}</span></td>
     </tr>`;
   }).join('')}</tbody></table>`;
@@ -2810,6 +2848,11 @@ window._upPrev=function(id){
 window.saveScores=async function(){
   const m=document.getElementById('msel').value;
   const p=document.getElementById('psel').value;
+  if((D.lockedMonths||[]).includes(m)){
+    setSyncBadge('sync-err','🔒 Mois verrouillé — modification impossible');
+    setTimeout(()=>setSyncBadge('sync-ok','✅ Synchronisé'),3000);
+    return;
+  }
   const _srole = CURRENT_USER ? CURRENT_USER.role : 'admin';
   const _canPerf = ['admin','respo','teamlead'].includes(_srole);
   const _canQual = ['admin','respo','qualite'].includes(_srole);
@@ -3677,6 +3720,27 @@ window.renderHist = function() {
   }
   th += '</tbody></table>';
   document.getElementById('hist-body').innerHTML = th;
+};
+
+window.toggleLockMonth = async function(mo){
+  const _role = CURRENT_USER ? CURRENT_USER.role : '';
+  if(!['admin','respo'].includes(_role)){ alert('Vous n'avez pas les droits pour verrouiller un mois.'); return; }
+  if(!D.lockedMonths) D.lockedMonths = [];
+  const isLocked = D.lockedMonths.includes(mo);
+  if(isLocked){
+    if(!confirm('Déverrouiller le mois ' + mo + ' ? Les scores pourront à nouveau être modifiés.')) return;
+    D.lockedMonths = D.lockedMonths.filter(function(m){ return m !== mo; });
+    await saveD();
+    renderScoreGrid();
+    setSyncBadge('sync-ok','🔓 Mois ' + mo + ' déverrouillé');
+  } else {
+    if(!confirm('Verrouiller le mois ' + mo + ' ? Plus aucune modification de score ne sera possible.')) return;
+    D.lockedMonths.push(mo);
+    await saveD();
+    renderScoreGrid();
+    setSyncBadge('sync-ok','🔒 Mois ' + mo + ' verrouillé');
+  }
+  setTimeout(()=>setSyncBadge('sync-ok','✅ Synchronisé'),2500);
 };
 
 window.lockMonth = async function(mo) {
