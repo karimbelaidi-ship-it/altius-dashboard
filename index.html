@@ -918,6 +918,7 @@
       <button class="nb-dropdown-item" data-page="archives" onclick="goPage('archives',this);window.closeAdminMenu()">🗂 Archives</button>
       <button class="nb-dropdown-item" data-page="teamleaders" onclick="goPage('teamleaders',this);window.closeAdminMenu()">👤 Team Leaders</button>
       <button class="nb-dropdown-item" data-page="comptes" id="comptes-tab" onclick="goPage('comptes',this);window.closeAdminMenu()">🔑 Comptes</button>
+      <button class="nb-dropdown-item" data-page="historique" onclick="goPage('historique',this);window.closeAdminMenu()">🕓 Historique scores</button>
     </div>
   </div>
 </div>
@@ -1134,6 +1135,16 @@
     <div id="comptes-body"></div>
   </div>
 
+  <div class="pg" id="pg-historique">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+      <div class="stitle" style="margin-bottom:0">🕓 Historique des modifications de scores</div>
+      <button class="btn" onclick="window._applyHistoFilters()">🔄 Rafraîchir</button>
+    </div>
+    <div class="card">
+      <div id="histo-global-content"></div>
+    </div>
+  </div>
+
   <div class="pg" id="pg-calendrier">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
       <div class="stitle" style="margin-bottom:0">Calendrier des evaluations</div>
@@ -1247,7 +1258,7 @@
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, doc, setDoc, onSnapshot, collection, addDoc, query, orderBy, limit, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBVylAFYl7jHIauwRry7A5PxaJ193qOH6M",
@@ -2476,6 +2487,12 @@ window._openFiche = function(id){
     ${renderMedalsHtml(a, D.agents.filter(function(x){return x.active;}))}
     <div class="drawer-section-title">📁 Historique projets</div>
     <div class="timeline">${timelineHtml}</div>
+    <div class="drawer-section-title" style="display:flex;align-items:center;justify-content:space-between">
+      <span>🕓 Historique des scores</span>
+    </div>
+    <div id="drawer-historique" style="font-size:12px;color:var(--muted);margin-bottom:4px">
+      <div style="padding:8px 0;color:var(--muted);font-size:12px">⏳ Chargement...</div>
+    </div>
     <div class="drawer-section-title">💬 Commentaires</div>
     <div id="comments-list">${commentsHtml}</div>
     <div class="comment-form" style="margin-top:12px">
@@ -2500,9 +2517,114 @@ window._openFiche = function(id){
   document.getElementById('drawer-overlay').classList.add('open');
   document.body.style.overflow = 'hidden';
   document.getElementById('drawer-body').scrollTop = 0;
+  // Charger l'historique de cet agent
+  window._loadAgentHistorique(a.id);
 }
 
 // CHANGER DE PROJET avec conservation historique
+
+// ── HISTORIQUE DES SCORES ─────────────────────────────────────────────────
+var AVERT_LABELS = ['Aucun','Verbal','Écrit','Mise à pied'];
+
+window._loadAgentHistorique = async function(agentId){
+  var el = document.getElementById('drawer-historique');
+  if(!el) return;
+  try {
+    var histRef = collection(db,'historique_scores');
+    var q = query(histRef, orderBy('date','desc'), limit(30));
+    var snap = await getDocs(q);
+    var entries = [];
+    snap.forEach(function(d){ var e=d.data(); if(e.agentId===agentId) entries.push(e); });
+    if(entries.length === 0){
+      el.innerHTML = '<div style="padding:8px 0;color:var(--muted);font-size:12px;font-style:italic">Aucune modification enregistrée pour cet agent.</div>';
+      return;
+    }
+    el.innerHTML = entries.slice(0,15).map(function(e){
+      var dt = new Date(e.date);
+      var dateStr = dt.toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'numeric'})
+        + ' à ' + dt.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+      var ancVal = e.champ.startsWith('Engagement') ? e.ancienne : (e.ancienne+'%');
+      var newVal = e.champ.startsWith('Engagement') ? e.nouvelle : (e.nouvelle+'%');
+      if(e.champ==='Avertissement'){ ancVal=AVERT_LABELS[e.ancienne]||e.ancienne; newVal=AVERT_LABELS[e.nouvelle]||e.nouvelle; }
+      return '<div style="display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--border)">'
+        + '<div style="flex-shrink:0;margin-top:2px;width:28px;height:28px;border-radius:8px;background:rgba(245,200,0,.1);display:flex;align-items:center;justify-content:center;font-size:13px">✏️</div>'
+        + '<div style="flex:1;min-width:0">'
+          + '<div style="font-size:12px;font-weight:600;color:var(--text)">' + e.champ + ' · ' + e.mois + '</div>'
+          + '<div style="font-size:11px;color:var(--muted);margin-top:2px">'
+            + '<span style="background:#ffe8e8;color:#8c1a1a;padding:1px 6px;border-radius:4px;margin-right:4px">' + ancVal + '</span>'
+            + '→ '
+            + '<span style="background:#dcfff2;color:#0a6b45;padding:1px 6px;border-radius:4px;margin-left:4px">' + newVal + '</span>'
+          + '</div>'
+          + '<div style="font-size:10px;color:var(--muted);margin-top:3px">' + e.editeur + ' · ' + dateStr + '</div>'
+        + '</div>'
+      + '</div>';
+    }).join('');
+  } catch(err) {
+    if(el) el.innerHTML = '<div style="font-size:12px;color:var(--muted);font-style:italic">Historique indisponible.</div>';
+  }
+};
+
+window._loadHistoriqueGlobal = async function(filtreAgent, filtreMois, filtreProjet){
+  var el = document.getElementById('histo-table-body');
+  if(!el) return;
+  el.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:16px;color:var(--muted)">⏳ Chargement...</td></tr>';
+  try {
+    var histRef = collection(db,'historique_scores');
+    var q = query(histRef, orderBy('date','desc'), limit(200));
+    var snap = await getDocs(q);
+    var entries = [];
+    snap.forEach(function(d){ entries.push(d.data()); });
+    // Filtres
+    if(filtreAgent) entries = entries.filter(function(e){ return e.agentNom && e.agentNom.toLowerCase().includes(filtreAgent.toLowerCase()); });
+    if(filtreMois && filtreMois !== 'all') entries = entries.filter(function(e){ return e.mois === filtreMois; });
+    if(filtreProjet && filtreProjet !== 'all') entries = entries.filter(function(e){ return e.projet === filtreProjet; });
+    if(entries.length === 0){
+      el.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:16px;color:var(--muted)">Aucune modification trouvée.</td></tr>';
+      return;
+    }
+    el.innerHTML = entries.map(function(e){
+      var dt = new Date(e.date);
+      var dateStr = dt.toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'numeric'}) + ' ' + dt.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+      var ancVal = e.champ.startsWith('Engagement') ? e.ancienne : (e.ancienne+'%');
+      var newVal = e.champ.startsWith('Engagement') ? e.nouvelle : (e.nouvelle+'%');
+      if(e.champ==='Avertissement'){ ancVal=AVERT_LABELS[e.ancienne]||e.ancienne; newVal=AVERT_LABELS[e.nouvelle]||e.nouvelle; }
+      return '<tr>'
+        + '<td style="font-weight:600">' + (e.agentNom||'—') + '</td>'
+        + '<td>' + (e.mois||'—') + '</td>'
+        + '<td>' + (e.projet||'—') + '</td>'
+        + '<td>' + (e.champ||'—') + '</td>'
+        + '<td><span style="background:#ffe8e8;color:#8c1a1a;padding:1px 7px;border-radius:4px;font-size:11px">' + ancVal + '</span>'
+          + ' → <span style="background:#dcfff2;color:#0a6b45;padding:1px 7px;border-radius:4px;font-size:11px">' + newVal + '</span></td>'
+        + '<td style="font-size:11px;color:var(--muted)">' + (e.editeur||'—') + '<br>' + dateStr + '</td>'
+        + '</tr>';
+    }).join('');
+  } catch(err) {
+    el.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:16px;color:var(--red)">Erreur de chargement.</td></tr>';
+  }
+};
+
+function renderHistoriqueGlobalPage(){
+  var months = D && D.months ? D.months : [];
+  var projs  = D && D.projects ? D.projects : [];
+  return '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:16px">'
+    + '<div><div class="flabel">Agent</div><input type="text" id="hf-agent" placeholder="Nom agent..." style="width:160px" oninput="window._applyHistoFilters()"></div>'
+    + '<div><div class="flabel">Mois</div><select id="hf-mois" style="width:130px" onchange="window._applyHistoFilters()"><option value="all">Tous les mois</option>'
+      + months.map(function(m){ return '<option value="'+m+'">'+m+'</option>'; }).join('')+'</select></div>'
+    + '<div><div class="flabel">Projet</div><select id="hf-projet" style="width:150px" onchange="window._applyHistoFilters()"><option value="all">Tous les projets</option>'
+      + projs.map(function(p){ return '<option value="'+p+'">'+p+'</option>'; }).join('')+'</select></div>'
+    + '</div>'
+    + '<div class="twrap"><table class="tbl">'
+    + '<thead><tr><th>Agent</th><th>Mois</th><th>Projet</th><th>Champ</th><th>Modification</th><th>Editeur · Date</th></tr></thead>'
+    + '<tbody id="histo-table-body"><tr><td colspan="6" style="text-align:center;padding:16px;color:var(--muted)">⏳ Chargement...</td></tr></tbody>'
+    + '</table></div>';
+}
+
+window._applyHistoFilters = function(){
+  var fa = (document.getElementById('hf-agent')||{}).value||'';
+  var fm = (document.getElementById('hf-mois')||{}).value||'all';
+  var fp = (document.getElementById('hf-projet')||{}).value||'all';
+  window._loadHistoriqueGlobal(fa,fm,fp);
+};
 window._openChangerProjet = function(id){ window.closeDrawer();
   var a=D.agents.find(function(x){return x.id===id;});
   if(!a) return;
@@ -2687,6 +2809,10 @@ window.saveScores=async function(){
   const _canPres = ['admin','respo','teamlead'].includes(_srole);
   const _canEng  = ['admin','respo','teamlead'].includes(_srole);
   const _canAvert= ['admin','respo','teamlead'].includes(_srole);
+  const _logEntries = [];
+  const _editeur = CURRENT_USER ? (CURRENT_USER.nom || CURRENT_USER.username) : 'Inconnu';
+  const _editeurRole = CURRENT_USER ? (_srole) : 'admin';
+  const _now = new Date().toISOString();
   D.agents.filter(a=>a.proj===p&&a.active).forEach(a=>{
     const pi=document.getElementById('p-'+a.id);if(!pi)return;
     const existing = a.scores[m]||{perf:0,qual:0,pres:100,eng:{briefs:true,remontees:true,comportement:true},avert:0};
@@ -2694,17 +2820,55 @@ window.saveScores=async function(){
     const erS=document.getElementById('er-'+a.id);
     const ecS=document.getElementById('ec-'+a.id);
     const engVal = (_canEng && ebS) ? {briefs:ebS.checked, remontees:erS.checked, comportement:ecS.checked} : existing.eng;
-    a.scores[m]={
+    const newScores = {
       perf:  _canPerf ? (+pi.value||0) : existing.perf,
       qual:  _canQual ? (+document.getElementById('q-'+a.id).value||0) : existing.qual,
       pres:  _canPres ? (+document.getElementById('r-'+a.id).value||100) : existing.pres,
       eng:   engVal,
       avert: _canAvert ? (+document.getElementById('av-'+a.id).value||0) : existing.avert
     };
+    // Détecter les changements
+    const champLabels = {perf:'Performance',qual:'Qualité',pres:'Présence',avert:'Avertissement'};
+    ['perf','qual','pres','avert'].forEach(function(champ){
+      if(_canPerf || (_canQual&&champ==='qual') || (_canPres&&champ==='pres') || (_canAvert&&champ==='avert')){
+        if(newScores[champ] !== existing[champ]){
+          _logEntries.push({
+            agentId: a.id, agentNom: a.name, mois: m, projet: p,
+            champ: champLabels[champ],
+            ancienne: existing[champ]||0,
+            nouvelle: newScores[champ],
+            editeur: _editeur, editeurRole: _editeurRole, date: _now
+          });
+        }
+      }
+    });
+    // Engagement
+    if(_canEng && ebS){
+      const engOld = typeof existing.eng==='object' ? existing.eng : {briefs:true,remontees:true,comportement:true};
+      const engLabels = {briefs:'Briefs',remontees:'Remontées',comportement:'Comportement'};
+      ['briefs','remontees','comportement'].forEach(function(k){
+        if(engVal[k] !== engOld[k]){
+          _logEntries.push({
+            agentId: a.id, agentNom: a.name, mois: m, projet: p,
+            champ: 'Engagement·'+engLabels[k],
+            ancienne: engOld[k]?'✅':'❌',
+            nouvelle: engVal[k]?'✅':'❌',
+            editeur: _editeur, editeurRole: _editeurRole, date: _now
+          });
+        }
+      });
+    }
+    a.scores[m] = newScores;
   });
-  await saveD();renderOverview();renderTrend();
-  setSyncBadge('sync-ok','✅ Scores enregistrés !');
-  setTimeout(()=>setSyncBadge('sync-ok','✅ Synchronisé'),2000);
+  await saveD();
+  // Sauvegarder l'historique dans Firebase
+  if(_logEntries.length > 0){
+    const histRef = collection(db,'historique_scores');
+    await Promise.all(_logEntries.map(function(e){ return addDoc(histRef, e); }));
+  }
+  renderOverview();renderTrend();
+  setSyncBadge('sync-ok', _logEntries.length > 0 ? '✅ '+_logEntries.length+' modif(s) enregistrée(s)' : '✅ Scores enregistrés !');
+  setTimeout(()=>setSyncBadge('sync-ok','✅ Synchronisé'),2500);
 }
 
 function renderTrend(){
@@ -3851,11 +4015,11 @@ function applyUserRole(){
 
   // Define tab access per role
   var tabAccess = {
-    admin:    ['overview','agents','mois','projets','archives','teamleaders','comptes','cal-dl'],
-    respo:    ['overview','chef','agents','mois','projets','archives','teamleaders','cal-dl'],
-    chef:     ['chef','agents','mois','projets','cal-dl'],
-    teamlead: ['chef','agents','cal-dl'],
-    qualite:  ['chef','agents','cal-dl']
+    admin:    ['overview','agents','mois','projets','archives','teamleaders','comptes','cal-dl','historique'],
+    respo:    ['overview','chef','agents','mois','projets','archives','teamleaders','cal-dl','historique'],
+    chef:     ['chef','agents','mois','projets','cal-dl','historique'],
+    teamlead: ['chef','agents','cal-dl','historique'],
+    qualite:  ['chef','agents','cal-dl','historique']
   };
   var allowed = tabAccess[role] || ['overview'];
 
@@ -4647,6 +4811,7 @@ var PAGE_LABELS = {
   'archives':    {section:'Administration', page:'Archives'},
   'teamleaders': {section:'Administration', page:'Team Leaders'},
   'comptes':     {section:'Administration', page:'Comptes'},
+  'historique':  {section:'Administration', page:'Historique scores'},
 };
 
 function updateBreadcrumb(id){
@@ -4704,6 +4869,11 @@ window.goPage=function(id,btn){
   if(id==='teamleaders')renderTeamleaders();
   if(id==='comptes')renderComptes();
   if(id==='deadlines')renderDeadlines();
+  if(id==='historique'){
+    var hc = document.getElementById('histo-global-content');
+    if(hc) hc.innerHTML = renderHistoriqueGlobalPage();
+    setTimeout(function(){ window._loadHistoriqueGlobal('','all','all'); }, 50);
+  }
 }
 
 window.toggleAdminMenu = function(e){
@@ -5500,6 +5670,7 @@ setInterval(function(){
   <button class="mnb-more-item" data-page="archives" onclick="mobileGoPage('archives',this);closeMobileMore()">🗂 Archives</button>
   <button class="mnb-more-item" data-page="teamleaders" onclick="mobileGoPage('teamleaders',this);closeMobileMore()">👤 Team Leaders</button>
   <button class="mnb-more-item" data-page="comptes" onclick="mobileGoPage('comptes',this);closeMobileMore()">🔑 Comptes</button>
+  <button class="mnb-more-item" data-page="historique" onclick="mobileGoPage('historique',this);closeMobileMore()">🕓 Historique scores</button>
   <div style="border-top:1px solid rgba(255,255,255,.08);margin:8px 0"></div>
   <button class="mnb-more-item" onclick="showOnboarding();closeMobileMore()">❓ Aide</button>
   <button class="mnb-more-item" onclick="window.openExportModal();closeMobileMore()">📄 Export PDF</button>
