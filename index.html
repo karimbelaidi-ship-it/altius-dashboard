@@ -3724,7 +3724,7 @@ window.renderHist = function() {
 
 window.toggleLockMonth = async function(mo){
   const _role = CURRENT_USER ? CURRENT_USER.role : '';
-  if(!['admin','respo'].includes(_role)){ alert('Vous n'avez pas les droits pour verrouiller un mois.'); return; }
+  if(!['admin','respo'].includes(_role)){ alert("Vous n'avez pas les droits pour verrouiller un mois."); return; }
   if(!D.lockedMonths) D.lockedMonths = [];
   const isLocked = D.lockedMonths.includes(mo);
   if(isLocked){
