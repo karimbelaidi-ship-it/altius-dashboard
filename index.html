@@ -1351,6 +1351,57 @@ function prevScore(a){
 }
 
 // Bonus progression : +10pts d'amélioration → +3%
+// ── Fonctions utilitaires agents ────────────────────────────────────────────
+function renderMedalsHtml(a, activeList){
+  try {
+    var html = '';
+    var months = D && D.months ? D.months : [];
+    // Badge Top 5 : dans le top 5 du dernier mois
+    if(months.length){
+      var lastM = months[months.length-1];
+      var scored = (activeList||[]).map(function(x){
+        var s = x.scores && x.scores[lastM] ? x.scores[lastM] : null;
+        if(!s) return null;
+        var sc = (s.perf||0)*0.4 + (s.qual||0)*0.3 + (s.pres||100)*0.2;
+        return {id:x.id, sc:sc};
+      }).filter(Boolean).sort(function(a,b){return b.sc-a.sc;});
+      var top5 = scored.slice(0,5).map(function(x){return x.id;});
+      if(top5.indexOf(a.id) !== -1) html += '<span style="font-size:11px;margin-left:4px">🥇</span>';
+    }
+    // Badge régularité
+    if(badgeRegularite(a)) html += '<span style="font-size:11px;margin-left:2px">⭐</span>';
+    return html;
+  } catch(e){ return ''; }
+}
+
+function renderSparkline(a){
+  try {
+    var months = D && D.months ? D.months : [];
+    if(!months.length) return '';
+    var pts = months.slice(-6).map(function(m){
+      var s = a.scores && a.scores[m] ? a.scores[m] : null;
+      if(!s || (!s.perf && !s.qual)) return null;
+      return (s.perf||0)*0.4 + (s.qual||0)*0.3 + (s.pres||100)*0.2;
+    });
+    var valid = pts.filter(function(x){return x!==null;});
+    if(valid.length < 2) return '';
+    var max = Math.max.apply(null, valid);
+    var min = Math.min.apply(null, valid);
+    var range = max - min || 1;
+    var w = 52, h = 18;
+    var points = pts.map(function(v, i){
+      var x = Math.round(i * (w/(pts.length-1)));
+      var y = v === null ? h : Math.round(h - ((v-min)/range)*(h-2) - 1);
+      return x+','+y;
+    }).join(' ');
+    var lastVal = valid[valid.length-1];
+    var color = lastVal >= 80 ? '#378ADD' : lastVal >= 65 ? '#7F77DD' : '#E24B4A';
+    return '<svg width="'+w+'" height="'+h+'" style="vertical-align:middle;margin:0 6px">'
+      +'<polyline points="'+points+'" fill="none" stroke="'+color+'" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>'
+      +'</svg>';
+  } catch(e){ return ''; }
+}
+
 function bonusProgression(a){
   var ls = lastScore(a);
   var ps = prevScore(a);
