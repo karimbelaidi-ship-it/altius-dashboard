@@ -3445,7 +3445,44 @@ window._exportPDF = function(){ window.openExportModal(); };
 // ── Export Modal ─────────────────────────────────────────────────────────────
 window.openExportModal = function(){
   var el = document.getElementById('export-modal-overlay');
-  if(el){ el.classList.add('on'); window.refreshExportPreview && window.refreshExportPreview(); }
+  if(!el || !D) return;
+  el.classList.add('on');
+  // Remplir le select Projet
+  var projSel = document.getElementById('exp-projet');
+  if(projSel){
+    projSel.innerHTML = '<option value="tous">Tous les projets</option>' +
+      D.projects.map(function(p){return '<option value="'+p+'">'+p+'</option>';}).join('');
+  }
+  // Remplir le select Agent
+  var agentSel = document.getElementById('exp-agent');
+  if(agentSel){
+    agentSel.innerHTML = D.agents.filter(function(a){return a.active;}).map(function(a){
+      return '<option value="'+a.id+'">'+a.name+'</option>';
+    }).join('');
+  }
+  // Remplir les selects de mois "Un mois" avec les vrais mois disponibles (format D.months: "Oct 25")
+  var moisSel = document.getElementById('exp-mois');
+  var anneeSel = document.getElementById('exp-annee');
+  if(moisSel && anneeSel && D.months.length){
+    var lastMonth = D.months[D.months.length-1];
+    var parts = lastMonth.split(' ');
+    moisSel.innerHTML = D.months.map(function(m){return '<option value="'+m+'"'+(m===lastMonth?' selected':'')+'>'+m+'</option>';}).join('');
+    anneeSel.style.display = 'none'; // année incluse dans le label du mois
+  }
+  // Plage : remplir avec les vrais mois aussi
+  var debSel = document.getElementById('exp-debut-mois');
+  var finSel = document.getElementById('exp-fin-mois');
+  if(debSel && finSel && D.months.length){
+    var opts = D.months.map(function(m){return '<option value="'+m+'">'+m+'</option>';}).join('');
+    debSel.innerHTML = opts;
+    finSel.innerHTML = opts;
+    debSel.value = D.months[0];
+    finSel.value = D.months[D.months.length-1];
+    var debAnnee = document.getElementById('exp-debut-annee');
+    var finAnnee = document.getElementById('exp-fin-annee');
+    if(debAnnee) debAnnee.style.display = 'none';
+    if(finAnnee) finAnnee.style.display = 'none';
+  }
 };
 window.closeExportModal = function(){
   var el = document.getElementById('export-modal-overlay');
@@ -3455,39 +3492,39 @@ window.selectExportType = function(btn){
   document.querySelectorAll('.export-type-btn').forEach(function(b){ b.classList.remove('on'); });
   btn.classList.add('on');
   var type = btn.dataset.type;
-  var projRow = document.getElementById('exp-proj-row');
-  var agentRow = document.getElementById('exp-agent-row');
-  if(projRow) projRow.style.display = (type==='projet'||type==='agent') ? '' : 'none';
-  if(agentRow) agentRow.style.display = type==='agent' ? '' : 'none';
+  var agentWrap = document.getElementById('exp-agent-wrap');
+  if(agentWrap) agentWrap.style.display = type==='agent' ? '' : 'none';
 };
 window.togglePeriode = function(){
   var isPlage = document.getElementById('exp-periode-plage') && document.getElementById('exp-periode-plage').checked;
-  var unRow = document.getElementById('exp-mois-un-row');
-  var plageRow = document.getElementById('exp-mois-plage-row');
+  var unRow = document.getElementById('export-un-mois');
+  var plageRow = document.getElementById('export-plage-mois');
   if(unRow) unRow.style.display = isPlage ? 'none' : '';
   if(plageRow) plageRow.style.display = isPlage ? '' : 'none';
 };
 window.doExportPDF = function(){
+  if(!D) return;
   var typeBtn = document.querySelector('.export-type-btn.on');
   var type = typeBtn ? typeBtn.dataset.type : 'complet';
   var isPlage = document.getElementById('exp-periode-plage') && document.getElementById('exp-periode-plage').checked;
   var months, periodLabel;
   if(isPlage){
-    var mDeb = document.getElementById('exp-mois-deb') ? document.getElementById('exp-mois-deb').value : D.months[0];
-    var mFin = document.getElementById('exp-mois-fin') ? document.getElementById('exp-mois-fin').value : D.months[D.months.length-1];
+    var mDeb = document.getElementById('exp-debut-mois') ? document.getElementById('exp-debut-mois').value : D.months[0];
+    var mFin = document.getElementById('exp-fin-mois') ? document.getElementById('exp-fin-mois').value : D.months[D.months.length-1];
     var idxDeb = D.months.indexOf(mDeb), idxFin = D.months.indexOf(mFin);
-    months = D.months.slice(Math.max(0,idxDeb), idxFin+1);
+    if(idxDeb===-1) idxDeb=0; if(idxFin===-1) idxFin=D.months.length-1;
+    months = D.months.slice(Math.min(idxDeb,idxFin), Math.max(idxDeb,idxFin)+1);
     periodLabel = mDeb + ' — ' + mFin;
   } else {
-    var mSel = document.getElementById('exp-mois-sel') ? document.getElementById('exp-mois-sel').value : D.months[D.months.length-1];
+    var mSel = document.getElementById('exp-mois') ? document.getElementById('exp-mois').value : D.months[D.months.length-1];
     months = [mSel]; periodLabel = mSel;
   }
-  var inclDem = document.getElementById('exp-incl-dem') ? document.getElementById('exp-incl-dem').checked : false;
-  var inclObj = document.getElementById('exp-incl-obj') ? document.getElementById('exp-incl-obj').checked : true;
-  var projEl = document.getElementById('exp-proj-sel');
+  var inclDem = document.getElementById('exp-dem') ? document.getElementById('exp-dem').checked : false;
+  var inclObj = document.getElementById('exp-obj') ? document.getElementById('exp-obj').checked : true;
+  var projEl = document.getElementById('exp-projet');
   var projFilter = projEl ? projEl.value : 'tous';
-  var agentEl = document.getElementById('exp-agent-sel');
-  var agentFilter = agentEl ? agentEl.value : null;
+  var agentEl = document.getElementById('exp-agent');
+  var agentFilter = (type==='agent' && agentEl) ? agentEl.value : null;
   window.closeExportModal();
   window._exportPDFWithOptions({ type:type, months:months, periodLabel:periodLabel, inclDem:inclDem, inclObj:inclObj, projFilter:projFilter, agentFilter:agentFilter });
 };
