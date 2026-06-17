@@ -949,17 +949,14 @@
         <div class="skeleton-card" style="height:80px"></div>
       </div>
     </div>
+    <!-- BANDEAU TENDANCE -->
+    <div id="trend-banner" style="display:none"></div>
+
     <!-- KPI CARDS -->
     <div class="kgrid" id="kgrid" style="display:none"></div>
 
-    <!-- TOP 3 -->
-    <div class="section-bar-yellow" style="margin-top:8px">
-      <div class="stitle" style="margin-bottom:0">🏆 Top 3 agents</div>
-    </div>
-    <div class="top3-grid" id="top3grid"></div>
-
-    <!-- ALERTES RANG D -->
-    <div id="alertes-section"></div>
+    <!-- QUI PERFORME / QUI DÉCROCHE -->
+    <div id="perf-decroche-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px;margin-bottom:8px"></div>
 
     <!-- RACCOURCIS RAPIDES -->
     <div id="quick-actions"></div>
@@ -1589,20 +1586,67 @@ function renderOverview(){
 
   // Calcul trend score (comparaison 2 derniers mois)
   var trendHtml = '';
+  var diff = 0;
+  var getAvgMonth = function(month){
+    var sc2 = D.agents.filter(function(a){return a.active;}).map(function(a){
+      var s=a.scores[month]; if(!s||(s.perf===0&&s.qual===0)) return null;
+      var rv=(s.perf/100*.4)+(s.qual/100*.3)+(s.pres/100*.2)+engScore(s.eng);
+      var mv=s.avert>=3?0:1-s.avert*.1; return Math.round(rv*mv*1000)/10;
+    }).filter(function(x){return x!==null;});
+    return sc2.length ? Math.round(sc2.reduce(function(a,b){return a+b;},0)/sc2.length) : 0;
+  };
   if(D.months.length >= 2){
-    var getAvg = function(month){
-      var sc2 = D.agents.filter(function(a){return a.active;}).map(function(a){
-        var s=a.scores[month]; if(!s||(s.perf===0&&s.qual===0)) return null;
-        var rv=(s.perf/100*.4)+(s.qual/100*.3)+(s.pres/100*.2)+engScore(s.eng);
-        var mv=s.avert>=3?0:1-s.avert*.1; return Math.round(rv*mv*1000)/10;
-      }).filter(function(x){return x!==null;});
-      return sc2.length ? Math.round(sc2.reduce(function(a,b){return a+b;},0)/sc2.length) : 0;
-    };
-    var prevAvg = getAvg(D.months[D.months.length-2]);
-    var diff = avg - prevAvg;
+    var prevAvg = getAvgMonth(D.months[D.months.length-2]);
+    diff = avg - prevAvg;
     if(diff > 0) trendHtml = '<span class="kcard-v2-trend up">▲ +'+diff+'%</span>';
     else if(diff < 0) trendHtml = '<span class="kcard-v2-trend down">▼ '+diff+'%</span>';
     else trendHtml = '<span class="kcard-v2-trend flat">= stable</span>';
+  }
+
+  // ── BANDEAU TENDANCE (6 derniers mois) ──
+  var bannerEl = document.getElementById('trend-banner');
+  if(bannerEl){
+    var last6 = D.months.slice(-6);
+    var vals = last6.map(getAvgMonth);
+    var hasData = vals.some(function(v){return v>0;});
+    if(hasData && last6.length >= 2){
+      var maxV = Math.max.apply(null, vals.concat([1]));
+      var minV = Math.min.apply(null, vals);
+      var range = (maxV-minV) || 1;
+      var W=600, H=70, padTop=10, padBot=10;
+      var pts = vals.map(function(v,i){
+        var x = Math.round(i*(W/(vals.length-1)));
+        var y = Math.round(H - padBot - ((v-minV)/range)*(H-padTop-padBot));
+        return {x:x,y:y,v:v};
+      });
+      var polyline = pts.map(function(p){return p.x+','+p.y;}).join(' ');
+      var trendColor = diff>0 ? '#0F6E56' : diff<0 ? '#A32D2D' : '#5F5E5A';
+      var trendIcon = diff>0 ? '▲' : diff<0 ? '▼' : '=';
+      var trendLabel = diff>0 ? ('en hausse de +'+diff+'% vs mois dernier') : diff<0 ? ('en baisse de '+diff+'% vs mois dernier') : 'stable vs mois dernier';
+      bannerEl.style.display = '';
+      bannerEl.innerHTML =
+        '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px 20px;margin-bottom:20px">'
+        +'<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;flex-wrap:wrap;gap:8px">'
+          +'<div>'
+            +'<div style="font-size:12px;color:var(--muted);margin-bottom:4px">Performance moyenne — tous projets</div>'
+            +'<div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap">'
+              +'<span style="font-size:30px;font-weight:800">'+avg+'%</span>'
+              +'<span style="font-size:12px;color:'+trendColor+';background:'+trendColor+'14;padding:3px 10px;border-radius:8px;font-weight:600">'+trendIcon+' '+trendLabel+'</span>'
+            +'</div>'
+          +'</div>'
+          +'<div style="font-size:11px;color:var(--muted)">'+last6[0]+' → '+last6[last6.length-1]+'</div>'
+        +'</div>'
+        +'<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:64px" preserveAspectRatio="none">'
+          +'<polyline points="'+polyline+'" fill="none" stroke="'+trendColor+'" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>'
+          +pts.map(function(p,i){return i===pts.length-1 ? '<circle cx="'+p.x+'" cy="'+p.y+'" r="4" fill="'+trendColor+'"/>' : '';}).join('')
+        +'</svg>'
+        +'<div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-top:2px">'
+          +last6.map(function(m){return '<span>'+m+'</span>';}).join('')
+        +'</div>'
+        +'</div>';
+    } else {
+      bannerEl.style.display = 'none';
+    }
   }
 
   document.getElementById('kgrid').innerHTML=
@@ -1629,34 +1673,41 @@ function renderOverview(){
       +'<div class="kcard-v2-label">'+Math.round(rc.D/tot*100)+'% des agents</div>'
       +'<div class="kcard-v2-bar"><div class="kcard-v2-bar-fill" style="width:'+Math.round(rc.D/tot*100)+'%;background:var(--red)"></div></div>'
     +'</div>';
-  // TOP 3
-  const ranked = active.map(a=>{const ls=lastScore(a);return{...a,_score:ls?ls.score:0};}).filter(a=>a._score>0).sort((a,b)=>b._score-a._score);
-  const medals = [{cls:'gold',icon:'1er'},{cls:'silver',icon:'2e'},{cls:'bronze',icon:'3e'}];
-  document.getElementById('top3grid').innerHTML = ranked.slice(0,3).map((a,i)=>{
-    const[bg,fg]=avc(a.name);
-    return`<div class="top3-card ${medals[i].cls}">
-      <div class="top3-rank">${medals[i].icon}</div>
-      <div class="top3-info">
-        <div class="top3-name">${a.name}</div>
-        <div class="top3-proj">${a.proj}</div>
-      </div>
-      <div class="top3-score" style="color:${col(a._score)}">${a._score.toFixed(1)}%</div>
-    </div>`;
-  }).join('');
-  // ALERTES RANG D
-  const rangD = active.map(a=>{const ls=lastScore(a);return{...a,_score:ls?ls.score:0,_ls:ls};}).filter(a=>a._score>0&&rank(a._score)==='D').sort((a,b)=>a._score-b._score);
-  const alertSection = document.getElementById('alertes-section');
-  if(rangD.length){
-    alertSection.innerHTML=`<div class="section-bar-red" style="margin-bottom:12px"><div class="stitle" style="margin-bottom:0;color:#8c1a1a">⚠️ Agents en Rang D — Action requise (${rangD.length})</div></div>`+
-    rangD.map(a=>`<div class="alert-d">
-      <div class="alert-d-icon">⚠️</div>
-      <div class="alert-d-info">
-        <div class="alert-d-name">${a.name}</div>
-        <div class="alert-d-detail">${a.proj} · Perf ${a._ls?a._ls.perf:'—'}% · Qualité ${a._ls?a._ls.qual:'—'}%</div>
-      </div>
-      <div class="alert-d-score">${a._score.toFixed(1)}%</div>
-    </div>`).join('')+'<div style="margin-bottom:20px"></div>';
-  } else { alertSection.innerHTML=''; }
+  // ── QUI PERFORME / QUI DÉCROCHE ──
+  const ranked = active.map(a=>{const ls=lastScore(a);return{...a,_score:ls?ls.score:0,_ls:ls};}).filter(a=>a._score>0).sort((a,b)=>b._score-a._score);
+  const topPerf = ranked.slice(0,5);
+  const rangD = ranked.filter(a=>rank(a._score)==='D').sort((a,b)=>a._score-b._score).slice(0,5);
+
+  const pdGrid = document.getElementById('perf-decroche-grid');
+  if(pdGrid){
+    pdGrid.innerHTML =
+      '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px 18px">'
+        +'<div style="font-size:14px;font-weight:700;margin-bottom:12px;color:#0F6E56;display:flex;align-items:center;gap:6px">🏆 Qui performe</div>'
+        +(topPerf.length
+          ? '<div style="display:flex;flex-direction:column;gap:9px">'
+            + topPerf.map(function(a,i){
+                return '<div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;cursor:pointer" onclick="window._openFiche(\''+a.id+'\')">'
+                  +'<span style="display:flex;align-items:center;gap:6px"><span style="font-size:11px;color:var(--muted);width:14px">'+(i+1)+'</span>'+a.name+'</span>'
+                  +'<span style="color:#0F6E56;font-weight:700">'+a._score.toFixed(1)+'%</span>'
+                +'</div>';
+              }).join('')
+            + '</div>'
+          : '<p style="font-size:12px;color:var(--muted)">Aucune donnée ce mois.</p>')
+      +'</div>'
+      +'<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px 18px">'
+        +'<div style="font-size:14px;font-weight:700;margin-bottom:12px;color:#A32D2D;display:flex;align-items:center;gap:6px">⚠️ Qui décroche</div>'
+        +(rangD.length
+          ? '<div style="display:flex;flex-direction:column;gap:9px">'
+            + rangD.map(function(a){
+                return '<div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;cursor:pointer" onclick="window._openFiche(\''+a.id+'\')">'
+                  +'<span>'+a.name+' <span style="color:var(--muted);font-size:11px">· '+a.proj+'</span></span>'
+                  +'<span style="color:#A32D2D;font-weight:700">'+a._score.toFixed(1)+'%</span>'
+                +'</div>';
+              }).join('')
+            + '</div>'
+          : '<p style="font-size:12px;color:var(--muted)">Aucun agent en Rang D ce mois 🎉</p>')
+      +'</div>';
+  }
 
   // RACCOURCIS RAPIDES
   renderQuickActions();
