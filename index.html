@@ -898,6 +898,9 @@
     </div>
   </div>
   <div style="display:flex;align-items:center;gap:10px"><button onclick="showOnboarding()" style="background:rgba(245,200,0,.1);border:1px solid rgba(245,200,0,.3);border-radius:8px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;color:#a08200;font-family:inherit;">❓ Aide</button><button onclick="window.openExportModal()" style="background:var(--yellow);color:#1a1a18;border:none;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">📄 Export PDF</button><div style="display:flex;align-items:center;gap:6px">
+    <button class="notif-bell" id="search-trigger-btn" onclick="window.openGlobalSearch()" title="Rechercher (Ctrl+K)">
+      🔍
+    </button>
     <button class="notif-bell" id="notif-bell" onclick="window.toggleNotifPanel()" title="Notifications">
       🔔 <span id="notif-count" class="notif-badge" style="display:none">0</span>
     </button>
@@ -6106,6 +6109,7 @@ setInterval(function(){
   <button class="mnb-more-item" data-page="comptes" onclick="mobileGoPage('comptes',this);closeMobileMore()">🔑 Comptes</button>
   <button class="mnb-more-item" data-page="historique" onclick="mobileGoPage('historique',this);closeMobileMore()">🕓 Historique scores</button>
   <div style="border-top:1px solid rgba(255,255,255,.08);margin:8px 0"></div>
+  <button class="mnb-more-item" onclick="window.openGlobalSearch();closeMobileMore()">🔍 Recherche</button>
   <button class="mnb-more-item" onclick="showOnboarding();closeMobileMore()">❓ Aide</button>
   <button class="mnb-more-item" onclick="window.openExportModal();closeMobileMore()">📄 Export PDF</button>
   <button class="mnb-more-item" style="color:#ff6b6b" onclick="window.doLogout()">🚪 Déconnexion</button>
@@ -6269,6 +6273,172 @@ document.addEventListener('click', function(e){
       clearInterval(loginCheckInterval);
     }
   }, 1000);
+})();
+</script>
+
+<!-- RECHERCHE GLOBALE -->
+<div id="gsearch-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);backdrop-filter:blur(3px);z-index:990;align-items:flex-start;justify-content:center;padding:80px 16px" onclick="if(event.target===this)window.closeGlobalSearch()">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;width:100%;max-width:560px;box-shadow:0 24px 80px rgba(0,0,0,.35);overflow:hidden">
+    <div style="display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--border)">
+      <span style="font-size:16px">🔍</span>
+      <input type="text" id="gsearch-input" placeholder="Rechercher un agent, projet, mois, deadline..." style="flex:1;border:none;outline:none;background:none;font-size:14px;font-family:inherit;color:var(--text)" oninput="window._gsearchRun(this.value)" onkeydown="window._gsearchKeydown(event)">
+      <button onclick="window.closeGlobalSearch()" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:18px;padding:2px 6px">✕</button>
+    </div>
+    <div id="gsearch-results" style="max-height:60vh;overflow-y:auto;padding:6px"></div>
+    <div id="gsearch-hint" style="padding:10px 16px;font-size:11px;color:var(--muted);border-top:1px solid var(--border)">Tapez au moins 2 caractères · ↑↓ pour naviguer · Entrée pour ouvrir · Échap pour fermer</div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var gsResults = [];
+  var gsSelectedIdx = -1;
+
+  function gsRankLabel(score){
+    return score>=95?'S':score>=80?'A':score>=65?'B':score>=50?'C':'D';
+  }
+  function gsCalcScore(s){
+    if(!s||(s.perf===0&&s.qual===0)) return 0;
+    var eng = typeof s.eng==='object' ? s.eng : {briefs:true,remontees:true,comportement:true};
+    var engS = ([eng.briefs,eng.remontees,eng.comportement].filter(Boolean).length/3)*100;
+    var sc = (s.perf||0)*0.4 + (s.qual||0)*0.3 + (s.pres||100)*0.2 + engS*0.1;
+    return Math.max(0, sc - (s.avert||0)*5);
+  }
+  function gsLastScore(a){
+    if(typeof D === 'undefined' || !D || !D.months) return null;
+    for(var i=D.months.length-1;i>=0;i--){
+      var s=a.scores[D.months[i]];
+      if(s&&(s.perf||s.qual)) return {s:s, score:gsCalcScore(s), month:D.months[i]};
+    }
+    return null;
+  }
+
+  window.openGlobalSearch = function(){
+    var overlay = document.getElementById('gsearch-overlay');
+    if(!overlay) return;
+    overlay.style.display = 'flex';
+    var input = document.getElementById('gsearch-input');
+    input.value = '';
+    document.getElementById('gsearch-results').innerHTML = '';
+    gsSelectedIdx = -1;
+    setTimeout(function(){ input.focus(); }, 50);
+  };
+  window.closeGlobalSearch = function(){
+    var overlay = document.getElementById('gsearch-overlay');
+    if(overlay) overlay.style.display = 'none';
+  };
+
+  window._gsearchKeydown = function(e){
+    if(e.key === 'Escape'){ window.closeGlobalSearch(); return; }
+    if(e.key === 'ArrowDown'){ e.preventDefault(); gsSelectedIdx = Math.min(gsResults.length-1, gsSelectedIdx+1); gsRenderResults(); return; }
+    if(e.key === 'ArrowUp'){ e.preventDefault(); gsSelectedIdx = Math.max(0, gsSelectedIdx-1); gsRenderResults(); return; }
+    if(e.key === 'Enter'){ e.preventDefault(); if(gsSelectedIdx>=0 && gsResults[gsSelectedIdx]) gsResults[gsSelectedIdx].action(); return; }
+  };
+
+  window._gsearchRun = function(query){
+    gsSelectedIdx = -1;
+    query = (query||'').trim().toLowerCase();
+    var resultsEl = document.getElementById('gsearch-results');
+    if(query.length < 2){ resultsEl.innerHTML=''; gsResults=[]; return; }
+    if(typeof D === 'undefined' || !D){ resultsEl.innerHTML='<div style="padding:16px;text-align:center;color:var(--muted);font-size:13px">Donnees non chargees.</div>'; return; }
+
+    var results = [];
+
+    // ── Agents ──
+    D.agents.forEach(function(a){
+      if(a.name.toLowerCase().includes(query)){
+        var ls = gsLastScore(a);
+        var scoreTxt = ls ? ls.score.toFixed(1)+'% · Rang '+gsRankLabel(ls.score) : 'Pas de score';
+        results.push({
+          type:'agent', icon:'👤', title:a.name,
+          subtitle:a.proj+' · '+scoreTxt+(a.active?'':' · Inactif'),
+          action: function(){ window.closeGlobalSearch(); var btn=document.querySelector('.nb[data-page="agents"]'); goPage('agents',btn); setTimeout(function(){ window._openFiche(a.id); }, 150); }
+        });
+      }
+    });
+
+    // ── Projets ──
+    (D.projects||[]).forEach(function(p){
+      if(p.toLowerCase().includes(query)){
+        var cnt = D.agents.filter(function(a){return a.proj===p && a.active;}).length;
+        results.push({
+          type:'projet', icon:'🏢', title:p,
+          subtitle:cnt+' agent'+(cnt>1?'s':'')+' actif'+(cnt>1?'s':''),
+          action: function(){ window.closeGlobalSearch(); var btn=document.querySelector('.nb[data-page="projets"]'); goPage('projets',btn); }
+        });
+      }
+    });
+
+    // ── Mois ──
+    (D.months||[]).forEach(function(m){
+      if(m.toLowerCase().includes(query)){
+        var isLocked = (D.lockedMonths||[]).includes(m);
+        results.push({
+          type:'mois', icon:'📅', title:m,
+          subtitle:isLocked ? 'Mois verrouille' : 'Saisie des scores',
+          action: function(){
+            window.closeGlobalSearch();
+            var btn=document.querySelector('.nb-dropdown-item[data-page="mois"]')||document.querySelector('.nb[data-page="mois"]');
+            goPage('mois',btn);
+            setTimeout(function(){ var sel=document.getElementById('msel'); if(sel){ sel.value=m; renderScoreGrid(); } }, 150);
+          }
+        });
+      }
+    });
+
+    // ── Deadlines ──
+    (D.deadlines||[]).forEach(function(dl){
+      var titleMatch = dl.title && dl.title.toLowerCase().includes(query);
+      if(titleMatch){
+        results.push({
+          type:'deadline', icon:'⏰', title:dl.title,
+          subtitle:(dl.date||'')+(dl.category?' · '+dl.category:''),
+          action: function(){ window.closeGlobalSearch(); var btn=document.querySelector('.nb[data-page="cal-dl"]'); goPage('cal-dl',btn); }
+        });
+      }
+    });
+
+    gsResults = results.slice(0,30);
+    gsRenderResults();
+  };
+
+  function gsTypeLabel(t){
+    return t==='agent'?'Agent':t==='projet'?'Projet':t==='mois'?'Mois':'Deadline';
+  }
+
+  function gsRenderResults(){
+    var resultsEl = document.getElementById('gsearch-results');
+    if(!gsResults.length){
+      resultsEl.innerHTML = '<div style="padding:16px;text-align:center;color:var(--muted);font-size:13px">Aucun resultat.</div>';
+      return;
+    }
+    resultsEl.innerHTML = gsResults.map(function(r,i){
+      var sel = i===gsSelectedIdx;
+      return '<div data-idx="'+i+'" onclick="window._gsearchClick('+i+')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;cursor:pointer;background:'+(sel?'rgba(245,200,0,.12)':'transparent')+'">'
+        +'<span style="font-size:16px;width:22px;text-align:center">'+r.icon+'</span>'
+        +'<div style="flex:1;min-width:0">'
+          +'<div style="font-size:13px;font-weight:600;color:var(--text)">'+r.title+'</div>'
+          +'<div style="font-size:11px;color:var(--muted)">'+r.subtitle+'</div>'
+        +'</div>'
+        +'<span style="font-size:10px;color:var(--muted);background:var(--light);padding:2px 8px;border-radius:6px;flex-shrink:0">'+gsTypeLabel(r.type)+'</span>'
+      +'</div>';
+    }).join('');
+  }
+
+  window._gsearchClick = function(i){
+    if(gsResults[i]) gsResults[i].action();
+  };
+
+  // Raccourci clavier Ctrl+K / Cmd+K
+  document.addEventListener('keydown', function(e){
+    if((e.ctrlKey || e.metaKey) && e.key === 'k'){
+      e.preventDefault();
+      var loginOv = document.getElementById('loginOverlay');
+      if(loginOv && loginOv.style.display === 'none'){
+        window.openGlobalSearch();
+      }
+    }
+  });
 })();
 </script>
 </body>
