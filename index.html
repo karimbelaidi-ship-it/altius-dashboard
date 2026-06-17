@@ -3605,8 +3605,12 @@ window._exportPDFWithOptions = function(opts){
   }
 
   // =====================
-  // PAGE 1 - COUVERTURE
+  // PAGE 1 - COUVERTURE (toujours affichée)
   // =====================
+  var coverTitle = exportType==='agent' ? 'Fiche agent individuelle'
+    : exportType==='projet' ? 'Rapport projet — '+(projFilter!=='tous'?projFilter:D.projects[0])
+    : exportType==='synthese' ? 'Synthese executive'
+    : 'Rapport Performance Sales';
   doc.setFillColor(26,26,24);
   doc.rect(0,0,W,H,'F');
   doc.setFillColor(245,200,0);
@@ -3631,40 +3635,50 @@ window._exportPDFWithOptions = function(opts){
   doc.setTextColor(255,255,255);
   doc.setFontSize(20);
   doc.setFont('helvetica','bold');
-  doc.text('Rapport Performance Sales', W/2, H*0.54, {align:'center'});
+  doc.text(coverTitle, W/2, H*0.54, {align:'center'});
   doc.setFontSize(11);
   doc.setFont('helvetica','normal');
   doc.setTextColor(180,180,180);
   doc.text('Genere le '+dateStr, W/2, H*0.60, {align:'center'});
-  doc.text('Periode : '+D.months[0]+' - '+D.months[D.months.length-1], W/2, H*0.65, {align:'center'});
-  // KPI boxes on cover
-  var kpis = [
-    {label:'Agents actifs', val:active.length, c:[29,158,117]},
-    {label:'Score moyen', val:avg+'%', c:colRgb(avg)},
-    {label:'Rang S - Elite', val:rc.S, c:[29,158,117]},
-    {label:'Rang D - Critique', val:rc.D, c:[226,75,74]},
-  ];
-  var bw=(W-28-9)/4;
-  kpis.forEach(function(k,i){
-    var x=14+i*(bw+3);
-    var y=H*0.73;
-    doc.setFillColor(40,40,38);
-    doc.roundedRect(x,y,bw,20,2,2,'F');
-    doc.setFillColor(k.c[0],k.c[1],k.c[2]);
-    doc.rect(x,y,2,20,'F');
-    doc.setTextColor(160,160,160);
-    doc.setFontSize(7);
-    doc.setFont('helvetica','normal');
-    doc.text(k.label, x+5, y+7);
-    doc.setTextColor(k.c[0],k.c[1],k.c[2]);
-    doc.setFontSize(14);
-    doc.setFont('helvetica','bold');
-    doc.text(String(k.val), x+5, y+16);
-  });
+  doc.text('Periode : '+periodLabel, W/2, H*0.65, {align:'center'});
+  // KPI boxes on cover (uniquement pour complet/synthese — pas pertinent pour fiche agent seule)
+  if(exportType!=='agent'){
+    var kpiScope = exportType==='projet' && projFilter!=='tous'
+      ? active.filter(function(a){return a.proj===projFilter;})
+      : active;
+    var kpiScores = kpiScope.map(function(a){var ls=getLastScore(a);return ls?ls.score:0;}).filter(function(s){return s>0;});
+    var kpiAvg = kpiScores.length?Math.round(kpiScores.reduce(function(a,b){return a+b;},0)/kpiScores.length):0;
+    var kpiRc = {S:0,A:0,B:0,C:0,D:0};
+    kpiScores.forEach(function(s){kpiRc[rankFn(s)]++;});
+    var kpis = [
+      {label:'Agents actifs', val:kpiScope.length, c:[29,158,117]},
+      {label:'Score moyen', val:kpiAvg+'%', c:colRgb(kpiAvg)},
+      {label:'Rang S - Elite', val:kpiRc.S, c:[29,158,117]},
+      {label:'Rang D - Critique', val:kpiRc.D, c:[226,75,74]},
+    ];
+    var bw=(W-28-9)/4;
+    kpis.forEach(function(k,i){
+      var x=14+i*(bw+3);
+      var y=H*0.73;
+      doc.setFillColor(40,40,38);
+      doc.roundedRect(x,y,bw,20,2,2,'F');
+      doc.setFillColor(k.c[0],k.c[1],k.c[2]);
+      doc.rect(x,y,2,20,'F');
+      doc.setTextColor(160,160,160);
+      doc.setFontSize(7);
+      doc.setFont('helvetica','normal');
+      doc.text(k.label, x+5, y+7);
+      doc.setTextColor(k.c[0],k.c[1],k.c[2]);
+      doc.setFontSize(14);
+      doc.setFont('helvetica','bold');
+      doc.text(String(k.val), x+5, y+16);
+    });
+  }
 
   // =====================
-  // PAGE 2 - RESUME
+  // PAGE 2 - RESUME (sautée en mode fiche agent)
   // =====================
+  if(exportType!=='agent'){
   doc.addPage();
   addHeader('Resume executif');
   var y = 26;
@@ -3739,9 +3753,16 @@ window._exportPDFWithOptions = function(opts){
   var rangD = active.map(function(a){var ls=getLastScore(a);return{name:a.name,proj:a.proj,score:ls?ls.score:0,ls:ls};})
     .filter(function(a){return a.score>0&&rankFn(a.score)==='D';}).sort(function(a,b){return a.score-b.score;});
   if(rangD.length){
+    var boxH = 10+rangD.length*8;
+    // Si la box dépasse la page, on passe à une nouvelle page proprement
+    if(y + boxH > H - 14){
+      doc.addPage();
+      addHeader('Resume executif (suite)');
+      y = 26;
+    }
     doc.setFillColor(255,245,245);
     doc.setDrawColor(226,75,74);
-    doc.roundedRect(14,y,W-28,10+rangD.length*8,2,2,'FD');
+    doc.roundedRect(14,y,W-28,boxH,2,2,'FD');
     doc.setTextColor(140,26,26);
     doc.setFontSize(10);
     doc.setFont('helvetica','bold');
@@ -3757,9 +3778,12 @@ window._exportPDFWithOptions = function(opts){
     });
   }
 
+  } // fin if(exportType!=='agent') — page résumé
+
   // =====================
-  // PAGE 3 - CLASSEMENT
+  // PAGE 3 - CLASSEMENT (uniquement complet et synthese)
   // =====================
+  if(exportType==='complet' || exportType==='synthese'){
   doc.addPage();
   addHeader('Classement complet');
   y = 26;
@@ -3783,7 +3807,8 @@ window._exportPDFWithOptions = function(opts){
     headStyles:{fillColor:[26,26,24],textColor:[245,200,0],fontSize:8,fontStyle:'bold'},
     bodyStyles:{fontSize:8,textColor:[40,40,40]},
     alternateRowStyles:{fillColor:[248,248,246]},
-    columnStyles:{0:{fontStyle:'bold',cellWidth:32},1:{cellWidth:26},2:{fontStyle:'bold',halign:'center',cellWidth:16},3:{halign:'center',cellWidth:12},4:{halign:'center',cellWidth:14},5:{halign:'center',cellWidth:14},6:{halign:'center',cellWidth:16},7:{halign:'center',cellWidth:18}},
+    tableWidth:'auto',
+    columnStyles:{0:{fontStyle:'bold',cellWidth:'auto'},1:{cellWidth:'auto'},2:{fontStyle:'bold',halign:'center',cellWidth:'auto'},3:{halign:'center',cellWidth:'auto'},4:{halign:'center',cellWidth:'auto'},5:{halign:'center',cellWidth:'auto'},6:{halign:'center',cellWidth:'auto'},7:{halign:'center',cellWidth:'auto'}},
     didDrawCell:function(data){
       if(data.section==='body'&&data.column.index===2){var s=parseFloat(data.cell.raw);if(!isNaN(s))data.cell.styles.textColor=colRgb(s);}
       if(data.section==='body'&&data.column.index===3){var colors={S:[29,158,117],A:[55,138,221],B:[127,119,221],C:[186,117,23],D:[226,75,74]};if(colors[data.cell.raw])data.cell.styles.textColor=colors[data.cell.raw];}
@@ -3791,9 +3816,12 @@ window._exportPDFWithOptions = function(opts){
     margin:{left:14,right:14}
   });
 
+  } // fin if(exportType==='complet' || exportType==='synthese') — classement
+
   // =====================
-  // PAGE 4 - PAR PROJET
+  // PAGE 4 - PAR PROJET (uniquement complet et projet)
   // =====================
+  if(exportType==='complet' || exportType==='projet'){
   doc.addPage();
   addHeader('Stats par projet');
   y = 26;
@@ -3804,7 +3832,8 @@ window._exportPDFWithOptions = function(opts){
   doc.setFillColor(245,200,0);
   doc.rect(14,y+2,38,1,'F');
   y += 10;
-  D.projects.forEach(function(projName){
+  var projectsToShow = (exportType==='projet' && projFilter!=='tous') ? [projFilter] : D.projects;
+  projectsToShow.forEach(function(projName){
     var agents2 = D.agents.filter(function(a){return a.proj===projName&&a.active;});
     if(!agents2.length) return;
     var mScores = D.months.map(function(m){
@@ -3829,7 +3858,11 @@ window._exportPDFWithOptions = function(opts){
     doc.text(lastS.toFixed(1)+'%', W-18, y+5.5, {align:'right'});
     doc.setTextColor(100,100,100);
     doc.setFontSize(7);
-    doc.text(agents2.length+' agents - Moy. '+projAvg.toFixed(1)+'%', 50, y+5.5);
+    doc.setFont('helvetica','normal');
+    // Position dynamique : juste après le nom du projet, jamais de chevauchement
+    var projNameW = doc.getTextWidth(projName);
+    var statsX = Math.max(50, 18 + projNameW + 6);
+    doc.text(agents2.length+' agents - Moy. '+projAvg.toFixed(1)+'%', statsX, y+5.5);
     y += 11;
     if(mScores.length>0){
       var maxS=Math.max.apply(null,msc.concat([1]));
@@ -3847,6 +3880,100 @@ window._exportPDFWithOptions = function(opts){
       y += 20;
     }
   });
+  } // fin if(exportType==='complet' || exportType==='projet') — par projet
+
+  // =====================
+  // PAGE FICHE AGENT (uniquement type agent)
+  // =====================
+  if(exportType==='agent' && agentFilter){
+    var ag = D.agents.find(function(a){return a.id===agentFilter;});
+    if(ag){
+      doc.addPage();
+      addHeader('Fiche agent');
+      y = 26;
+      var agLs = getLastScore(ag);
+      var agScore = agLs ? agLs.score : 0;
+      var agRank = rankFn(agScore);
+      var agCol = colRgb(agScore);
+      // En-tête fiche
+      doc.setFillColor(245,245,243);
+      doc.roundedRect(14,y,W-28,26,2,2,'F');
+      doc.setFillColor(agCol[0],agCol[1],agCol[2]);
+      doc.rect(14,y,3,26,'F');
+      doc.setTextColor(26,26,24);
+      doc.setFontSize(15);
+      doc.setFont('helvetica','bold');
+      doc.text(ag.name, 22, y+11);
+      doc.setTextColor(100,100,100);
+      doc.setFontSize(9);
+      doc.setFont('helvetica','normal');
+      doc.text(ag.proj+(ag.operation?' — '+ag.operation:''), 22, y+18);
+      doc.setTextColor(agCol[0],agCol[1],agCol[2]);
+      doc.setFontSize(20);
+      doc.setFont('helvetica','bold');
+      doc.text(agScore.toFixed(1)+'%', W-22, y+13, {align:'right'});
+      doc.setFontSize(9);
+      doc.text('Rang '+agRank, W-22, y+20, {align:'right'});
+      y += 34;
+      // Détail des composantes du dernier mois noté
+      if(agLs){
+        doc.setFontSize(11);
+        doc.setFont('helvetica','bold');
+        doc.setTextColor(26,26,24);
+        doc.text('Detail du mois '+agLs.month, 14, y);
+        doc.setFillColor(245,200,0);
+        doc.rect(14,y+2,40,1,'F');
+        y += 9;
+        var details = [
+          {label:'Performance', val:agLs.s.perf, weight:'x40%'},
+          {label:'Qualite', val:agLs.s.qual, weight:'x30%'},
+          {label:'Presence', val:agLs.s.pres, weight:'x20%'},
+        ];
+        details.forEach(function(d){
+          doc.setFontSize(9);
+          doc.setFont('helvetica','normal');
+          doc.setTextColor(60,60,60);
+          doc.text(d.label+' ('+d.weight+')', 14, y+4);
+          var dbw = Math.round((W-100)*Math.min(100,d.val)/100);
+          var dcol = colRgb(d.val);
+          doc.setFillColor(dcol[0],dcol[1],dcol[2]);
+          doc.roundedRect(70,y,dbw||1,5,1,1,'F');
+          doc.setFillColor(240,240,238);
+          doc.roundedRect(70+(dbw||1),y,(W-100)-(dbw||1),5,1,1,'F');
+          doc.setFont('helvetica','bold');
+          doc.setTextColor(26,26,24);
+          doc.text(d.val+'%', W-18, y+4, {align:'right'});
+          y += 9;
+        });
+        y += 4;
+      }
+      // Historique 6 derniers mois
+      var agHist = D.months.slice(-6).map(function(m){
+        var s = ag.scores[m];
+        if(!s || (!s.perf && !s.qual)) return null;
+        return {month:m, score:calcS(s)};
+      }).filter(Boolean);
+      if(agHist.length){
+        doc.setFontSize(11);
+        doc.setFont('helvetica','bold');
+        doc.setTextColor(26,26,24);
+        doc.text('Evolution (6 derniers mois)', 14, y);
+        doc.setFillColor(245,200,0);
+        doc.rect(14,y+2,48,1,'F');
+        y += 10;
+        doc.autoTable({
+          startY:y,
+          head:[['Mois','Score','Rang']],
+          body:agHist.map(function(h){return [h.month, h.score.toFixed(1)+'%', rankFn(h.score)];}),
+          theme:'grid',
+          headStyles:{fillColor:[26,26,24],textColor:[245,200,0],fontSize:8,fontStyle:'bold'},
+          bodyStyles:{fontSize:8,textColor:[40,40,40]},
+          tableWidth:'auto',
+          margin:{left:14,right:14}
+        });
+      }
+    }
+  }
 
   addFooter();
   doc.save('Rapport_Altius_'+new Date().toISOString().slice(0,10)+'.pdf');
