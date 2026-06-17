@@ -5399,9 +5399,11 @@ setSyncBadge('sync-loading','⏳ Connexion...');
 onSnapshot(REF,async(snap)=>{
   if(snap.exists()){
     D=snap.data();
+    window.D = D;
     setSyncBadge('sync-ok','✅ En direct');
   }else{
     D=JSON.parse(JSON.stringify(DEF));
+    window.D = D;
     await setDoc(REF,D);
     setSyncBadge('sync-ok','✅ Initialisé');
   }
@@ -5413,6 +5415,7 @@ onSnapshot(REF,async(snap)=>{
   setSyncBadge('sync-err','❌ Hors ligne');
   console.error(err);
   if(!D){D=JSON.parse(JSON.stringify(DEF));}
+  window.D = D;
   if(CURRENT_USER){
     document.getElementById('main-nav').style.display = '';
   }
@@ -6305,10 +6308,10 @@ document.addEventListener('click', function(e){
     return Math.max(0, sc - (s.avert||0)*5);
   }
   function gsLastScore(a){
-    if(typeof D === 'undefined' || !D || !D.months) return null;
-    for(var i=D.months.length-1;i>=0;i--){
-      var s=a.scores[D.months[i]];
-      if(s&&(s.perf||s.qual)) return {s:s, score:gsCalcScore(s), month:D.months[i]};
+    if(typeof window.D === 'undefined' || !window.D || !window.D.months) return null;
+    for(var i=window.D.months.length-1;i>=0;i--){
+      var s=a.scores[window.D.months[i]];
+      if(s&&(s.perf||s.qual)) return {s:s, score:gsCalcScore(s), month:window.D.months[i]};
     }
     return null;
   }
@@ -6340,12 +6343,12 @@ document.addEventListener('click', function(e){
     query = (query||'').trim().toLowerCase();
     var resultsEl = document.getElementById('gsearch-results');
     if(query.length < 2){ resultsEl.innerHTML=''; gsResults=[]; return; }
-    if(typeof D === 'undefined' || !D){ resultsEl.innerHTML='<div style="padding:16px;text-align:center;color:var(--muted);font-size:13px">Donnees non chargees.</div>'; return; }
+    if(typeof window.D === 'undefined' || !window.D){ resultsEl.innerHTML='<div style="padding:16px;text-align:center;color:var(--muted);font-size:13px">Donnees non chargees.</div>'; return; }
 
     var results = [];
 
     // ── Agents ──
-    D.agents.forEach(function(a){
+    window.D.agents.forEach(function(a){
       if(a.name.toLowerCase().includes(query)){
         var ls = gsLastScore(a);
         var scoreTxt = ls ? ls.score.toFixed(1)+'% · Rang '+gsRankLabel(ls.score) : 'Pas de score';
@@ -6358,9 +6361,9 @@ document.addEventListener('click', function(e){
     });
 
     // ── Projets ──
-    (D.projects||[]).forEach(function(p){
+    (window.D.projects||[]).forEach(function(p){
       if(p.toLowerCase().includes(query)){
-        var cnt = D.agents.filter(function(a){return a.proj===p && a.active;}).length;
+        var cnt = window.D.agents.filter(function(a){return a.proj===p && a.active;}).length;
         results.push({
           type:'projet', icon:'🏢', title:p,
           subtitle:cnt+' agent'+(cnt>1?'s':'')+' actif'+(cnt>1?'s':''),
@@ -6370,9 +6373,9 @@ document.addEventListener('click', function(e){
     });
 
     // ── Mois ──
-    (D.months||[]).forEach(function(m){
+    (window.D.months||[]).forEach(function(m){
       if(m.toLowerCase().includes(query)){
-        var isLocked = (D.lockedMonths||[]).includes(m);
+        var isLocked = (window.D.lockedMonths||[]).includes(m);
         results.push({
           type:'mois', icon:'📅', title:m,
           subtitle:isLocked ? 'Mois verrouille' : 'Saisie des scores',
@@ -6387,7 +6390,7 @@ document.addEventListener('click', function(e){
     });
 
     // ── Deadlines ──
-    (D.deadlines||[]).forEach(function(dl){
+    (window.D.deadlines||[]).forEach(function(dl){
       var titleMatch = dl.title && dl.title.toLowerCase().includes(query);
       if(titleMatch){
         results.push({
