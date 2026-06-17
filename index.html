@@ -8,7 +8,6 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -4805,7 +4804,6 @@ function renderComptes(){
     html += '<div class="av" style="background:'+av[0]+';color:'+av[1]+';width:36px;height:36px;font-size:13px">'+ini(acc.nom)+'</div>';
     html += '<div><div style="font-size:14px;font-weight:700">'+acc.nom+'</div>';
     html += '<div style="font-size:12px;color:var(--muted)">@'+acc.username+' &nbsp;·&nbsp; <span class="role-badge '+role.badge+'">'+role.label+'</span></div>';
-    html += '<div style="font-size:11px;color:'+(acc.email?'var(--muted)':'#cc8800')+';margin-top:2px">'+(acc.email ? '✉️ '+acc.email : '⚠️ Pas d\'email — rappels deadlines désactivés')+'</div>';
     if(acc.projets && acc.projets.length){
       html += '<div style="font-size:11px;color:var(--muted);margin-top:2px">'+acc.projets.join(', ')+'</div>';
     }
@@ -4829,7 +4827,6 @@ window.openAddCompte = function(){
     +'<div id="fa" class="alert-err"></div>'
     +'<div class="fgrid" style="margin-bottom:4px">'
     +'<div style="grid-column:1/-1"><div class="flabel">Nom complet</div><input type="text" id="acc-nom" placeholder="Ex: Dyhia Amrani"></div>'
-    +'<div><div class="flabel">Email (pour rappels deadlines)</div><input type="email" id="acc-email" placeholder="Ex: dyhia@altius.com"></div>'
     +'<div><div class="flabel">Nom utilisateur</div><input type="text" id="acc-user" placeholder="Ex: dyhia"></div>'
     +'<div><div class="flabel">Mot de passe</div><input type="password" id="acc-pass" placeholder="Choisir un mot de passe"></div>'
     +'<div><div class="flabel">Role</div><select id="acc-role" onchange="window.updateAccRoleFields()"><option value="admin">Admin</option><option value="respo">Responsable de production</option><option value="chef">Chef de projet</option><option value="teamlead" selected>Manager</option><option value="qualite">Qualticien</option></select></div>'
@@ -4871,7 +4868,6 @@ window.updateAccOps = function(){
 
 window.doAddCompte = async function(){
   var nom = document.getElementById('acc-nom').value.trim();
-  var email = document.getElementById('acc-email') ? document.getElementById('acc-email').value.trim() : '';
   var user = document.getElementById('acc-user').value.trim().toLowerCase();
   var pass = document.getElementById('acc-pass').value.trim();
   var role = document.getElementById('acc-role').value;
@@ -4896,7 +4892,6 @@ window.doAddCompte = async function(){
     password:pass,
     role:role,
     nom:nom,
-    email:email,
     projets:projets,
     operation:op
   });
@@ -4917,7 +4912,6 @@ window.editCompte = function(id){
     +'<div id="fa" class="alert-err"></div>'
     +'<div class="fgrid" style="margin-bottom:4px">'
     +'<div style="grid-column:1/-1"><div class="flabel">Nom complet</div><input type="text" id="acc-nom" value="'+acc.nom+'"></div>'
-    +'<div><div class="flabel">Email (pour rappels deadlines)</div><input type="email" id="acc-email" value="'+(acc.email||'')+'" placeholder="Ex: dyhia@altius.com"></div>'
     +'<div><div class="flabel">Nom utilisateur</div><input type="text" id="acc-user" value="'+acc.username+'"></div>'
     +'<div><div class="flabel">Nouveau mot de passe</div><input type="password" id="acc-pass" placeholder="Laisser vide = inchange"></div>'
     +'<div><div class="flabel">Role</div><select id="acc-role">'+roleOpts+'</select></div>'
@@ -4936,7 +4930,6 @@ window.doEditCompte = async function(id){
   var fa = document.getElementById('fa');
   if(!nom){fa.textContent='Le nom est obligatoire.';fa.style.display='block';return;}
   acc.nom = nom;
-  acc.email = document.getElementById('acc-email') ? document.getElementById('acc-email').value.trim() : (acc.email||'');
   acc.username = user;
   if(pass) acc.password = pass;
   acc.role = document.getElementById('acc-role').value;
@@ -6799,85 +6792,6 @@ document.addEventListener('click', function(e){
     if(animFrame) cancelAnimationFrame(animFrame);
     tick();
   };
-})();
-</script>
-
-<!-- RAPPELS EMAIL DEADLINES ─────────────────────────────────────────────── -->
-<script>
-(function(){
-  // ⚙️ Configuration EmailJS — à renseigner par l'administrateur
-  var EMAILJS_PUBLIC_KEY = 'YOUR_PUBLIC_KEY';
-  var EMAILJS_SERVICE_ID  = 'YOUR_SERVICE_ID';
-  var EMAILJS_TEMPLATE_ID = 'YOUR_TEMPLATE_ID';
-  var REMINDER_DAYS_BEFORE = 3;
-
-  var emailjsReady = false;
-  function initEmailJS(){
-    if(typeof emailjs === 'undefined') return false;
-    if(EMAILJS_PUBLIC_KEY === 'YOUR_PUBLIC_KEY') return false; // pas encore configuré
-    try { emailjs.init({publicKey: EMAILJS_PUBLIC_KEY}); emailjsReady = true; return true; }
-    catch(e){ console.error('EmailJS init error', e); return false; }
-  }
-
-  function daysUntil(dateStr){
-    var today = new Date(); today.setHours(0,0,0,0);
-    var target = new Date(dateStr); target.setHours(0,0,0,0);
-    return Math.round((target - today) / (1000*60*60*24));
-  }
-
-  function getAccountsWithEmail(){
-    if(typeof window.D === 'undefined' || !window.D) return [];
-    var accs = (window.D.accounts && window.D.accounts.length) ? window.D.accounts : [];
-    return accs.filter(function(a){ return a.email && a.email.trim().length>3; });
-  }
-
-  function sendReminderEmail(account, deadline){
-    if(!emailjsReady) return Promise.resolve(false);
-    return emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
-      to_email: account.email,
-      to_name: account.nom,
-      deadline_title: deadline.titre,
-      deadline_date: deadline.date,
-      deadline_projet: deadline.projet || 'Tous projets',
-      deadline_desc: deadline.desc || '',
-      days_left: REMINDER_DAYS_BEFORE
-    }).then(function(){ return true; }).catch(function(e){ console.error('Email envoi échoué', e); return false; });
-  }
-
-  window._checkAndSendDeadlineReminders = async function(){
-    if(!initEmailJS()) return; // EmailJS non configuré, on ne fait rien silencieusement
-    if(typeof window.D === 'undefined' || !window.D || !window.D.deadlines) return;
-
-    var sentLog = window.D.remindersSent || {};
-    var toNotify = window.D.deadlines.filter(function(dl){
-      if(dl.done) return false;
-      var d = daysUntil(dl.date);
-      return d === REMINDER_DAYS_BEFORE && !sentLog[dl.id];
-    });
-    if(!toNotify.length) return;
-
-    var accounts = getAccountsWithEmail();
-    if(!accounts.length) return;
-
-    for(var i=0;i<toNotify.length;i++){
-      var dl = toNotify[i];
-      var results = await Promise.all(accounts.map(function(acc){ return sendReminderEmail(acc, dl); }));
-      var anySuccess = results.some(function(r){return r;});
-      if(anySuccess){
-        sentLog[dl.id] = new Date().toISOString();
-      }
-    }
-    window.D.remindersSent = sentLog;
-    if(typeof saveD === 'function') await saveD();
-  };
-
-  // Déclenchement : vérifier 3s après que les données soient chargées (post-login)
-  var checkInterval = setInterval(function(){
-    if(typeof window.D !== 'undefined' && window.D && window.D.deadlines !== undefined){
-      clearInterval(checkInterval);
-      setTimeout(function(){ window._checkAndSendDeadlineReminders(); }, 3000);
-    }
-  }, 1000);
 })();
 </script>
 </body>
