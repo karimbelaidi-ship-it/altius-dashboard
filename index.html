@@ -943,6 +943,7 @@
       <button class="nb-dropdown-item" data-page="comptes" id="comptes-tab" onclick="goPage('comptes',this);window.closeAdminMenu()">🔑 Comptes</button>
       <button class="nb-dropdown-item" data-page="historique" onclick="goPage('historique',this);window.closeAdminMenu()">🕓 Historique scores</button>
       <button class="nb-dropdown-item" data-page="comparateur" onclick="goPage('comparateur',this);window.closeAdminMenu()">📊 Comparateur projets</button>
+      <button class="nb-dropdown-item" data-page="plans-action" onclick="goPage('plans-action',this);window.closeAdminMenu()">🎯 Plans d'action</button>
     </div>
   </div>
 </div>
@@ -981,6 +982,9 @@
 
     <!-- QUI PERFORME / QUI DÉCROCHE -->
     <div id="perf-decroche-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px;margin-bottom:8px"></div>
+
+    <!-- WIDGET PLANS D'ACTION (Admin/Respo uniquement) -->
+    <div id="pa-widget" style="display:none;margin-bottom:8px"></div>
 
     <!-- RACCOURCIS RAPIDES -->
     <div id="quick-actions"></div>
@@ -1193,6 +1197,25 @@
       <div class="twrap"><table class="tbl">
         <thead><tr><th>Projet</th><th>Agents</th><th>Score moyen</th><th>Performance</th><th>Qualité</th><th>Présence</th><th>Rang</th></tr></thead>
         <tbody id="cmp-table-body"></tbody>
+      </table></div>
+    </div>
+  </div>
+
+  <div class="pg" id="pg-plans-action">
+    <div class="stitle" style="margin-bottom:16px">🎯 Vue d'ensemble des plans d'action</div>
+    <div class="kgrid" id="pa-kpi-row" style="margin-bottom:18px"></div>
+    <div class="card" style="margin-bottom:16px">
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+        <div><div class="flabel">Statut</div><select id="pa-f-statut" onchange="window._applyPaFilters()" style="width:auto"><option value="all">Tous</option><option value="todo">À faire</option><option value="progress">En cours</option><option value="done">Terminé</option></select></div>
+        <div><div class="flabel">Échéance</div><select id="pa-f-echeance" onchange="window._applyPaFilters()" style="width:auto"><option value="all">Toutes</option><option value="overdue">En retard</option><option value="soon">À venir (7j)</option></select></div>
+        <div><div class="flabel">Projet</div><select id="pa-f-projet" onchange="window._applyPaFilters()" style="width:auto"><option value="all">Tous</option></select></div>
+        <div><div class="flabel">Responsable</div><input type="text" id="pa-f-resp" placeholder="Nom..." style="width:auto" oninput="window._applyPaFilters()"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="twrap"><table class="tbl">
+        <thead><tr><th>Agent</th><th>Projet</th><th>Titre</th><th>Échéance</th><th>Statut</th><th>Responsable</th><th></th></tr></thead>
+        <tbody id="pa-table-body"></tbody>
       </table></div>
     </div>
   </div>
@@ -1777,6 +1800,39 @@ function renderOverview(){
             + '</div>'
           : '<p style="font-size:12px;color:var(--muted)">Aucun agent en Rang D ce mois 🎉</p>')
       +'</div>';
+  }
+
+  // ── WIDGET PLANS D'ACTION (Admin/Respo) ──
+  var paWidget = document.getElementById('pa-widget');
+  if(paWidget){
+    var _role2 = CURRENT_USER ? CURRENT_USER.role : '';
+    if(_role2==='admin' || _role2==='respo'){
+      var allPlans = getAllPlansActionFlat();
+      var overduePlans = allPlans.filter(function(p){return p.isOverdue;});
+      var soonPlans = allPlans.filter(function(p){return !p.isOverdue && p.statut!=='done' && p.daysUntil!==null && p.daysUntil>=0 && p.daysUntil<=7;});
+      var toShow = overduePlans.concat(soonPlans).slice(0,5);
+      paWidget.style.display = '';
+      paWidget.innerHTML =
+        '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px 18px">'
+        +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">'
+          +'<div style="font-size:14px;font-weight:700;display:flex;align-items:center;gap:6px">🎯 Plans d\'action à surveiller</div>'
+          +'<button onclick="window._qaGo(\'plans-action\')" style="font-size:11px;color:var(--muted);background:none;border:none;cursor:pointer;text-decoration:underline">Voir tout</button>'
+        +'</div>'
+        +(toShow.length
+          ? '<div style="display:flex;flex-direction:column;gap:8px">'
+            + toShow.map(function(p){
+                var echLabel = p.echeance ? new Date(p.echeance).toLocaleDateString('fr-FR',{day:'2-digit',month:'short'}) : '—';
+                return '<div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;cursor:pointer" onclick="window._openFiche(\''+p.agentId+'\')">'
+                  +'<span>'+p.titre+' <span style="color:var(--muted);font-size:11px">· '+p.agentNom+'</span></span>'
+                  +'<span style="font-size:11px;'+(p.isOverdue?'color:#c0392b;font-weight:700':'color:var(--muted)')+'">'+(p.isOverdue?'⚠️ ':'')+echLabel+'</span>'
+                +'</div>';
+              }).join('')
+            + '</div>'
+          : '<p style="font-size:12px;color:var(--muted)">Aucun plan en retard ou à échéance proche 👍</p>')
+        +'</div>';
+    } else {
+      paWidget.style.display = 'none';
+    }
   }
 
   // RACCOURCIS RAPIDES
@@ -4763,8 +4819,8 @@ function applyUserRole(){
 
   // Define tab access per role
   var tabAccess = {
-    admin:    ['overview','agents','mois','projets','archives','teamleaders','comptes','cal-dl','historique','comparateur'],
-    respo:    ['overview','chef','agents','mois','projets','archives','teamleaders','cal-dl','historique','comparateur'],
+    admin:    ['overview','agents','mois','projets','archives','teamleaders','comptes','cal-dl','historique','comparateur','plans-action'],
+    respo:    ['overview','chef','agents','mois','projets','archives','teamleaders','cal-dl','historique','comparateur','plans-action'],
     chef:     ['chef','agents','mois','projets','cal-dl','historique'],
     teamlead: ['chef','agents','cal-dl','historique'],
     qualite:  ['chef','agents','cal-dl','historique']
@@ -5561,6 +5617,7 @@ var PAGE_LABELS = {
   'comptes':     {section:'Administration', page:'Comptes'},
   'historique':  {section:'Administration', page:'Historique scores'},
   'comparateur': {section:'Administration', page:'Comparateur projets'},
+  'plans-action':{section:'Administration', page:"Plans d'action"},
 };
 
 function updateBreadcrumb(id){
@@ -5625,6 +5682,9 @@ window.goPage=function(id,btn){
   }
   if(id==='comparateur'){
     window._initComparateur();
+  }
+  if(id==='plans-action'){
+    window._initPlansActionView();
   }
 }
 
@@ -5973,6 +6033,99 @@ window._deletePlanAction = async function(agentId, idx){
   await saveD();
   var listEl = document.getElementById('drawer-plans-action');
   if(listEl) listEl.innerHTML = renderPlansAction(agent);
+};
+
+// ── VUE D'ENSEMBLE DES PLANS D'ACTION ────────────────────────────────────────
+function getAllPlansActionFlat(){
+  if(!D) return [];
+  var today = new Date(); today.setHours(0,0,0,0);
+  var flat = [];
+  D.agents.forEach(function(a){
+    (a.plansAction||[]).forEach(function(p, idx){
+      var echDate = p.echeance ? new Date(p.echeance) : null;
+      var isOverdue = echDate && p.statut!=='done' && echDate < today;
+      var daysUntil = echDate ? Math.round((echDate-today)/(1000*60*60*24)) : null;
+      flat.push({
+        agentId: a.id, agentNom: a.name, projet: a.proj,
+        idx: idx, titre: p.titre, description: p.description,
+        echeance: p.echeance, statut: p.statut, responsable: p.responsable,
+        isOverdue: isOverdue, daysUntil: daysUntil
+      });
+    });
+  });
+  return flat;
+}
+
+window._initPlansActionView = function(){
+  if(!D) return;
+  var projSel = document.getElementById('pa-f-projet');
+  if(projSel){
+    var current = projSel.value;
+    projSel.innerHTML = '<option value="all">Tous</option>' + D.projects.map(function(p){return '<option value="'+p+'">'+p+'</option>';}).join('');
+    projSel.value = current || 'all';
+  }
+  window._applyPaFilters();
+};
+
+window._applyPaFilters = function(){
+  if(!D) return;
+  var fStatut = (document.getElementById('pa-f-statut')||{}).value || 'all';
+  var fEcheance = (document.getElementById('pa-f-echeance')||{}).value || 'all';
+  var fProjet = (document.getElementById('pa-f-projet')||{}).value || 'all';
+  var fResp = ((document.getElementById('pa-f-resp')||{}).value || '').trim().toLowerCase();
+
+  var all = getAllPlansActionFlat();
+
+  // KPIs (sur l'ensemble, pas filtré)
+  var kpiRow = document.getElementById('pa-kpi-row');
+  if(kpiRow){
+    var totalCount = all.length;
+    var overdueCount = all.filter(function(p){return p.isOverdue;}).length;
+    var progressCount = all.filter(function(p){return p.statut==='progress';}).length;
+    var doneCount = all.filter(function(p){return p.statut==='done';}).length;
+    kpiRow.innerHTML =
+      '<div class="kcard"><div class="klabel">Total plans</div><div class="kval">'+totalCount+'</div></div>'
+      +'<div class="kcard"><div class="klabel" style="color:#c0392b">En retard</div><div class="kval" style="color:#c0392b">'+overdueCount+'</div></div>'
+      +'<div class="kcard"><div class="klabel">En cours</div><div class="kval">'+progressCount+'</div></div>'
+      +'<div class="kcard"><div class="klabel" style="color:var(--green)">Terminés</div><div class="kval" style="color:var(--green)">'+doneCount+'</div></div>';
+  }
+
+  // Filtrage
+  var filtered = all.filter(function(p){
+    if(fStatut!=='all' && p.statut!==fStatut) return false;
+    if(fProjet!=='all' && p.projet!==fProjet) return false;
+    if(fResp && (!p.responsable || !p.responsable.toLowerCase().includes(fResp))) return false;
+    if(fEcheance==='overdue' && !p.isOverdue) return false;
+    if(fEcheance==='soon' && !(p.daysUntil!==null && p.daysUntil>=0 && p.daysUntil<=7 && p.statut!=='done')) return false;
+    return true;
+  });
+  // Tri : retard d'abord, puis échéance la plus proche
+  filtered.sort(function(a,b){
+    if(a.isOverdue && !b.isOverdue) return -1;
+    if(!a.isOverdue && b.isOverdue) return 1;
+    if(a.statut==='done' && b.statut!=='done') return 1;
+    if(a.statut!=='done' && b.statut==='done') return -1;
+    return new Date(a.echeance||0) - new Date(b.echeance||0);
+  });
+
+  var tb = document.getElementById('pa-table-body');
+  if(!tb) return;
+  if(!filtered.length){
+    tb.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:16px;color:var(--muted)">Aucun plan d\'action ne correspond aux filtres.</td></tr>';
+    return;
+  }
+  tb.innerHTML = filtered.map(function(p){
+    var echLabel = p.echeance ? new Date(p.echeance).toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'numeric'}) : '—';
+    return '<tr>'
+      +'<td style="font-weight:600;cursor:pointer" onclick="window._openFiche(\''+p.agentId+'\')">'+p.agentNom+'</td>'
+      +'<td>'+p.projet+'</td>'
+      +'<td>'+p.titre+'</td>'
+      +'<td'+(p.isOverdue?' class="pa-overdue"':'')+'>'+echLabel+(p.isOverdue?' ⚠️':'')+'</td>'
+      +'<td><span class="pa-status '+p.statut+'">'+PA_STATUS_LABELS[p.statut]+'</span></td>'
+      +'<td>'+(p.responsable||'—')+'</td>'
+      +'<td><button class="btn" style="font-size:11px;padding:4px 10px" onclick="window._openFiche(\''+p.agentId+'\')">Voir fiche</button></td>'
+    +'</tr>';
+  }).join('');
 };
 
 window._showCalDayDetail = function(year, month, day){
