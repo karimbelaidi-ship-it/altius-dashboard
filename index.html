@@ -5779,6 +5779,80 @@ window._closeCalDayDetail = function(){
   if(el) el.style.display = 'none';
 };
 
+// ── NOTES DE RÉUNION ──────────────────────────────────────────────────────────
+window._notesPointsTemp = [];
+
+window._openNotesReunion = function(evalId){
+  var ev = (D.evaluations||[]).find(function(e){ return e.id === evalId; });
+  if(!ev) return;
+  var canEdit = CURRENT_USER && (CURRENT_USER.role==='admin' || CURRENT_USER.role==='respo' || ev.createdBy===CURRENT_USER.nom);
+  var notes = ev.notesReunion || {texte:'', points:[]};
+  window._notesPointsTemp = (notes.points||[]).slice();
+
+  var cat = EVENT_CATEGORIES[ev.categorie] || EVENT_CATEGORIES['Autre'];
+  var html = '<div class="mhdr"><h3>'+cat.icon+' Notes — '+ev.titre+'</h3><button class="xbtn" onclick="closeM()">x</button></div>'
+    +'<div style="font-size:12px;color:var(--muted);margin-bottom:14px">'+ev.categorie+(ev.projet?' · '+ev.projet:'')+' · '+new Date(ev.date).toLocaleDateString('fr-FR',{day:'2-digit',month:'long',year:'numeric'})+'</div>'
+    +'<div class="flabel">Compte-rendu</div>'
+    +'<textarea id="notes-texte" rows="4" placeholder="Résumé libre de la réunion..." style="width:100%;resize:vertical;font-family:inherit;font-size:13px;padding:10px;border:1px solid var(--border);border-radius:8px;margin-bottom:14px" '+(canEdit?'':'disabled')+'>'+(notes.texte||'')+'</textarea>'
+    +'<div class="flabel">Points clés / Décisions</div>'
+    +'<div id="notes-points-list" style="margin-bottom:10px"></div>'
+    +(canEdit ? '<div style="display:flex;gap:6px;margin-bottom:14px"><input type="text" id="notes-new-point" placeholder="Ajouter un point ou une décision..." style="flex:1;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit" onkeydown="if(event.key===\'Enter\'){event.preventDefault();window._addNotePoint();}"><button class="btn" onclick="window._addNotePoint()">+ Ajouter</button></div>' : '')
+    +(canEdit
+      ? '<div class="frow"><button class="btn" onclick="closeM()">Annuler</button><button class="btn yellow" data-id="'+evalId+'" onclick="window._saveNotesReunion(this.dataset.id)">💾 Enregistrer</button></div>'
+      : '<div class="frow"><button class="btn yellow" onclick="closeM()">Fermer</button></div>');
+
+  showModal(html);
+  window._renderNotePoints(canEdit);
+};
+
+window._renderNotePoints = function(canEdit){
+  var listEl = document.getElementById('notes-points-list');
+  if(!listEl) return;
+  if(!window._notesPointsTemp.length){
+    listEl.innerHTML = '<p style="font-size:12px;color:var(--muted);font-style:italic">Aucun point ajouté.</p>';
+    return;
+  }
+  listEl.innerHTML = window._notesPointsTemp.map(function(pt, i){
+    return '<div style="display:flex;align-items:flex-start;gap:8px;padding:7px 0;border-bottom:1px solid var(--border)">'
+      +'<span style="font-size:13px;color:var(--yellow);margin-top:1px">●</span>'
+      +'<span style="flex:1;font-size:13px">'+pt+'</span>'
+      +(canEdit ? '<button onclick="window._removeNotePoint('+i+')" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:14px">✕</button>' : '')
+    +'</div>';
+  }).join('');
+};
+
+window._addNotePoint = function(){
+  var input = document.getElementById('notes-new-point');
+  if(!input) return;
+  var val = input.value.trim();
+  if(!val) return;
+  window._notesPointsTemp.push(val);
+  input.value = '';
+  window._renderNotePoints(true);
+};
+
+window._removeNotePoint = function(idx){
+  window._notesPointsTemp.splice(idx, 1);
+  window._renderNotePoints(true);
+};
+
+window._saveNotesReunion = async function(evalId){
+  var ev = (D.evaluations||[]).find(function(e){ return e.id === evalId; });
+  if(!ev) return;
+  var texte = document.getElementById('notes-texte') ? document.getElementById('notes-texte').value.trim() : '';
+  ev.notesReunion = {
+    texte: texte,
+    points: window._notesPointsTemp.slice(),
+    modifiePar: CURRENT_USER ? CURRENT_USER.nom : 'Admin',
+    modifieLe: new Date().toISOString()
+  };
+  await saveD();
+  closeM();
+  // Rafraîchir le détail du jour si toujours affiché
+  var d = new Date(ev.date);
+  window._showCalDayDetail(d.getFullYear(), d.getMonth(), d.getDate());
+};
+
 window._showCalDayDetail = function(year, month, day){
   var detailEl = document.getElementById('cal-day-detail');
   if(!detailEl) return;
@@ -5799,10 +5873,18 @@ window._showCalDayDetail = function(year, month, day){
   +'</div>';
   evals.forEach(function(e){
     var cat = EVENT_CATEGORIES[e.categorie] || EVENT_CATEGORIES['Autre'];
-    html += '<div style="display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-bottom:1px solid var(--border)">'
+    var canEditNotes = CURRENT_USER && (CURRENT_USER.role==='admin' || CURRENT_USER.role==='respo' || e.createdBy===CURRENT_USER.nom);
+    var hasNotes = e.notesReunion && (e.notesReunion.texte || (e.notesReunion.points && e.notesReunion.points.length));
+    html += '<div style="padding:9px 0;border-bottom:1px solid var(--border)">'
+      +'<div style="display:flex;gap:10px;align-items:flex-start">'
       +'<span style="font-size:16px">'+cat.icon+'</span>'
-      +'<div><div style="font-size:13px;font-weight:600">'+e.titre+'</div>'
-      +'<div style="font-size:11px;color:var(--muted)">'+e.categorie+(e.projet?' · '+e.projet:'')+(e.concerne?' · '+e.concerne:'')+'</div></div>'
+      +'<div style="flex:1">'
+        +'<div style="font-size:13px;font-weight:600">'+e.titre+'</div>'
+        +'<div style="font-size:11px;color:var(--muted)">'+e.categorie+(e.projet?' · '+e.projet:'')+(e.concerne?' · '+e.concerne:'')+'</div>'
+      +'</div>'
+      +(canEditNotes ? '<button onclick="window._openNotesReunion(\''+e.id+'\')" style="font-size:11px;padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:'+(hasNotes?'rgba(245,200,0,.1)':'var(--surface)')+';cursor:pointer;font-family:inherit;color:'+(hasNotes?'#a08200':'var(--muted)')+';white-space:nowrap">'+(hasNotes?'📝 Voir notes':'+ Ajouter notes')+'</button>' : (hasNotes ? '<button onclick="window._openNotesReunion(\''+e.id+'\')" style="font-size:11px;padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:rgba(245,200,0,.1);cursor:pointer;font-family:inherit;color:#a08200;white-space:nowrap">📝 Voir notes</button>' : ''))
+      +'</div>'
+      +(hasNotes ? '<div style="margin-top:8px;margin-left:26px;padding:8px 10px;background:var(--light);border-radius:8px;font-size:12px;color:var(--muted)">'+(e.notesReunion.texte ? e.notesReunion.texte.slice(0,100)+(e.notesReunion.texte.length>100?'...':'') : (e.notesReunion.points.length+' point(s) noté(s)'))+'</div>' : '')
     +'</div>';
   });
   deadlines.forEach(function(dl){
