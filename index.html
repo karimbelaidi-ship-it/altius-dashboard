@@ -585,6 +585,16 @@
       color: var(--green); border: 1px solid rgba(29,158,117,.3);
       white-space: nowrap;
     }
+    .badge-rank-s-anim {
+      animation: badge-s-pulse 1.8s ease-in-out 2;
+      box-shadow: 0 0 0 0 rgba(29,158,117,.5);
+    }
+    @keyframes badge-s-pulse {
+      0%   { transform: scale(1);    box-shadow: 0 0 0 0 rgba(29,158,117,.5); }
+      50%  { transform: scale(1.12); box-shadow: 0 0 0 6px rgba(29,158,117,.12); }
+      100% { transform: scale(1);    box-shadow: 0 0 0 0 rgba(29,158,117,0); }
+    }
+    #confetti-canvas { position: fixed; inset: 0; pointer-events: none; z-index: 999; display: none; }
     .score-final-wrap { display:flex; flex-direction:column; gap:3px; }
     .score-badges { display:flex; gap:4px; flex-wrap:wrap; }
 
@@ -2589,7 +2599,7 @@ window._openFiche = function(id){
   const a=D.agents.find(x=>x.id===id);if(!a)return;
   const ls=lastScore(a);
   const s=ls?ls.score:0;
-  const r=rank(s);
+  const r=rankDynamic(a.id, s);
   const[bg,fg]=avc(a.name);
   const ph=a.projHistory||[{proj:a.proj,debut:D.months[0],fin:null}];
 
@@ -2645,7 +2655,7 @@ window._openFiche = function(id){
         </div>
         <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
           <span class="pill s${dynRank}">${RL[dynRank]}</span>
-          ${dynRank==='S'?'<span class="badge-elite">🏆 Top 5</span>':''}
+          ${dynRank==='A'?'<span class="badge-elite badge-rank-s-anim" id="badge-rank-s">🏆 Top 5 — Rang S</span>':''}
           ${isRegular?'<span class="badge-regularite">⭐ Régulier 3 mois</span>':''}
           ${bonus>0?'<span class="badge-progression">▲ En progression</span>':''}
         </div>
@@ -2693,6 +2703,10 @@ window._openFiche = function(id){
   document.getElementById('drawer-body').scrollTop = 0;
   // Charger l'historique de cet agent
   window._loadAgentHistorique(a.id);
+  // Animation Rang S (top 5 dynamique)
+  if(r === 'A' && window._playRankSAnimation){
+    setTimeout(function(){ window._playRankSAnimation(); }, 300);
+  }
 }
 
 // CHANGER DE PROJET avec conservation historique
@@ -6702,6 +6716,82 @@ document.addEventListener('click', function(e){
       }
     }
   });
+})();
+</script>
+
+<!-- CONFETTIS RANG S -->
+<canvas id="confetti-canvas"></canvas>
+<script>
+(function(){
+  var canvas = document.getElementById('confetti-canvas');
+  var ctx = canvas ? canvas.getContext('2d') : null;
+  var particles = [];
+  var animFrame = null;
+  var colors = ['#F5C800','#1D9E75','#378ADD','#7F77DD','#E24B4A'];
+
+  function resizeCanvas(){
+    if(!canvas) return;
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+  window.addEventListener('resize', resizeCanvas);
+
+  function spawnParticles(){
+    particles = [];
+    var count = 90;
+    for(var i=0;i<count;i++){
+      particles.push({
+        x: window.innerWidth/2 + (Math.random()-0.5)*120,
+        y: window.innerHeight*0.25 + (Math.random()-0.5)*40,
+        vx: (Math.random()-0.5)*8,
+        vy: Math.random()*-6 - 3,
+        size: Math.random()*6+4,
+        color: colors[Math.floor(Math.random()*colors.length)],
+        rot: Math.random()*360,
+        vrot: (Math.random()-0.5)*12,
+        life: 0,
+        maxLife: 90 + Math.random()*30
+      });
+    }
+  }
+
+  function tick(){
+    if(!ctx) return;
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    var alive = false;
+    particles.forEach(function(p){
+      if(p.life >= p.maxLife) return;
+      alive = true;
+      p.vy += 0.18; // gravité
+      p.x += p.vx;
+      p.y += p.vy;
+      p.rot += p.vrot;
+      p.life++;
+      var opacity = 1 - (p.life/p.maxLife);
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, opacity);
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot * Math.PI/180);
+      ctx.fillStyle = p.color;
+      ctx.fillRect(-p.size/2, -p.size/2, p.size, p.size*0.6);
+      ctx.restore();
+    });
+    if(alive){
+      animFrame = requestAnimationFrame(tick);
+    } else {
+      canvas.style.display = 'none';
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+    }
+  }
+
+  window._playRankSAnimation = function(){
+    if(!canvas || !ctx) return;
+    resizeCanvas();
+    canvas.style.display = 'block';
+    spawnParticles();
+    if(animFrame) cancelAnimationFrame(animFrame);
+    tick();
+  };
 })();
 </script>
 </body>
