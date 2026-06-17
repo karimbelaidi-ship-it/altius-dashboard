@@ -920,6 +920,7 @@
       <button class="nb-dropdown-item" data-page="teamleaders" onclick="goPage('teamleaders',this);window.closeAdminMenu()">👤 Team Leaders</button>
       <button class="nb-dropdown-item" data-page="comptes" id="comptes-tab" onclick="goPage('comptes',this);window.closeAdminMenu()">🔑 Comptes</button>
       <button class="nb-dropdown-item" data-page="historique" onclick="goPage('historique',this);window.closeAdminMenu()">🕓 Historique scores</button>
+      <button class="nb-dropdown-item" data-page="comparateur" onclick="goPage('comparateur',this);window.closeAdminMenu()">📊 Comparateur projets</button>
     </div>
   </div>
 </div>
@@ -1149,6 +1150,28 @@
     </div>
     <div class="card">
       <div id="histo-global-content"></div>
+    </div>
+  </div>
+
+  <div class="pg" id="pg-comparateur">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+      <div class="stitle" style="margin-bottom:0">📊 Comparateur de projets</div>
+      <div><div class="flabel">Mois</div><select id="cmp-mois" onchange="window._renderComparateur()" style="width:auto"></select></div>
+    </div>
+    <div class="card" style="margin-bottom:16px">
+      <div style="font-size:13px;font-weight:700;margin-bottom:12px">Score moyen par projet</div>
+      <div style="height:260px"><canvas id="cmp-score-chart"></canvas></div>
+    </div>
+    <div class="card" style="margin-bottom:16px">
+      <div style="font-size:13px;font-weight:700;margin-bottom:12px">Performance · Qualité · Présence par projet</div>
+      <div style="height:300px"><canvas id="cmp-detail-chart"></canvas></div>
+    </div>
+    <div class="card">
+      <div style="font-size:13px;font-weight:700;margin-bottom:12px">Tableau comparatif détaillé</div>
+      <div class="twrap"><table class="tbl">
+        <thead><tr><th>Projet</th><th>Agents</th><th>Score moyen</th><th>Performance</th><th>Qualité</th><th>Présence</th><th>Rang</th></tr></thead>
+        <tbody id="cmp-table-body"></tbody>
+      </table></div>
     </div>
   </div>
 
@@ -1546,7 +1569,7 @@ function projStats(){
     const ags=D.agents.filter(a=>a.proj===p&&a.active);
     const ss=ags.map(a=>lastScore(a)).filter(Boolean);
     const avg=ss.length?Math.round(ss.reduce((t,x)=>t+x.score,0)/ss.length*10)/10:0;
-    return{name:p,n:ags.length,score:avg,perf:ss.length?Math.round(ss.reduce((t,x)=>t+x.perf,0)/ss.length):0,qual:ss.length?Math.round(ss.reduce((t,x)=>t+x.qual,0)/ss.length):0,rank:rank(avg),color:PC[pi%PC.length]};
+    return{name:p,n:ags.length,score:avg,perf:ss.length?Math.round(ss.reduce((t,x)=>t+x.perf,0)/ss.length):0,qual:ss.length?Math.round(ss.reduce((t,x)=>t+x.qual,0)/ss.length):0,pres:ss.length?Math.round(ss.reduce((t,x)=>t+(x.pres||100),0)/ss.length):0,rank:rank(avg),color:PC[pi%PC.length]};
   }).filter(p=>p.n>0);
 }
 
@@ -2783,6 +2806,108 @@ window._applyHistoFilters = function(){
   var fp = (document.getElementById('hf-projet')||{}).value||'all';
   window._loadHistoriqueGlobal(fa,fm,fp);
 };
+
+// ── COMPARATEUR DE PROJETS ───────────────────────────────────────────────────
+window._initComparateur = function(){
+  if(!D) return;
+  var moisSel = document.getElementById('cmp-mois');
+  if(moisSel){
+    var current = moisSel.value;
+    moisSel.innerHTML = D.months.map(function(m){return '<option value="'+m+'">'+m+'</option>';}).join('');
+    moisSel.value = D.months.includes(current) ? current : D.months[D.months.length-1];
+  }
+  window._renderComparateur();
+};
+
+function projStatsForMonth(targetMonth){
+  return D.projects.map(function(p,pi){
+    var ags = D.agents.filter(function(a){return a.proj===p && a.active;});
+    var ss = ags.map(function(a){
+      var s = a.scores[targetMonth];
+      if(!s || (!s.perf && !s.qual)) return null;
+      return { perf:s.perf||0, qual:s.qual||0, pres:s.pres||100, score: sc(s.perf,s.qual,s.pres,s.eng,s.avert) };
+    }).filter(Boolean);
+    var avg = ss.length ? Math.round(ss.reduce(function(t,x){return t+x.score;},0)/ss.length*10)/10 : 0;
+    return {
+      name:p, n:ss.length,
+      score:avg,
+      perf: ss.length?Math.round(ss.reduce(function(t,x){return t+x.perf;},0)/ss.length):0,
+      qual: ss.length?Math.round(ss.reduce(function(t,x){return t+x.qual;},0)/ss.length):0,
+      pres: ss.length?Math.round(ss.reduce(function(t,x){return t+x.pres;},0)/ss.length):0,
+      rank: rank(avg), color: PC[pi%PC.length]
+    };
+  }).filter(function(p){return p.n>0;});
+}
+
+window._renderComparateur = function(){
+  if(!D) return;
+  var moisSel = document.getElementById('cmp-mois');
+  var targetMonth = moisSel ? moisSel.value : D.months[D.months.length-1];
+  var ps = projStatsForMonth(targetMonth);
+
+  if(!ps.length){
+    var tb = document.getElementById('cmp-table-body');
+    if(tb) tb.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:16px;color:var(--muted)">Aucune donnée pour ce mois.</td></tr>';
+    dc('cmp-score-chart'); dc('cmp-detail-chart');
+    return;
+  }
+
+  // Graphique 1 : Score moyen par projet
+  dc('cmp-score-chart');
+  var ctx1 = document.getElementById('cmp-score-chart');
+  if(ctx1){
+    charts['cmp-score-chart'] = new Chart(ctx1, {
+      type:'bar',
+      data:{
+        labels: ps.map(function(p){return p.name;}),
+        datasets:[{ data: ps.map(function(p){return p.score;}), backgroundColor: ps.map(function(p){return col(p.score);}), borderRadius:6 }]
+      },
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        plugins:{legend:{display:false}, tooltip:{callbacks:{label:function(c){return ' '+c.raw+'%';}}}},
+        scales:{y:{min:0,max:120,ticks:{callback:function(v){return v+'%';}}}}
+      }
+    });
+  }
+
+  // Graphique 2 : Perf/Qualité/Présence groupées par projet
+  dc('cmp-detail-chart');
+  var ctx2 = document.getElementById('cmp-detail-chart');
+  if(ctx2){
+    charts['cmp-detail-chart'] = new Chart(ctx2, {
+      type:'bar',
+      data:{
+        labels: ps.map(function(p){return p.name;}),
+        datasets:[
+          { label:'Performance', data: ps.map(function(p){return p.perf;}), backgroundColor:'#378ADD', borderRadius:5 },
+          { label:'Qualité', data: ps.map(function(p){return p.qual;}), backgroundColor:'#F5C800', borderRadius:5 },
+          { label:'Présence', data: ps.map(function(p){return p.pres;}), backgroundColor:'#1D9E75', borderRadius:5 }
+        ]
+      },
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        plugins:{legend:{position:'bottom', labels:{boxWidth:10,font:{size:11}}}},
+        scales:{y:{min:0,max:100,ticks:{callback:function(v){return v+'%';}}}}
+      }
+    });
+  }
+
+  // Tableau
+  var rows = ps.slice().sort(function(a,b){return b.score-a.score;}).map(function(p){
+    return '<tr>'
+      +'<td style="font-weight:600">'+p.name+'</td>'
+      +'<td>'+p.n+'</td>'
+      +'<td style="color:'+col(p.score)+';font-weight:700">'+p.score.toFixed(1)+'%</td>'
+      +'<td>'+p.perf+'%</td>'
+      +'<td>'+p.qual+'%</td>'
+      +'<td>'+p.pres+'%</td>'
+      +'<td><span class="pill s'+p.rank+'">'+RL[p.rank]+'</span></td>'
+    +'</tr>';
+  }).join('');
+  var tb = document.getElementById('cmp-table-body');
+  if(tb) tb.innerHTML = rows;
+};
+
 window._openChangerProjet = function(id){ window.closeDrawer();
   var a=D.agents.find(function(x){return x.id===id;});
   if(!a) return;
@@ -4583,8 +4708,8 @@ function applyUserRole(){
 
   // Define tab access per role
   var tabAccess = {
-    admin:    ['overview','agents','mois','projets','archives','teamleaders','comptes','cal-dl','historique'],
-    respo:    ['overview','chef','agents','mois','projets','archives','teamleaders','cal-dl','historique'],
+    admin:    ['overview','agents','mois','projets','archives','teamleaders','comptes','cal-dl','historique','comparateur'],
+    respo:    ['overview','chef','agents','mois','projets','archives','teamleaders','cal-dl','historique','comparateur'],
     chef:     ['chef','agents','mois','projets','cal-dl','historique'],
     teamlead: ['chef','agents','cal-dl','historique'],
     qualite:  ['chef','agents','cal-dl','historique']
@@ -5380,6 +5505,7 @@ var PAGE_LABELS = {
   'teamleaders': {section:'Administration', page:'Team Leaders'},
   'comptes':     {section:'Administration', page:'Comptes'},
   'historique':  {section:'Administration', page:'Historique scores'},
+  'comparateur': {section:'Administration', page:'Comparateur projets'},
 };
 
 function updateBreadcrumb(id){
@@ -5441,6 +5567,9 @@ window.goPage=function(id,btn){
     var hc = document.getElementById('histo-global-content');
     if(hc) hc.innerHTML = renderHistoriqueGlobalPage();
     setTimeout(function(){ window._loadHistoriqueGlobal('','all','all'); }, 50);
+  }
+  if(id==='comparateur'){
+    window._initComparateur();
   }
 }
 
