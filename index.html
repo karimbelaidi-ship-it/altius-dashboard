@@ -579,6 +579,18 @@
       border-radius: 20px; background: rgba(245,200,0,.2);
       color: #7a5e00; white-space: nowrap;
     }
+    .plan-action-card {
+      background: var(--light); border: 1px solid var(--border);
+      border-radius: 10px; padding: 10px 12px; margin-bottom: 8px;
+    }
+    .plan-action-title { font-size: 13px; font-weight: 700; margin-bottom: 2px; }
+    .plan-action-desc { font-size: 12px; color: var(--muted); line-height: 1.45; margin-bottom: 6px; }
+    .plan-action-meta { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; font-size: 11px; color: var(--muted); }
+    .pa-status { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 20px; white-space: nowrap; }
+    .pa-status.todo      { background: rgba(127,119,221,.12); color: #5a4fc4; }
+    .pa-status.progress  { background: rgba(245,200,0,.15);   color: #7a5e00; }
+    .pa-status.done      { background: rgba(29,158,117,.12);  color: var(--green); }
+    .pa-overdue { color: #c0392b !important; font-weight: 700; }
     .badge-elite {
       font-size: 10px; font-weight: 700; padding: 2px 7px;
       border-radius: 20px; background: rgba(29,158,117,.15);
@@ -2701,6 +2713,11 @@ window._openFiche = function(id){
     <div id="drawer-historique" style="font-size:12px;color:var(--muted);margin-bottom:4px">
       <div style="padding:8px 0;color:var(--muted);font-size:12px">⏳ Chargement...</div>
     </div>
+    <div class="drawer-section-title" style="display:flex;align-items:center;justify-content:space-between">
+      <span>🎯 Plan d'action</span>
+      <button class="btn" style="font-size:11px;padding:4px 10px" onclick="window._openAddPlanAction('${a.id}')">+ Ajouter</button>
+    </div>
+    <div id="drawer-plans-action">${renderPlansAction(a)}</div>
     <div class="drawer-section-title">💬 Commentaires</div>
     <div id="comments-list">${commentsHtml}</div>
     <div class="comment-form" style="margin-top:12px">
@@ -5851,6 +5868,111 @@ window._saveNotesReunion = async function(evalId){
   // Rafraîchir le détail du jour si toujours affiché
   var d = new Date(ev.date);
   window._showCalDayDetail(d.getFullYear(), d.getMonth(), d.getDate());
+};
+
+// ── PLANS D'ACTION ────────────────────────────────────────────────────────────
+var PA_STATUS_LABELS = {todo:'À faire', progress:'En cours', done:'Terminé'};
+
+function renderPlansAction(agent){
+  var plans = agent.plansAction || [];
+  if(!plans.length){
+    return '<p style="font-size:12px;color:var(--muted);padding:4px 0;font-style:italic">Aucun plan d\'action pour le moment.</p>';
+  }
+  var today = new Date(); today.setHours(0,0,0,0);
+  var sorted = plans.slice().sort(function(p1,p2){
+    if(p1.statut==='done' && p2.statut!=='done') return 1;
+    if(p1.statut!=='done' && p2.statut==='done') return -1;
+    return new Date(p1.echeance) - new Date(p2.echeance);
+  });
+  return sorted.map(function(p, idx){
+    var realIdx = plans.indexOf(p);
+    var echDate = p.echeance ? new Date(p.echeance) : null;
+    var isOverdue = echDate && p.statut!=='done' && echDate < today;
+    var echLabel = echDate ? echDate.toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'numeric'}) : '—';
+    return '<div class="plan-action-card">'
+      +'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">'
+        +'<div style="flex:1">'
+          +'<div class="plan-action-title">'+p.titre+'</div>'
+          +(p.description ? '<div class="plan-action-desc">'+p.description+'</div>' : '')
+        +'</div>'
+        +'<span class="pa-status '+p.statut+'">'+PA_STATUS_LABELS[p.statut]+'</span>'
+      +'</div>'
+      +'<div class="plan-action-meta">'
+        +'<span'+(isOverdue?' class="pa-overdue"':'')+'>📅 '+echLabel+(isOverdue?' (en retard)':'')+'</span>'
+        +(p.responsable ? '<span>👤 '+p.responsable+'</span>' : '')
+        +'<span style="margin-left:auto;display:flex;gap:6px">'
+          +'<button onclick="window._openEditPlanAction(\''+agent.id+'\','+realIdx+')" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:12px;text-decoration:underline">Modifier</button>'
+          +'<button onclick="window._deletePlanAction(\''+agent.id+'\','+realIdx+')" style="background:none;border:none;cursor:pointer;color:#c0392b;font-size:12px;text-decoration:underline">Suppr.</button>'
+        +'</span>'
+      +'</div>'
+    +'</div>';
+  }).join('');
+}
+
+window._openAddPlanAction = function(agentId){
+  window._openPlanActionModal(agentId, null);
+};
+window._openEditPlanAction = function(agentId, idx){
+  window._openPlanActionModal(agentId, idx);
+};
+
+window._openPlanActionModal = function(agentId, idx){
+  var agent = D.agents.find(function(a){return a.id===agentId;});
+  if(!agent) return;
+  var isEdit = idx !== null && idx !== undefined;
+  var plan = isEdit ? (agent.plansAction||[])[idx] : {titre:'',description:'',echeance:'',statut:'todo',responsable: CURRENT_USER?CURRENT_USER.nom:''};
+
+  var html = '<div class="mhdr"><h3>'+(isEdit?'Modifier le plan d\'action':'Nouveau plan d\'action')+'</h3><button class="xbtn" onclick="closeM()">x</button></div>'
+    +'<div id="fa-pa" class="alert-err"></div>'
+    +'<div class="flabel">Titre</div><input type="text" id="pa-titre" value="'+(plan.titre||'').replace(/"/g,'&quot;')+'" placeholder="Ex: Renforcer la maîtrise du script CROC" style="margin-bottom:12px">'
+    +'<div class="flabel">Description</div><textarea id="pa-desc" rows="3" placeholder="Détail de l\'action à mener..." style="width:100%;resize:vertical;font-family:inherit;font-size:13px;padding:10px;border:1px solid var(--border);border-radius:8px;margin-bottom:12px">'+(plan.description||'')+'</textarea>'
+    +'<div class="fgrid" style="margin-bottom:14px">'
+      +'<div><div class="flabel">Échéance</div><input type="date" id="pa-echeance" value="'+(plan.echeance||'')+'"></div>'
+      +'<div><div class="flabel">Statut</div><select id="pa-statut"><option value="todo"'+(plan.statut==='todo'?' selected':'')+'>À faire</option><option value="progress"'+(plan.statut==='progress'?' selected':'')+'>En cours</option><option value="done"'+(plan.statut==='done'?' selected':'')+'>Terminé</option></select></div>'
+      +'<div style="grid-column:1/-1"><div class="flabel">Responsable assigné</div><input type="text" id="pa-resp" value="'+(plan.responsable||'').replace(/"/g,'&quot;')+'" placeholder="Ex: Karim Belaidi"></div>'
+    +'</div>'
+    +'<div class="frow"><button class="btn" onclick="closeM()">Annuler</button><button class="btn yellow" onclick="window._savePlanAction(\''+agentId+'\','+(isEdit?idx:'null')+')">💾 Enregistrer</button></div>';
+
+  showModal(html);
+};
+
+window._savePlanAction = async function(agentId, idx){
+  var agent = D.agents.find(function(a){return a.id===agentId;});
+  if(!agent) return;
+  var titre = document.getElementById('pa-titre').value.trim();
+  var fa = document.getElementById('fa-pa');
+  if(!titre){ fa.textContent='Le titre est obligatoire.'; fa.style.display='block'; return; }
+  var planData = {
+    titre: titre,
+    description: document.getElementById('pa-desc').value.trim(),
+    echeance: document.getElementById('pa-echeance').value,
+    statut: document.getElementById('pa-statut').value,
+    responsable: document.getElementById('pa-resp').value.trim(),
+    creePar: CURRENT_USER ? CURRENT_USER.nom : 'Admin',
+    creeLe: new Date().toISOString()
+  };
+  if(!agent.plansAction) agent.plansAction = [];
+  if(idx !== null && idx !== undefined && idx !== 'null' && agent.plansAction[idx]){
+    planData.creePar = agent.plansAction[idx].creePar;
+    planData.creeLe = agent.plansAction[idx].creeLe;
+    agent.plansAction[idx] = planData;
+  } else {
+    agent.plansAction.push(planData);
+  }
+  await saveD();
+  closeM();
+  var listEl = document.getElementById('drawer-plans-action');
+  if(listEl) listEl.innerHTML = renderPlansAction(agent);
+};
+
+window._deletePlanAction = async function(agentId, idx){
+  if(!confirm('Supprimer ce plan d\'action ?')) return;
+  var agent = D.agents.find(function(a){return a.id===agentId;});
+  if(!agent || !agent.plansAction) return;
+  agent.plansAction.splice(idx, 1);
+  await saveD();
+  var listEl = document.getElementById('drawer-plans-action');
+  if(listEl) listEl.innerHTML = renderPlansAction(agent);
 };
 
 window._showCalDayDetail = function(year, month, day){
