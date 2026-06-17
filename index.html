@@ -6,8 +6,8 @@
   <title>Altius Contact — Performance Sales</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -878,8 +878,6 @@
     .export-select-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
     .export-period-row { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 6px; }
   </style>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
 </head>
 <body>
 
@@ -897,7 +895,7 @@
       <div class="logo-sub" id="subtitle">Connexion...</div>
     </div>
   </div>
-  <div style="display:flex;align-items:center;gap:10px"><button onclick="showOnboarding()" style="background:rgba(245,200,0,.1);border:1px solid rgba(245,200,0,.3);border-radius:8px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;color:#a08200;font-family:inherit;">❓ Aide</button><button onclick="window.openExportModal()" style="background:var(--yellow);color:#1a1a18;border:none;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">📄 Export PDF</button><div style="display:flex;align-items:center;gap:6px">
+  <div style="display:flex;align-items:center;gap:10px"><button onclick="showOnboarding()" style="background:rgba(245,200,0,.1);border:1px solid rgba(245,200,0,.3);border-radius:8px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;color:#a08200;font-family:inherit;">❓ Aide</button><button onclick="window.openExportModal()" style="background:var(--yellow);color:#1a1a18;border:none;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">📄 Export PDF</button><button onclick="window.openExportModal('excel')" style="background:#1d6f42;color:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">📊 Export Excel</button><div style="display:flex;align-items:center;gap:6px">
     <button class="notif-bell" id="search-trigger-btn" onclick="window.openGlobalSearch()" title="Rechercher (Ctrl+K)">
       🔍
     </button>
@@ -3446,10 +3444,22 @@ window._delComment = async function(agentId, idx){
 window._exportPDF = function(){ window.openExportModal(); };
 
 // ── Export Modal ─────────────────────────────────────────────────────────────
-window.openExportModal = function(){
+window._exportFormat = 'pdf';
+window.openExportModal = function(format){
+  window._exportFormat = format || 'pdf';
   var el = document.getElementById('export-modal-overlay');
   if(!el || !D) return;
   el.classList.add('on');
+  // Titre + bouton dynamiques selon le format
+  var titleEl = document.getElementById('export-modal-title');
+  var btnEl = document.getElementById('exp-generate-btn');
+  if(window._exportFormat === 'excel'){
+    if(titleEl) titleEl.textContent = '📊 Exporter en Excel';
+    if(btnEl) btnEl.textContent = '📊 Générer le fichier Excel';
+  } else {
+    if(titleEl) titleEl.textContent = '📄 Exporter en PDF';
+    if(btnEl) btnEl.textContent = '📄 Générer le PDF';
+  }
   // Remplir le select Projet
   var projSel = document.getElementById('exp-projet');
   if(projSel){
@@ -3505,8 +3515,7 @@ window.togglePeriode = function(){
   if(unRow) unRow.style.display = isPlage ? 'none' : '';
   if(plageRow) plageRow.style.display = isPlage ? '' : 'none';
 };
-window.doExportPDF = function(){
-  if(!D) return;
+function _collectExportOptions(){
   var typeBtn = document.querySelector('.export-type-btn.on');
   var type = typeBtn ? typeBtn.dataset.type : 'complet';
   var isPlage = document.getElementById('exp-periode-plage') && document.getElementById('exp-periode-plage').checked;
@@ -3528,8 +3537,130 @@ window.doExportPDF = function(){
   var projFilter = projEl ? projEl.value : 'tous';
   var agentEl = document.getElementById('exp-agent');
   var agentFilter = (type==='agent' && agentEl) ? agentEl.value : null;
+  return { type:type, months:months, periodLabel:periodLabel, inclDem:inclDem, inclObj:inclObj, projFilter:projFilter, agentFilter:agentFilter };
+}
+
+window._doExportCurrent = function(){
+  if(!D) return;
+  var opts = _collectExportOptions();
   window.closeExportModal();
-  window._exportPDFWithOptions({ type:type, months:months, periodLabel:periodLabel, inclDem:inclDem, inclObj:inclObj, projFilter:projFilter, agentFilter:agentFilter });
+  if(window._exportFormat === 'excel'){
+    window._exportExcelWithOptions(opts);
+  } else {
+    window._exportPDFWithOptions(opts);
+  }
+};
+
+window.doExportPDF = function(){
+  if(!D) return;
+  var opts = _collectExportOptions();
+  window.closeExportModal();
+  window._exportPDFWithOptions(opts);
+};
+
+// ── Export Excel ──────────────────────────────────────────────────────────────
+window._exportExcelWithOptions = async function(opts){
+  if(typeof XLSX === 'undefined'){ alert('La librairie Excel n\'a pas pu se charger. Vérifiez votre connexion internet.'); return; }
+  var type = opts.type, months = opts.months, periodLabel = opts.periodLabel;
+  var inclDem = opts.inclDem, projFilter = opts.projFilter, agentFilter = opts.agentFilter;
+
+  var allAgents = inclDem ? D.agents.slice() : D.agents.filter(function(a){return a.active;});
+  var scope = allAgents;
+  if(type==='projet' && projFilter!=='tous') scope = scope.filter(function(a){return a.proj===projFilter;});
+  if(type==='agent' && agentFilter) scope = scope.filter(function(a){return a.id===agentFilter;});
+  else if(projFilter!=='tous' && type!=='agent') scope = scope.filter(function(a){return a.proj===projFilter;});
+
+  var wb = XLSX.utils.book_new();
+  var rankLabel = function(s){ return s>=95?'S':s>=80?'A':s>=65?'B':s>=50?'C':'D'; };
+  var calcS = function(s){
+    if(!s||(s.perf===0&&s.qual===0)) return 0;
+    var eng = typeof s.eng==='object' ? s.eng : {briefs:true,remontees:true,comportement:true};
+    var engS = ([eng.briefs,eng.remontees,eng.comportement].filter(Boolean).length/3)*100;
+    var sc = (s.perf||0)*0.4 + (s.qual||0)*0.3 + (s.pres||100)*0.2 + engS*0.1;
+    return Math.max(0, sc - (s.avert||0)*5);
+  };
+  var avertLabels = ['Aucun','Verbal','Écrit','Mise à pied'];
+
+  // ── Onglet 1 : Scores détaillés (pour chaque mois sélectionné x chaque agent) ──
+  var scoreRows = [];
+  scope.forEach(function(a){
+    months.forEach(function(m){
+      var s = a.scores[m];
+      if(!s || (!s.perf && !s.qual && !s.pres)) return;
+      var sf = calcS(s);
+      var eng = typeof s.eng==='object' ? s.eng : {briefs:true,remontees:true,comportement:true};
+      scoreRows.push({
+        'Agent': a.name, 'Projet': a.proj, 'Mois': m,
+        'Performance (%)': s.perf||0, 'Qualité (%)': s.qual||0, 'Présence (%)': s.pres||100,
+        'Engagement Briefs': eng.briefs?'Oui':'Non', 'Engagement Remontées': eng.remontees?'Oui':'Non', 'Engagement Comportement': eng.comportement?'Oui':'Non',
+        'Avertissement': avertLabels[s.avert||0]||'Aucun',
+        'Score final (%)': Math.round(sf*10)/10, 'Rang': rankLabel(sf),
+        'Statut agent': a.active ? 'Actif' : 'Démissionnaire'
+      });
+    });
+  });
+  var ws1 = XLSX.utils.json_to_sheet(scoreRows);
+  ws1['!cols'] = [{wch:22},{wch:16},{wch:10},{wch:14},{wch:12},{wch:12},{wch:16},{wch:18},{wch:20},{wch:14},{wch:14},{wch:8},{wch:16}];
+  XLSX.utils.book_append_sheet(wb, ws1, 'Scores détaillés');
+
+  // ── Onglet 2 : Classement (dernier mois de la période) ──
+  if(type==='complet' || type==='synthese' || type==='projet'){
+    var lastM = months[months.length-1];
+    var rankRows = scope.map(function(a){
+      var s = a.scores[lastM];
+      if(!s || (!s.perf && !s.qual)) return null;
+      var sf = calcS(s);
+      return { 'Agent': a.name, 'Projet': a.proj, 'Score final (%)': Math.round(sf*10)/10, 'Rang': rankLabel(sf), 'Mois': lastM };
+    }).filter(Boolean).sort(function(a,b){return b['Score final (%)']-a['Score final (%)'];});
+    rankRows.forEach(function(r,i){ r['Position'] = i+1; });
+    var ws2 = XLSX.utils.json_to_sheet(rankRows, {header:['Position','Agent','Projet','Score final (%)','Rang','Mois']});
+    ws2['!cols'] = [{wch:10},{wch:22},{wch:16},{wch:16},{wch:8},{wch:10}];
+    XLSX.utils.book_append_sheet(wb, ws2, 'Classement');
+  }
+
+  // ── Onglet 3 : Stats par projet ──
+  if(type==='complet' || type==='synthese'){
+    var projStatsRows = D.projects.map(function(p){
+      var agentsP = scope.filter(function(a){return a.proj===p;});
+      var lastM2 = months[months.length-1];
+      var scoresP = agentsP.map(function(a){var s=a.scores[lastM2]; return s?calcS(s):0;}).filter(function(s){return s>0;});
+      var avgP = scoresP.length ? Math.round(scoresP.reduce(function(a,b){return a+b;},0)/scoresP.length*10)/10 : 0;
+      return { 'Projet': p, 'Agents actifs': agentsP.filter(function(a){return a.active;}).length, 'Score moyen (%)': avgP, 'Mois': lastM2 };
+    });
+    var ws3 = XLSX.utils.json_to_sheet(projStatsRows);
+    ws3['!cols'] = [{wch:18},{wch:14},{wch:16},{wch:10}];
+    XLSX.utils.book_append_sheet(wb, ws3, 'Stats par projet');
+  }
+
+  // ── Onglet 4 : Historique des modifications (chargé directement depuis Firebase) ──
+  try {
+    var histRef = collection(db,'historique_scores');
+    var hq = query(histRef, orderBy('date','desc'), limit(500));
+    var hsnap = await getDocs(hq);
+    var histEntries = [];
+    hsnap.forEach(function(d){ histEntries.push(d.data()); });
+    var scopeIds = scope.map(function(a){return a.id;});
+    var histRows = histEntries
+      .filter(function(h){ return scopeIds.indexOf(h.agentId) !== -1; })
+      .map(function(h){
+        var dt = new Date(h.date);
+        return {
+          'Agent': h.agentNom, 'Mois': h.mois, 'Projet': h.projet, 'Champ': h.champ,
+          'Ancienne valeur': h.ancienne, 'Nouvelle valeur': h.nouvelle,
+          'Modifié par': h.editeur, 'Date': dt.toLocaleDateString('fr-FR')+' '+dt.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})
+        };
+      });
+    if(histRows.length){
+      var ws4 = XLSX.utils.json_to_sheet(histRows);
+      ws4['!cols'] = [{wch:22},{wch:10},{wch:16},{wch:18},{wch:14},{wch:14},{wch:18},{wch:18}];
+      XLSX.utils.book_append_sheet(wb, ws4, 'Historique modifications');
+    }
+  } catch(e) {
+    console.error('Historique non chargé pour Excel:', e);
+  }
+
+  var fileLabel = type==='agent' && agentFilter ? (D.agents.find(function(a){return a.id===agentFilter;})||{}).name||'Agent' : 'Altius';
+  XLSX.writeFile(wb, 'Export_'+fileLabel.replace(/\s+/g,'_')+'_'+new Date().toISOString().slice(0,10)+'.xlsx');
 };
 
 // ── Déconnexion ──────────────────────────────────────────────────────────────
@@ -5971,7 +6102,7 @@ setInterval(function(){
 <div class="export-modal-overlay" id="export-modal-overlay">
   <div class="export-modal">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-      <div class="export-modal-title">📄 Exporter en PDF</div>
+      <div class="export-modal-title" id="export-modal-title">📄 Exporter en PDF</div>
       <button onclick="window.closeExportModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted)">✕</button>
     </div>
     <div class="export-modal-sub">Configurez votre rapport avant de générer</div>
@@ -6079,7 +6210,7 @@ setInterval(function(){
 
     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px">
       <button class="btn" onclick="window.closeExportModal()">Annuler</button>
-      <button class="btn yellow" onclick="window.doExportPDF()" id="exp-generate-btn">📄 Générer le PDF</button>
+      <button class="btn yellow" onclick="window._doExportCurrent()" id="exp-generate-btn">📄 Générer le PDF</button>
     </div>
   </div>
 </div>
