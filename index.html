@@ -4839,6 +4839,7 @@ function checkLogin(){
       }
       if(acc){
         CURRENT_USER = acc;
+        window.CURRENT_USER = acc;
         document.getElementById('loginOverlay').style.display = 'none';
         document.getElementById('main-nav').style.display = '';
         applyUserRole();
@@ -4906,6 +4907,7 @@ window.doLogin = function(){
   }
   if(acc){
     CURRENT_USER = acc;
+    window.CURRENT_USER = acc;
     localStorage.setItem('altius_session', JSON.stringify({id:acc.id, password:acc.password}));
     document.getElementById('loginOverlay').style.display = 'none';
     document.getElementById('main-nav').style.display = '';
@@ -7677,7 +7679,7 @@ document.addEventListener('click', function(e){
   window.startGuidedTour = function(){
     tourIdx = 0;
     // Filtrer les pages réservées Admin/Respo si l'utilisateur n'a pas ce rôle
-    var role = CURRENT_USER ? CURRENT_USER.role : '';
+    var role = window.CURRENT_USER ? window.CURRENT_USER.role : '';
     var isAdminRespo = (role === 'admin' || role === 'respo');
     var adminOnlyPages = ['plans-action', 'historique', 'comparateur', 'comptes', 'teamleaders', 'archives'];
     activeTourSteps = TOUR_STEPS.filter(function(step){
