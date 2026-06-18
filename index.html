@@ -601,6 +601,17 @@
     .coaching-section-label.axe { color: #c08000; }
     .coaching-section-label.plan { color: #5a4fc4; }
     .coaching-section-text { font-size: 12.5px; color: var(--muted); line-height: 1.5; white-space: pre-wrap; }
+    .fiche-tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border); margin: 18px 0 16px; overflow-x: auto; }
+    .fiche-tab-btn {
+      padding: 9px 14px; font-size: 12.5px; font-weight: 600; background: none; border: none;
+      border-bottom: 2px solid transparent; cursor: pointer; font-family: inherit; color: var(--muted);
+      white-space: nowrap; display: flex; align-items: center; gap: 5px;
+    }
+    .fiche-tab-btn.on { color: var(--text); border-bottom-color: var(--yellow); }
+    .fiche-tab-badge { font-size: 10px; font-weight: 700; background: var(--light); color: var(--muted); padding: 1px 6px; border-radius: 10px; }
+    .fiche-tab-btn.on .fiche-tab-badge { background: rgba(245,200,0,.18); color: #a08200; }
+    .fiche-tab-panel { display: none; }
+    .fiche-tab-panel.on { display: block; }
     .formation-suggestion {
       background: linear-gradient(135deg, rgba(127,119,221,.08), rgba(55,138,221,.06));
       border: 1px solid rgba(127,119,221,.25); border-radius: 12px;
@@ -2732,6 +2743,24 @@ window.closeDrawer = function(){
   document.body.style.overflow = '';
 }
 
+window._switchFicheTab = function(tabId){
+  document.querySelectorAll('#fiche-tabs .fiche-tab-btn').forEach(function(btn){
+    btn.classList.toggle('on', btn.dataset.tab === tabId);
+  });
+  document.querySelectorAll('.fiche-tab-panel').forEach(function(panel){
+    panel.classList.toggle('on', panel.dataset.tab === tabId);
+  });
+  var body = document.getElementById('drawer-body');
+  if(body) body.scrollTop = 0;
+};
+
+function refreshFicheTabBadges(agent){
+  var coachBtn = document.querySelector('#fiche-tabs .fiche-tab-btn[data-tab="coaching"] .fiche-tab-badge');
+  if(coachBtn) coachBtn.textContent = (agent.coachingFiches||[]).length;
+  var planBtn = document.querySelector('#fiche-tabs .fiche-tab-btn[data-tab="plans"] .fiche-tab-badge');
+  if(planBtn) planBtn.textContent = (agent.plansAction||[]).length;
+}
+
 window._openFiche = function(id){
   const a=D.agents.find(x=>x.id===id);if(!a)return;
   const ls=lastScore(a);
@@ -2806,35 +2835,56 @@ window._openFiche = function(id){
     </div>
     ${renderRankProgress(a)}
     ${renderMedalsHtml(a, D.agents.filter(function(x){return x.active;}))}
-    <div class="drawer-section-title">📁 Historique projets</div>
-    <div class="timeline">${timelineHtml}</div>
-    <div class="drawer-section-title" style="display:flex;align-items:center;justify-content:space-between">
-      <span>🕓 Historique des scores</span>
+
+    <div class="fiche-tabs" id="fiche-tabs">
+      <button class="fiche-tab-btn on" data-tab="apercu" onclick="window._switchFicheTab('apercu')">📁 Aperçu</button>
+      <button class="fiche-tab-btn" data-tab="coaching" onclick="window._switchFicheTab('coaching')">🗒️ Coaching <span class="fiche-tab-badge">${(a.coachingFiches||[]).length}</span></button>
+      <button class="fiche-tab-btn" data-tab="plans" onclick="window._switchFicheTab('plans')">🎯 Plans d'action <span class="fiche-tab-badge">${(a.plansAction||[]).length}</span></button>
+      <button class="fiche-tab-btn" data-tab="historique" onclick="window._switchFicheTab('historique')">🕓 Historique</button>
+      <button class="fiche-tab-btn" data-tab="commentaires" onclick="window._switchFicheTab('commentaires')">💬 Commentaires <span class="fiche-tab-badge">${comments.length}</span></button>
     </div>
-    <div id="drawer-historique" style="font-size:12px;color:var(--muted);margin-bottom:4px">
-      <div style="padding:8px 0;color:var(--muted);font-size:12px">⏳ Chargement...</div>
+
+    <div class="fiche-tab-panel on" data-tab="apercu">
+      <div class="drawer-section-title">📁 Historique projets</div>
+      <div class="timeline">${timelineHtml}</div>
+      <div id="drawer-formation-suggestion">${renderFormationSuggestion(a)}</div>
     </div>
-    <div id="drawer-formation-suggestion">${renderFormationSuggestion(a)}</div>
-    <div class="drawer-section-title" style="display:flex;align-items:center;justify-content:space-between">
-      <span>🗒️ Fiches de coaching</span>
-      <button class="btn" style="font-size:11px;padding:4px 10px" onclick="window._openAddCoaching('${a.id}')">+ Ajouter</button>
-    </div>
-    <div id="drawer-coaching">${renderCoachingFiches(a)}</div>
-    <div class="drawer-section-title" style="display:flex;align-items:center;justify-content:space-between">
-      <span>🎯 Plan d'action</span>
-      <button class="btn" style="font-size:11px;padding:4px 10px" onclick="window._openAddPlanAction('${a.id}')">+ Ajouter</button>
-    </div>
-    <div id="drawer-plans-action">${renderPlansAction(a)}</div>
-    <div class="drawer-section-title">💬 Commentaires</div>
-    <div id="comments-list">${commentsHtml}</div>
-    <div class="comment-form" style="margin-top:12px">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
-        <div><div class="flabel">Votre nom</div><input type="text" id="c-author" placeholder="Ex: Karim" style="font-size:13px"></div>
-        <div><div class="flabel">Mois concerné</div><select id="c-month" style="font-size:13px">${D.months.map(m=>`<option value="${m}">${m}</option>`).join('')}</select></div>
+
+    <div class="fiche-tab-panel" data-tab="coaching">
+      <div class="drawer-section-title" style="display:flex;align-items:center;justify-content:space-between;margin-top:0">
+        <span>🗒️ Fiches de coaching</span>
+        <button class="btn" style="font-size:11px;padding:4px 10px" onclick="window._openAddCoaching('${a.id}')">+ Ajouter</button>
       </div>
-      <textarea id="c-text" placeholder="Commentaire sur cet agent..."></textarea>
-      <div style="display:flex;justify-content:flex-end;margin-top:8px">
-        <button class="btn yellow" onclick="window._addComment('${a.id}')">💬 Ajouter</button>
+      <div id="drawer-coaching">${renderCoachingFiches(a)}</div>
+    </div>
+
+    <div class="fiche-tab-panel" data-tab="plans">
+      <div class="drawer-section-title" style="display:flex;align-items:center;justify-content:space-between;margin-top:0">
+        <span>🎯 Plan d'action</span>
+        <button class="btn" style="font-size:11px;padding:4px 10px" onclick="window._openAddPlanAction('${a.id}')">+ Ajouter</button>
+      </div>
+      <div id="drawer-plans-action">${renderPlansAction(a)}</div>
+    </div>
+
+    <div class="fiche-tab-panel" data-tab="historique">
+      <div class="drawer-section-title" style="margin-top:0">🕓 Historique des scores</div>
+      <div id="drawer-historique" style="font-size:12px;color:var(--muted);margin-bottom:4px">
+        <div style="padding:8px 0;color:var(--muted);font-size:12px">⏳ Chargement...</div>
+      </div>
+    </div>
+
+    <div class="fiche-tab-panel" data-tab="commentaires">
+      <div class="drawer-section-title" style="margin-top:0">💬 Commentaires</div>
+      <div id="comments-list">${commentsHtml}</div>
+      <div class="comment-form" style="margin-top:12px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+          <div><div class="flabel">Votre nom</div><input type="text" id="c-author" placeholder="Ex: Karim" style="font-size:13px"></div>
+          <div><div class="flabel">Mois concerné</div><select id="c-month" style="font-size:13px">${D.months.map(m=>`<option value="${m}">${m}</option>`).join('')}</select></div>
+        </div>
+        <textarea id="c-text" placeholder="Commentaire sur cet agent..."></textarea>
+        <div style="display:flex;justify-content:flex-end;margin-top:8px">
+          <button class="btn yellow" onclick="window._addComment('${a.id}')">💬 Ajouter</button>
+        </div>
       </div>
     </div>`;
 
@@ -6117,6 +6167,7 @@ window._saveCoaching = async function(agentId, idx){
   closeM();
   var listEl = document.getElementById('drawer-coaching');
   if(listEl) listEl.innerHTML = renderCoachingFiches(agent);
+  refreshFicheTabBadges(agent);
 };
 
 window._deleteCoaching = async function(agentId, idx){
@@ -6127,6 +6178,7 @@ window._deleteCoaching = async function(agentId, idx){
   await saveD();
   var listEl = document.getElementById('drawer-coaching');
   if(listEl) listEl.innerHTML = renderCoachingFiches(agent);
+  refreshFicheTabBadges(agent);
 };
 
 // ── PLANS D'ACTION ────────────────────────────────────────────────────────────
@@ -6222,6 +6274,7 @@ window._savePlanAction = async function(agentId, idx){
   closeM();
   var listEl = document.getElementById('drawer-plans-action');
   if(listEl) listEl.innerHTML = renderPlansAction(agent);
+  refreshFicheTabBadges(agent);
 };
 
 window._deletePlanAction = async function(agentId, idx){
@@ -6232,6 +6285,7 @@ window._deletePlanAction = async function(agentId, idx){
   await saveD();
   var listEl = document.getElementById('drawer-plans-action');
   if(listEl) listEl.innerHTML = renderPlansAction(agent);
+  refreshFicheTabBadges(agent);
 };
 
 // ── VUE D'ENSEMBLE DES PLANS D'ACTION ────────────────────────────────────────
