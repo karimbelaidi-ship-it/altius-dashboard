@@ -7510,10 +7510,49 @@ document.addEventListener('click', function(e){
       gotoPage: 'projets'
     },
     {
+      selector: '#admin-nav-menu .nb-dropdown-item[data-page="plans-action"]',
+      title: 'Vue d\'ensemble des Plans d\'action',
+      desc: 'Réservé aux Admin/Respo : suivez tous les plans d\'action créés sur tous les agents, sans avoir à ouvrir chaque fiche une par une.',
+      gotoPage: 'projets',
+      openAdminMenu: true
+    },
+    {
+      selector: '#pg-plans-action .card:first-of-type',
+      title: 'Filtres et suivi',
+      desc: 'Filtrez par statut, échéance (en retard / à venir), projet ou responsable. Les plans en retard sont automatiquement mis en évidence.',
+      gotoPage: 'plans-action'
+    },
+    {
+      selector: '#admin-nav-menu .nb-dropdown-item[data-page="historique"]',
+      title: 'Historique des scores',
+      desc: 'Chaque modification de score est tracée : qui a changé quoi, l\'ancienne et la nouvelle valeur, et à quel moment.',
+      gotoPage: 'plans-action',
+      openAdminMenu: true
+    },
+    {
+      selector: '#pg-historique .stitle',
+      title: 'Traçabilité complète',
+      desc: 'Cette page liste tout l\'historique, filtrable par agent, mois ou projet. Cette même traçabilité est aussi visible directement dans la fiche de chaque agent.',
+      gotoPage: 'historique'
+    },
+    {
+      selector: '#admin-nav-menu .nb-dropdown-item[data-page="comparateur"]',
+      title: 'Comparateur de projets',
+      desc: 'Un outil pratique pour vos présentations : comparez tous vos projets côte à côte.',
+      gotoPage: 'historique',
+      openAdminMenu: true
+    },
+    {
+      selector: '#pg-comparateur .card:first-of-type',
+      title: 'Comparaison visuelle',
+      desc: 'Score moyen, Performance, Qualité et Présence pour chaque projet, avec graphiques et tableau détaillé — idéal pour un point avec la direction.',
+      gotoPage: 'comparateur'
+    },
+    {
       selector: '.nb[data-page="cal-dl"]',
       title: 'Calendrier & Deadlines',
       desc: 'Direction le calendrier pour voir la planification des évaluations et formations.',
-      gotoPage: 'projets'
+      gotoPage: 'comparateur'
     },
     {
       selector: '#cal-view-grid .card',
@@ -7536,6 +7575,7 @@ document.addEventListener('click', function(e){
   ];
 
   var tourIdx = 0;
+  var activeTourSteps = TOUR_STEPS;
 
   function getTourEl(selector){
     return document.querySelector(selector);
@@ -7567,7 +7607,7 @@ document.addEventListener('click', function(e){
   }
 
   function positionTourStep(){
-    var step = TOUR_STEPS[tourIdx];
+    var step = activeTourSteps[tourIdx];
     var ring = document.getElementById('tour-spotlight-ring');
     var bubble = document.getElementById('tour-bubble');
 
@@ -7611,13 +7651,13 @@ document.addEventListener('click', function(e){
   }
 
   function renderTourStep(){
-    var step = TOUR_STEPS[tourIdx];
-    document.getElementById('tour-step-label').textContent = 'Étape ' + (tourIdx+1) + ' / ' + TOUR_STEPS.length;
+    var step = activeTourSteps[tourIdx];
+    document.getElementById('tour-step-label').textContent = 'Étape ' + (tourIdx+1) + ' / ' + activeTourSteps.length;
     document.getElementById('tour-title').textContent = step.title;
     document.getElementById('tour-desc').textContent = step.desc;
-    document.getElementById('tour-next-btn').textContent = (tourIdx === TOUR_STEPS.length-1) ? 'Terminer ✓' : 'Suivant →';
+    document.getElementById('tour-next-btn').textContent = (tourIdx === activeTourSteps.length-1) ? 'Terminer ✓' : 'Suivant →';
     var dotsEl = document.getElementById('tour-dots');
-    dotsEl.innerHTML = TOUR_STEPS.map(function(s,i){
+    dotsEl.innerHTML = activeTourSteps.map(function(s,i){
       return '<div class="tour-dot'+(i===tourIdx?' on':'')+'"></div>';
     }).join('');
 
@@ -7636,14 +7676,22 @@ document.addEventListener('click', function(e){
 
   window.startGuidedTour = function(){
     tourIdx = 0;
+    // Filtrer les pages réservées Admin/Respo si l'utilisateur n'a pas ce rôle
+    var role = CURRENT_USER ? CURRENT_USER.role : '';
+    var isAdminRespo = (role === 'admin' || role === 'respo');
+    var adminOnlyPages = ['plans-action', 'historique', 'comparateur', 'comptes', 'teamleaders', 'archives'];
+    activeTourSteps = TOUR_STEPS.filter(function(step){
+      if(!isAdminRespo && adminOnlyPages.indexOf(step.gotoPage) !== -1) return false;
+      return true;
+    });
     document.getElementById('tour-overlay').style.display = 'block';
-    navigateToTourPage(TOUR_STEPS[0].gotoPage).then(function(){
+    navigateToTourPage(activeTourSteps[0].gotoPage).then(function(){
       setTimeout(renderTourStep, 150);
     });
   };
 
   window._tourNext = function(){
-    if(tourIdx >= TOUR_STEPS.length - 1){
+    if(tourIdx >= activeTourSteps.length - 1){
       window._tourSkip();
       return;
     }
