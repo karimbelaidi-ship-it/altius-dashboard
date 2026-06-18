@@ -599,6 +599,33 @@
     .formation-suggestion-title { font-size: 13px; font-weight: 700; color: #5a4fc4; margin-bottom: 6px; display:flex; align-items:center; gap:6px; }
     .formation-suggestion-desc { font-size: 12px; color: var(--muted); line-height: 1.5; margin-bottom: 10px; }
     .formation-module-pill { display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:700; padding:4px 10px; border-radius:20px; background:rgba(127,119,221,.15); color:#5a4fc4; margin-right:6px; margin-bottom:6px; }
+
+    /* ── VISITE GUIDÉE ── */
+    #tour-overlay {
+      position: fixed; inset: 0; z-index: 970; pointer-events: none; display: none;
+    }
+    #tour-dim {
+      position: fixed; inset: 0; background: rgba(0,0,0,.55);
+      pointer-events: auto; transition: clip-path .35s ease;
+    }
+    #tour-spotlight-ring {
+      position: fixed; border: 2px solid var(--yellow); border-radius: 10px;
+      box-shadow: 0 0 0 4px rgba(245,200,0,.25), 0 0 24px rgba(245,200,0,.35);
+      pointer-events: none; transition: all .35s ease; z-index: 971;
+    }
+    #tour-bubble {
+      position: fixed; background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; padding: 16px 18px; width: 300px; max-width: 90vw;
+      box-shadow: 0 20px 60px rgba(0,0,0,.3); z-index: 972;
+      pointer-events: auto; transition: top .35s ease, left .35s ease;
+    }
+    .tour-bubble-step { font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px; }
+    .tour-bubble-title { font-size: 14px; font-weight: 800; margin-bottom: 6px; }
+    .tour-bubble-desc { font-size: 12.5px; color: var(--muted); line-height: 1.5; margin-bottom: 14px; }
+    .tour-bubble-nav { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+    .tour-progress-dots { display: flex; gap: 4px; }
+    .tour-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--border); transition: background .2s; }
+    .tour-dot.on { background: var(--yellow); width: 16px; border-radius: 4px; }
     .badge-elite {
       font-size: 10px; font-weight: 700; padding: 2px 7px;
       border-radius: 20px; background: rgba(29,158,117,.15);
@@ -6672,6 +6699,13 @@ setInterval(function(){
 
       <!-- ── GUIDE ── -->
       <div class="aide-panel on" id="aide-panel-guide">
+        <div style="background:linear-gradient(135deg, rgba(245,200,0,.1), rgba(245,200,0,.04));border:1px solid rgba(245,200,0,.3);border-radius:12px;padding:14px 16px;margin-bottom:18px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+          <div>
+            <div style="font-size:13px;font-weight:700;margin-bottom:3px">🧭 Nouveau sur le dashboard ?</div>
+            <div style="font-size:12px;color:var(--muted)">Suivez la visite guidée pour découvrir les fonctionnalités principales en 2 minutes.</div>
+          </div>
+          <button class="btn yellow" style="white-space:nowrap" onclick="window.closeOnboarding();window.startGuidedTour()">▶ Lancer la visite</button>
+        </div>
         <div id="aide-guide-role-label" class="aide-section-title">📋 Vos raccourcis principaux</div>
         <div id="onboarding-steps"></div>
 
@@ -7384,6 +7418,165 @@ document.addEventListener('click', function(e){
     if(animFrame) cancelAnimationFrame(animFrame);
     tick();
   };
+})();
+</script>
+
+<!-- VISITE GUIDÉE INTERACTIVE -->
+<div id="tour-overlay">
+  <div id="tour-dim" onclick="window._tourNext()"></div>
+  <div id="tour-spotlight-ring"></div>
+  <div id="tour-bubble">
+    <div class="tour-bubble-step" id="tour-step-label"></div>
+    <div class="tour-bubble-title" id="tour-title"></div>
+    <div class="tour-bubble-desc" id="tour-desc"></div>
+    <div class="tour-bubble-nav">
+      <div class="tour-progress-dots" id="tour-dots"></div>
+      <div style="display:flex;gap:6px">
+        <button class="btn" style="font-size:11px;padding:6px 10px" onclick="window._tourSkip()">Passer</button>
+        <button class="btn yellow" style="font-size:11px;padding:6px 12px" id="tour-next-btn" onclick="window._tourNext()">Suivant →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var TOUR_STEPS = [
+    {
+      selector: '.logo-name',
+      title: 'Bienvenue sur Altius Dashboard 👋',
+      desc: 'Cette visite guidée va vous montrer les fonctionnalités principales en quelques étapes. Cliquez sur "Suivant" pour continuer.',
+      page: null
+    },
+    {
+      selector: '#kgrid',
+      title: 'Indicateurs clés (KPIs)',
+      desc: 'Ces cartes affichent en un coup d\'œil les chiffres essentiels : agents actifs, score moyen, nombre d\'agents en Rang S et en Rang D.',
+      page: 'overview'
+    },
+    {
+      selector: '#trend-banner',
+      title: 'Tendance de performance',
+      desc: 'Cette bannière montre l\'évolution du score moyen sur les 6 derniers mois, avec une indication claire si ça monte ou ça baisse.',
+      page: 'overview'
+    },
+    {
+      selector: '#perf-decroche-grid',
+      title: 'Qui performe / Qui décroche',
+      desc: 'Repérez immédiatement les agents les plus performants et ceux qui ont besoin d\'attention. Cliquez sur un nom pour ouvrir sa fiche complète.',
+      page: 'overview'
+    },
+    {
+      selector: '.nb[data-page="agents"]',
+      title: 'Onglet Agents',
+      desc: 'Retrouvez la liste complète de vos agents, filtrable par rang, avec accès à leur fiche détaillée, historique et plans d\'action.',
+      page: 'overview'
+    },
+    {
+      selector: '.nb[data-page="cal-dl"]',
+      title: 'Calendrier & Deadlines',
+      desc: 'Planifiez vos évaluations et formations sur un vrai calendrier visuel, et suivez vos échéances importantes.',
+      page: 'overview'
+    },
+    {
+      selector: '#search-trigger-btn',
+      title: 'Recherche globale',
+      desc: 'Trouvez instantanément un agent, un projet, un mois ou une deadline. Astuce : le raccourci Ctrl+K l\'ouvre depuis n\'importe où.',
+      page: 'overview'
+    },
+    {
+      selector: 'button[onclick="window.openExportModal()"]',
+      title: 'Export PDF & Excel',
+      desc: 'Générez des rapports complets ou ciblés (par projet, par agent) en un clic, dans le format de votre choix.',
+      page: 'overview'
+    }
+  ];
+
+  var tourIdx = 0;
+
+  function getTourEl(selector){
+    return document.querySelector(selector);
+  }
+
+  function positionTourStep(){
+    var step = TOUR_STEPS[tourIdx];
+    var el = getTourEl(step.selector);
+    var ring = document.getElementById('tour-spotlight-ring');
+    var bubble = document.getElementById('tour-bubble');
+
+    if(!el){
+      // élément non trouvé (page pas encore rendue) : centrer la bulle, masquer le ring
+      ring.style.opacity = '0';
+      bubble.style.top = '50%';
+      bubble.style.left = '50%';
+      bubble.style.transform = 'translate(-50%,-50%)';
+      return;
+    }
+    ring.style.opacity = '1';
+    var rect = el.getBoundingClientRect();
+    var pad = 6;
+    ring.style.top = (rect.top - pad) + 'px';
+    ring.style.left = (rect.left - pad) + 'px';
+    ring.style.width = (rect.width + pad*2) + 'px';
+    ring.style.height = (rect.height + pad*2) + 'px';
+
+    // Positionner la bulle : sous l'élément si la place le permet, sinon au-dessus
+    var bubbleW = 300;
+    var spaceBelow = window.innerHeight - rect.bottom;
+    var top, left;
+    if(spaceBelow > 200){
+      top = rect.bottom + 16;
+    } else {
+      top = Math.max(16, rect.top - 16 - 220);
+    }
+    left = Math.min(window.innerWidth - bubbleW - 16, Math.max(16, rect.left));
+    bubble.style.transform = 'none';
+    bubble.style.top = top + 'px';
+    bubble.style.left = left + 'px';
+
+    // Scroll l'élément dans la vue si besoin
+    el.scrollIntoView({behavior:'smooth', block:'center'});
+  }
+
+  function renderTourStep(){
+    var step = TOUR_STEPS[tourIdx];
+    document.getElementById('tour-step-label').textContent = 'Étape ' + (tourIdx+1) + ' / ' + TOUR_STEPS.length;
+    document.getElementById('tour-title').textContent = step.title;
+    document.getElementById('tour-desc').textContent = step.desc;
+    document.getElementById('tour-next-btn').textContent = (tourIdx === TOUR_STEPS.length-1) ? 'Terminer ✓' : 'Suivant →';
+    var dotsEl = document.getElementById('tour-dots');
+    dotsEl.innerHTML = TOUR_STEPS.map(function(s,i){
+      return '<div class="tour-dot'+(i===tourIdx?' on':'')+'"></div>';
+    }).join('');
+    setTimeout(positionTourStep, 50);
+  }
+
+  window.startGuidedTour = function(){
+    tourIdx = 0;
+    // S'assurer qu'on est sur le tableau de bord pour commencer
+    var overviewBtn = document.querySelector('.nb[data-page="overview"]');
+    if(overviewBtn && typeof goPage === 'function') goPage('overview', overviewBtn);
+    document.getElementById('tour-overlay').style.display = 'block';
+    setTimeout(renderTourStep, 150);
+  };
+
+  window._tourNext = function(){
+    if(tourIdx >= TOUR_STEPS.length - 1){
+      window._tourSkip();
+      return;
+    }
+    tourIdx++;
+    renderTourStep();
+  };
+
+  window._tourSkip = function(){
+    document.getElementById('tour-overlay').style.display = 'none';
+  };
+
+  window.addEventListener('resize', function(){
+    var overlay = document.getElementById('tour-overlay');
+    if(overlay && overlay.style.display === 'block') positionTourStep();
+  });
 })();
 </script>
 </body>
