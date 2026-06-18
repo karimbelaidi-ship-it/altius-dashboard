@@ -7423,7 +7423,7 @@ document.addEventListener('click', function(e){
 
 <!-- VISITE GUIDÉE INTERACTIVE -->
 <div id="tour-overlay">
-  <div id="tour-dim" onclick="window._tourNext()"></div>
+  <div id="tour-dim" onclick="event.stopPropagation();window._tourNext()"></div>
   <div id="tour-spotlight-ring"></div>
   <div id="tour-bubble">
     <div class="tour-bubble-step" id="tour-step-label"></div>
@@ -7432,8 +7432,8 @@ document.addEventListener('click', function(e){
     <div class="tour-bubble-nav">
       <div class="tour-progress-dots" id="tour-dots"></div>
       <div style="display:flex;gap:6px">
-        <button class="btn" style="font-size:11px;padding:6px 10px" onclick="window._tourSkip()">Passer</button>
-        <button class="btn yellow" style="font-size:11px;padding:6px 12px" id="tour-next-btn" onclick="window._tourNext()">Suivant →</button>
+        <button class="btn" style="font-size:11px;padding:6px 10px" onclick="event.stopPropagation();window._tourSkip()">Passer</button>
+        <button class="btn yellow" style="font-size:11px;padding:6px 12px" id="tour-next-btn" onclick="event.stopPropagation();window._tourNext()">Suivant →</button>
       </div>
     </div>
   </div>
@@ -7445,50 +7445,93 @@ document.addEventListener('click', function(e){
     {
       selector: '.logo-name',
       title: 'Bienvenue sur Altius Dashboard 👋',
-      desc: 'Cette visite guidée va vous montrer les fonctionnalités principales en quelques étapes. Cliquez sur "Suivant" pour continuer.',
-      page: null
+      desc: 'Cette visite guidée va vous faire découvrir les vraies pages et fonctionnalités du dashboard, étape par étape. Cliquez sur "Suivant" pour commencer.',
+      gotoPage: 'overview'
     },
     {
       selector: '#kgrid',
       title: 'Indicateurs clés (KPIs)',
       desc: 'Ces cartes affichent en un coup d\'œil les chiffres essentiels : agents actifs, score moyen, nombre d\'agents en Rang S et en Rang D.',
-      page: 'overview'
+      gotoPage: 'overview'
     },
     {
       selector: '#trend-banner',
       title: 'Tendance de performance',
       desc: 'Cette bannière montre l\'évolution du score moyen sur les 6 derniers mois, avec une indication claire si ça monte ou ça baisse.',
-      page: 'overview'
+      gotoPage: 'overview'
     },
     {
       selector: '#perf-decroche-grid',
       title: 'Qui performe / Qui décroche',
       desc: 'Repérez immédiatement les agents les plus performants et ceux qui ont besoin d\'attention. Cliquez sur un nom pour ouvrir sa fiche complète.',
-      page: 'overview'
+      gotoPage: 'overview'
     },
     {
       selector: '.nb[data-page="agents"]',
       title: 'Onglet Agents',
-      desc: 'Retrouvez la liste complète de vos agents, filtrable par rang, avec accès à leur fiche détaillée, historique et plans d\'action.',
-      page: 'overview'
+      desc: 'On y va : cette page liste tous vos agents avec leurs scores, badges et historique.',
+      gotoPage: 'overview'
+    },
+    {
+      selector: '#abody',
+      title: 'Liste des agents',
+      desc: 'Cliquez sur n\'importe quel agent pour ouvrir sa fiche : scores détaillés, historique des modifications, plans d\'action et suggestions de formation automatiques.',
+      gotoPage: 'agents'
+    },
+    {
+      selector: '.nb-dropdown-item[data-page="mois"]',
+      title: 'Saisie des scores',
+      desc: 'Direction la page de saisie mensuelle des scores, accessible via le menu Administration.',
+      gotoPage: 'agents',
+      openAdminMenu: true
+    },
+    {
+      selector: '#sgrid',
+      title: 'Mois & Scores',
+      desc: 'C\'est ici que vous saisissez Performance, Qualité, Présence, Engagement et avertissements pour chaque agent, mois par mois.',
+      gotoPage: 'mois'
+    },
+    {
+      selector: '#save-scores-btn',
+      title: 'Enregistrer',
+      desc: 'Un clic ici sauvegarde tout et déclenche automatiquement le calcul des rangs et l\'historique des modifications.',
+      gotoPage: 'mois'
+    },
+    {
+      selector: '.nb[data-page="projets"]',
+      title: 'Onglet Projets',
+      desc: 'Visualisons maintenant la vue par projet, avec les statistiques agrégées.',
+      gotoPage: 'mois'
+    },
+    {
+      selector: '#pgrid',
+      title: 'Performance par projet',
+      desc: 'Comparez vos différents projets (JAPHY, Walter Santé, etc.) avec leurs scores moyens et objectifs commerciaux.',
+      gotoPage: 'projets'
     },
     {
       selector: '.nb[data-page="cal-dl"]',
       title: 'Calendrier & Deadlines',
-      desc: 'Planifiez vos évaluations et formations sur un vrai calendrier visuel, et suivez vos échéances importantes.',
-      page: 'overview'
+      desc: 'Direction le calendrier pour voir la planification des évaluations et formations.',
+      gotoPage: 'projets'
+    },
+    {
+      selector: '#cal-month-grid',
+      title: 'Vue calendrier mensuelle',
+      desc: 'Une vraie grille de calendrier avec vos événements colorés par catégorie. Cliquez sur un jour pour voir le détail et ajouter des notes de réunion.',
+      gotoPage: 'cal-dl'
     },
     {
       selector: '#search-trigger-btn',
       title: 'Recherche globale',
       desc: 'Trouvez instantanément un agent, un projet, un mois ou une deadline. Astuce : le raccourci Ctrl+K l\'ouvre depuis n\'importe où.',
-      page: 'overview'
+      gotoPage: 'cal-dl'
     },
     {
       selector: 'button[onclick="window.openExportModal()"]',
       title: 'Export PDF & Excel',
-      desc: 'Générez des rapports complets ou ciblés (par projet, par agent) en un clic, dans le format de votre choix.',
-      page: 'overview'
+      desc: 'Pour finir : générez des rapports complets ou ciblés (par projet, par agent) en un clic, dans le format de votre choix. Visite terminée ! 🎉',
+      gotoPage: 'cal-dl'
     }
   ];
 
@@ -7496,6 +7539,17 @@ document.addEventListener('click', function(e){
 
   function getTourEl(selector){
     return document.querySelector(selector);
+  }
+
+  function navigateToTourPage(pageId){
+    if(!pageId) return Promise.resolve();
+    var current = document.querySelector('.pg.on');
+    var currentId = current ? current.id.replace('pg-','') : null;
+    if(currentId === pageId) return Promise.resolve();
+    var btn = document.querySelector('.nb[data-page="'+pageId+'"]')
+      || document.querySelector('.nb-dropdown-item[data-page="'+pageId+'"]');
+    if(typeof goPage === 'function') goPage(pageId, btn);
+    return new Promise(function(resolve){ setTimeout(resolve, 200); });
   }
 
   function positionTourStep(){
@@ -7548,16 +7602,26 @@ document.addEventListener('click', function(e){
     dotsEl.innerHTML = TOUR_STEPS.map(function(s,i){
       return '<div class="tour-dot'+(i===tourIdx?' on':'')+'"></div>';
     }).join('');
-    setTimeout(positionTourStep, 50);
+
+    // Si l'étape nécessite d'ouvrir le menu Administration pour révéler l'élément (ex: lien "Mois & Scores")
+    var menu = document.getElementById('admin-nav-menu');
+    if(step.openAdminMenu){
+      if(menu) menu.style.display = '';
+    } else if(menu){
+      menu.style.display = 'none';
+    }
+
+    navigateToTourPage(step.gotoPage).then(function(){
+      setTimeout(positionTourStep, 80);
+    });
   }
 
   window.startGuidedTour = function(){
     tourIdx = 0;
-    // S'assurer qu'on est sur le tableau de bord pour commencer
-    var overviewBtn = document.querySelector('.nb[data-page="overview"]');
-    if(overviewBtn && typeof goPage === 'function') goPage('overview', overviewBtn);
     document.getElementById('tour-overlay').style.display = 'block';
-    setTimeout(renderTourStep, 150);
+    navigateToTourPage(TOUR_STEPS[0].gotoPage).then(function(){
+      setTimeout(renderTourStep, 150);
+    });
   };
 
   window._tourNext = function(){
@@ -7569,8 +7633,19 @@ document.addEventListener('click', function(e){
     renderTourStep();
   };
 
+  window._tourPrev = function(){
+    if(tourIdx <= 0) return;
+    tourIdx--;
+    renderTourStep();
+  };
+
   window._tourSkip = function(){
     document.getElementById('tour-overlay').style.display = 'none';
+    // Fermer le menu admin si la visite l'avait ouvert
+    var menu = document.getElementById('admin-nav-menu');
+    if(menu && menu.classList.contains('on') && typeof window.closeAdminMenu === 'function'){
+      window.closeAdminMenu();
+    }
   };
 
   window.addEventListener('resize', function(){
