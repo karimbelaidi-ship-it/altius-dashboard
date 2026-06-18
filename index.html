@@ -591,6 +591,16 @@
     .pa-status.progress  { background: rgba(245,200,0,.15);   color: #7a5e00; }
     .pa-status.done      { background: rgba(29,158,117,.12);  color: var(--green); }
     .pa-overdue { color: #c0392b !important; font-weight: 700; }
+    .coaching-card {
+      background: var(--light); border: 1px solid var(--border);
+      border-radius: 10px; padding: 12px 14px; margin-bottom: 10px;
+    }
+    .coaching-card-date { font-size: 12px; font-weight: 700; color: var(--text); margin-bottom: 8px; display:flex; justify-content:space-between; align-items:center; }
+    .coaching-section-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 2px; margin-top: 8px; }
+    .coaching-section-label.fort { color: var(--green); }
+    .coaching-section-label.axe { color: #c08000; }
+    .coaching-section-label.plan { color: #5a4fc4; }
+    .coaching-section-text { font-size: 12.5px; color: var(--muted); line-height: 1.5; white-space: pre-wrap; }
     .formation-suggestion {
       background: linear-gradient(135deg, rgba(127,119,221,.08), rgba(55,138,221,.06));
       border: 1px solid rgba(127,119,221,.25); border-radius: 12px;
@@ -2805,6 +2815,11 @@ window._openFiche = function(id){
       <div style="padding:8px 0;color:var(--muted);font-size:12px">⏳ Chargement...</div>
     </div>
     <div id="drawer-formation-suggestion">${renderFormationSuggestion(a)}</div>
+    <div class="drawer-section-title" style="display:flex;align-items:center;justify-content:space-between">
+      <span>🗒️ Fiches de coaching</span>
+      <button class="btn" style="font-size:11px;padding:4px 10px" onclick="window._openAddCoaching('${a.id}')">+ Ajouter</button>
+    </div>
+    <div id="drawer-coaching">${renderCoachingFiches(a)}</div>
     <div class="drawer-section-title" style="display:flex;align-items:center;justify-content:space-between">
       <span>🎯 Plan d'action</span>
       <button class="btn" style="font-size:11px;padding:4px 10px" onclick="window._openAddPlanAction('${a.id}')">+ Ajouter</button>
@@ -6026,6 +6041,92 @@ window._createPlanFromSuggestion = function(agentId, moduleKey){
     if(titreInput) titreInput.value = '📚 Formation : ' + module.label;
     if(descInput) descInput.value = module.detail;
   }, 50);
+};
+
+// ── FICHES DE COACHING ────────────────────────────────────────────────────────
+function renderCoachingFiches(agent){
+  var fiches = agent.coachingFiches || [];
+  if(!fiches.length){
+    return '<p style="font-size:12px;color:var(--muted);padding:4px 0;font-style:italic">Aucune fiche de coaching pour le moment.</p>';
+  }
+  var sorted = fiches.slice().sort(function(f1,f2){ return new Date(f2.date) - new Date(f1.date); });
+  return sorted.map(function(f){
+    var realIdx = fiches.indexOf(f);
+    var dateLabel = f.date ? new Date(f.date).toLocaleDateString('fr-FR',{day:'2-digit',month:'long',year:'numeric'}) : '—';
+    return '<div class="coaching-card">'
+      +'<div class="coaching-card-date">'
+        +'<span>📅 '+dateLabel+(f.auteur?' · par '+f.auteur:'')+'</span>'
+        +'<span style="display:flex;gap:8px">'
+          +'<button onclick="window._openEditCoaching(\''+agent.id+'\','+realIdx+')" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:11px;text-decoration:underline">Modifier</button>'
+          +'<button onclick="window._deleteCoaching(\''+agent.id+'\','+realIdx+')" style="background:none;border:none;cursor:pointer;color:#c0392b;font-size:11px;text-decoration:underline">Suppr.</button>'
+        +'</span>'
+      +'</div>'
+      +(f.pointsForts ? '<div class="coaching-section-label fort">✓ Points forts</div><div class="coaching-section-text">'+f.pointsForts+'</div>' : '')
+      +(f.axesAmelio ? '<div class="coaching-section-label axe">⚠ Axes d\'amélioration</div><div class="coaching-section-text">'+f.axesAmelio+'</div>' : '')
+      +(f.planAction ? '<div class="coaching-section-label plan">→ Plan d\'action</div><div class="coaching-section-text">'+f.planAction+'</div>' : '')
+    +'</div>';
+  }).join('');
+}
+
+window._openAddCoaching = function(agentId){
+  window._openCoachingModal(agentId, null);
+};
+window._openEditCoaching = function(agentId, idx){
+  window._openCoachingModal(agentId, idx);
+};
+
+window._openCoachingModal = function(agentId, idx){
+  var agent = D.agents.find(function(a){return a.id===agentId;});
+  if(!agent) return;
+  var isEdit = idx !== null && idx !== undefined;
+  var fiche = isEdit ? (agent.coachingFiches||[])[idx] : {date: new Date().toISOString().slice(0,10), pointsForts:'', axesAmelio:'', planAction:''};
+
+  var html = '<div class="mhdr"><h3>'+(isEdit?'Modifier la fiche de coaching':'Nouvelle fiche de coaching')+'</h3><button class="xbtn" onclick="closeM()">x</button></div>'
+    +'<div id="fa-coach" class="alert-err"></div>'
+    +'<div class="flabel">Date de la session</div><input type="date" id="coach-date" value="'+(fiche.date||'')+'" style="margin-bottom:14px">'
+    +'<div class="flabel" style="color:var(--green)">✓ Points forts</div><textarea id="coach-forts" rows="3" placeholder="Ce que l\'agent maîtrise bien..." style="width:100%;resize:vertical;font-family:inherit;font-size:13px;padding:10px;border:1px solid var(--border);border-radius:8px;margin-bottom:12px">'+(fiche.pointsForts||'')+'</textarea>'
+    +'<div class="flabel" style="color:#c08000">⚠ Axes d\'amélioration</div><textarea id="coach-axes" rows="3" placeholder="Points à travailler..." style="width:100%;resize:vertical;font-family:inherit;font-size:13px;padding:10px;border:1px solid var(--border);border-radius:8px;margin-bottom:12px">'+(fiche.axesAmelio||'')+'</textarea>'
+    +'<div class="flabel" style="color:#5a4fc4">→ Plan d\'action</div><textarea id="coach-plan" rows="3" placeholder="Actions concrètes décidées ensemble..." style="width:100%;resize:vertical;font-family:inherit;font-size:13px;padding:10px;border:1px solid var(--border);border-radius:8px;margin-bottom:14px">'+(fiche.planAction||'')+'</textarea>'
+    +'<div class="frow"><button class="btn" onclick="closeM()">Annuler</button><button class="btn yellow" onclick="window._saveCoaching(\''+agentId+'\','+(isEdit?idx:'null')+')">💾 Enregistrer</button></div>';
+
+  showModal(html);
+};
+
+window._saveCoaching = async function(agentId, idx){
+  var agent = D.agents.find(function(a){return a.id===agentId;});
+  if(!agent) return;
+  var date = document.getElementById('coach-date').value;
+  var fa = document.getElementById('fa-coach');
+  if(!date){ fa.textContent='La date est obligatoire.'; fa.style.display='block'; return; }
+  var ficheData = {
+    date: date,
+    pointsForts: document.getElementById('coach-forts').value.trim(),
+    axesAmelio: document.getElementById('coach-axes').value.trim(),
+    planAction: document.getElementById('coach-plan').value.trim(),
+    auteur: CURRENT_USER ? CURRENT_USER.nom : 'Admin',
+    creeLe: new Date().toISOString()
+  };
+  if(!agent.coachingFiches) agent.coachingFiches = [];
+  if(idx !== null && idx !== undefined && idx !== 'null' && agent.coachingFiches[idx]){
+    ficheData.creeLe = agent.coachingFiches[idx].creeLe;
+    agent.coachingFiches[idx] = ficheData;
+  } else {
+    agent.coachingFiches.push(ficheData);
+  }
+  await saveD();
+  closeM();
+  var listEl = document.getElementById('drawer-coaching');
+  if(listEl) listEl.innerHTML = renderCoachingFiches(agent);
+};
+
+window._deleteCoaching = async function(agentId, idx){
+  if(!confirm('Supprimer cette fiche de coaching ?')) return;
+  var agent = D.agents.find(function(a){return a.id===agentId;});
+  if(!agent || !agent.coachingFiches) return;
+  agent.coachingFiches.splice(idx, 1);
+  await saveD();
+  var listEl = document.getElementById('drawer-coaching');
+  if(listEl) listEl.innerHTML = renderCoachingFiches(agent);
 };
 
 // ── PLANS D'ACTION ────────────────────────────────────────────────────────────
