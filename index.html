@@ -7434,6 +7434,7 @@ document.addEventListener('click', function(e){
     <div class="tour-bubble-nav">
       <div class="tour-progress-dots" id="tour-dots"></div>
       <div style="display:flex;gap:6px">
+        <button class="btn" style="font-size:11px;padding:6px 10px" id="tour-prev-btn" onclick="event.stopPropagation();window._tourPrev()">← Retour</button>
         <button class="btn" style="font-size:11px;padding:6px 10px" onclick="event.stopPropagation();window._tourSkip()">Passer</button>
         <button class="btn yellow" style="font-size:11px;padding:6px 12px" id="tour-next-btn" onclick="event.stopPropagation();window._tourNext()">Suivant →</button>
       </div>
@@ -7672,6 +7673,8 @@ document.addEventListener('click', function(e){
     document.getElementById('tour-title').textContent = step.title;
     document.getElementById('tour-desc').textContent = step.desc;
     document.getElementById('tour-next-btn').textContent = (tourIdx === activeTourSteps.length-1) ? 'Terminer ✓' : 'Suivant →';
+    var prevBtn = document.getElementById('tour-prev-btn');
+    if(prevBtn) prevBtn.style.visibility = (tourIdx === 0) ? 'hidden' : 'visible';
     var dotsEl = document.getElementById('tour-dots');
     dotsEl.innerHTML = activeTourSteps.map(function(s,i){
       return '<div class="tour-dot'+(i===tourIdx?' on':'')+'"></div>';
