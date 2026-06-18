@@ -605,13 +605,13 @@
       position: fixed; inset: 0; z-index: 970; pointer-events: none; display: none;
     }
     #tour-dim {
-      position: fixed; inset: 0; background: rgba(0,0,0,.55);
-      pointer-events: auto; transition: clip-path .35s ease;
+      position: fixed; inset: 0; background: transparent;
+      pointer-events: auto;
     }
     #tour-spotlight-ring {
       position: fixed; border: 2px solid var(--yellow); border-radius: 10px;
-      box-shadow: 0 0 0 4px rgba(245,200,0,.25), 0 0 24px rgba(245,200,0,.35);
-      pointer-events: none; transition: all .35s ease; z-index: 971;
+      box-shadow: 0 0 0 4px rgba(245,200,0,.3), 0 0 0 9999px rgba(0,0,0,.6);
+      pointer-events: none; transition: all .3s ease; z-index: 971;
     }
     #tour-bubble {
       position: fixed; background: var(--surface); border: 1px solid var(--border);
@@ -7572,14 +7572,17 @@ document.addEventListener('click', function(e){
     var bubble = document.getElementById('tour-bubble');
 
     waitForTourElement(step.selector, 20, function(el){
+      var dim = document.getElementById('tour-dim');
       if(!el){
-        // élément vraiment introuvable après attente : centrer la bulle, masquer le ring
+        // élément vraiment introuvable après attente : centrer la bulle, fond sombre uniforme
         ring.style.opacity = '0';
+        if(dim) dim.style.background = 'rgba(0,0,0,.6)';
         bubble.style.top = '50%';
         bubble.style.left = '50%';
         bubble.style.transform = 'translate(-50%,-50%)';
         return;
       }
+      if(dim) dim.style.background = 'transparent';
       ring.style.opacity = '1';
       var rect = el.getBoundingClientRect();
       var pad = 6;
