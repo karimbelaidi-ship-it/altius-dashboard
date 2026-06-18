@@ -7625,30 +7625,44 @@ document.addEventListener('click', function(e){
         return;
       }
       if(dim) dim.style.background = 'transparent';
-      ring.style.opacity = '1';
+
+      // Scroll seulement si l'élément n'est pas déjà entièrement visible (évite tout décalage inutile)
+      var rect0 = el.getBoundingClientRect();
+      var fullyVisible = rect0.top >= 0 && rect0.bottom <= window.innerHeight;
+      if(!fullyVisible){
+        el.scrollIntoView({behavior:'auto', block:'center'});
+      }
+
+      // Recalculer le rect APRÈS le scroll éventuel pour avoir des coordonnées à jour
       var rect = el.getBoundingClientRect();
       var pad = 6;
+      ring.style.opacity = '1';
       ring.style.top = (rect.top - pad) + 'px';
       ring.style.left = (rect.left - pad) + 'px';
       ring.style.width = (rect.width + pad*2) + 'px';
       ring.style.height = (rect.height + pad*2) + 'px';
 
-      // Positionner la bulle : sous l'élément si la place le permet, sinon au-dessus
+      // Positionner la bulle : sous l'élément si la place le permet, sinon au-dessus, toujours dans le viewport
       var bubbleW = 300;
+      var bubbleEstH = 230; // hauteur estimée généreuse (label+titre+desc+nav+paddings)
       var spaceBelow = window.innerHeight - rect.bottom;
+      var spaceAbove = rect.top;
       var top, left;
-      if(spaceBelow > 200){
+      if(spaceBelow >= bubbleEstH + 16){
         top = rect.bottom + 16;
+      } else if(spaceAbove >= bubbleEstH + 16){
+        top = rect.top - 16 - bubbleEstH;
       } else {
-        top = Math.max(16, rect.top - 16 - 220);
+        // Ni assez de place en dessous ni au-dessus (élément très grand ou plein écran) : on cale en bas du viewport
+        top = window.innerHeight - bubbleEstH - 16;
       }
-      left = Math.min(window.innerWidth - bubbleW - 16, Math.max(16, rect.left));
+      // Clamp final : jamais hors écran, marge de sécurité 12px
+      top = Math.max(12, Math.min(top, window.innerHeight - 80));
+      left = Math.max(12, Math.min(rect.left, window.innerWidth - bubbleW - 12));
+
       bubble.style.transform = 'none';
       bubble.style.top = top + 'px';
       bubble.style.left = left + 'px';
-
-      // Scroll l'élément dans la vue si besoin
-      el.scrollIntoView({behavior:'smooth', block:'center'});
     });
   }
 
