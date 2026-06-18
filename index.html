@@ -591,6 +591,14 @@
     .pa-status.progress  { background: rgba(245,200,0,.15);   color: #7a5e00; }
     .pa-status.done      { background: rgba(29,158,117,.12);  color: var(--green); }
     .pa-overdue { color: #c0392b !important; font-weight: 700; }
+    .formation-suggestion {
+      background: linear-gradient(135deg, rgba(127,119,221,.08), rgba(55,138,221,.06));
+      border: 1px solid rgba(127,119,221,.25); border-radius: 12px;
+      padding: 13px 15px; margin-bottom: 14px;
+    }
+    .formation-suggestion-title { font-size: 13px; font-weight: 700; color: #5a4fc4; margin-bottom: 6px; display:flex; align-items:center; gap:6px; }
+    .formation-suggestion-desc { font-size: 12px; color: var(--muted); line-height: 1.5; margin-bottom: 10px; }
+    .formation-module-pill { display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:700; padding:4px 10px; border-radius:20px; background:rgba(127,119,221,.15); color:#5a4fc4; margin-right:6px; margin-bottom:6px; }
     .badge-elite {
       font-size: 10px; font-weight: 700; padding: 2px 7px;
       border-radius: 20px; background: rgba(29,158,117,.15);
@@ -2769,6 +2777,7 @@ window._openFiche = function(id){
     <div id="drawer-historique" style="font-size:12px;color:var(--muted);margin-bottom:4px">
       <div style="padding:8px 0;color:var(--muted);font-size:12px">⏳ Chargement...</div>
     </div>
+    <div id="drawer-formation-suggestion">${renderFormationSuggestion(a)}</div>
     <div class="drawer-section-title" style="display:flex;align-items:center;justify-content:space-between">
       <span>🎯 Plan d'action</span>
       <button class="btn" style="font-size:11px;padding:4px 10px" onclick="window._openAddPlanAction('${a.id}')">+ Ajouter</button>
@@ -5928,6 +5937,66 @@ window._saveNotesReunion = async function(evalId){
   // Rafraîchir le détail du jour si toujours affiché
   var d = new Date(ev.date);
   window._showCalDayDetail(d.getFullYear(), d.getMonth(), d.getDate());
+};
+
+// ── SUGGESTIONS AUTOMATIQUES DE FORMATION ────────────────────────────────────
+var FORMATION_THRESHOLD = 60;
+var FORMATION_MODULES = {
+  perf:      {label:'Techniques de closing', detail:'Méthode CROC + CAB pour structurer l\'argumentation et conclure plus efficacement.'},
+  qual:      {label:'Gestion des objections', detail:'Traitement des objections clients + renforcement du script qualité.'},
+  pres:      {label:'Coaching ponctualité/assiduité', detail:'Accompagnement individuel sur la régularité de présence.'},
+  perf_qual: {label:'Argumentation commerciale complète', detail:'Module combiné CROC + CAB pour travailler performance et qualité ensemble.'}
+};
+
+function detectAxesFaiblesAgent(agent){
+  if(!D || !D.months || D.months.length < 2) return [];
+  var lastTwo = D.months.slice(-2);
+  var weakAxes = {perf:true, qual:true, pres:true}; // doit être faible sur LES 2 mois
+  var hasData = false;
+  lastTwo.forEach(function(m){
+    var s = agent.scores[m];
+    if(!s || (!s.perf && !s.qual)) { weakAxes.perf=false; weakAxes.qual=false; weakAxes.pres=false; return; }
+    hasData = true;
+    if(!(s.perf < FORMATION_THRESHOLD)) weakAxes.perf = false;
+    if(!(s.qual < FORMATION_THRESHOLD)) weakAxes.qual = false;
+    if(!((s.pres||100) < FORMATION_THRESHOLD)) weakAxes.pres = false;
+  });
+  if(!hasData) return [];
+  var result = [];
+  if(weakAxes.perf) result.push('perf');
+  if(weakAxes.qual) result.push('qual');
+  if(weakAxes.pres) result.push('pres');
+  return result;
+}
+
+function renderFormationSuggestion(agent){
+  var weakAxes = detectAxesFaiblesAgent(agent);
+  if(!weakAxes.length) return '';
+
+  var axisLabels = {perf:'Performance', qual:'Qualité', pres:'Présence'};
+  var moduleKey = (weakAxes.indexOf('perf')!==-1 && weakAxes.indexOf('qual')!==-1) ? 'perf_qual' : weakAxes[0];
+  var module = FORMATION_MODULES[moduleKey];
+  var axesText = weakAxes.map(function(a){return axisLabels[a];}).join(' et ');
+
+  return '<div class="formation-suggestion">'
+    +'<div class="formation-suggestion-title">💡 Suggestion de formation</div>'
+    +'<div class="formation-suggestion-desc">'+axesText+' faible(s) sur les 2 derniers mois (&lt;'+FORMATION_THRESHOLD+'%). Module recommandé :</div>'
+    +'<div><span class="formation-module-pill">📚 '+module.label+'</span></div>'
+    +'<div class="formation-suggestion-desc" style="margin-top:6px;margin-bottom:10px">'+module.detail+'</div>'
+    +'<button class="btn yellow" style="font-size:12px" onclick="window._createPlanFromSuggestion(\''+agent.id+'\',\''+moduleKey+'\')">+ Créer un plan d\'action avec ce module</button>'
+  +'</div>';
+}
+
+window._createPlanFromSuggestion = function(agentId, moduleKey){
+  var module = FORMATION_MODULES[moduleKey];
+  window._openPlanActionModal(agentId, null);
+  // Pré-remplir le formulaire une fois ouvert
+  setTimeout(function(){
+    var titreInput = document.getElementById('pa-titre');
+    var descInput = document.getElementById('pa-desc');
+    if(titreInput) titreInput.value = '📚 Formation : ' + module.label;
+    if(descInput) descInput.value = module.detail;
+  }, 50);
 };
 
 // ── PLANS D'ACTION ────────────────────────────────────────────────────────────
