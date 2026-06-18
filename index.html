@@ -7549,47 +7549,62 @@ document.addEventListener('click', function(e){
     var btn = document.querySelector('.nb[data-page="'+pageId+'"]')
       || document.querySelector('.nb-dropdown-item[data-page="'+pageId+'"]');
     if(typeof goPage === 'function') goPage(pageId, btn);
-    return new Promise(function(resolve){ setTimeout(resolve, 200); });
+    return new Promise(function(resolve){ setTimeout(resolve, 250); });
+  }
+
+  // Réessaie de trouver l'élément jusqu'à maxTries fois (rendu async : Chart.js, Firebase, etc.)
+  function waitForTourElement(selector, maxTries, callback){
+    maxTries = maxTries || 20; // ~2s max (20 x 100ms)
+    var tries = 0;
+    function attempt(){
+      var el = document.querySelector(selector);
+      if(el){ callback(el); return; }
+      tries++;
+      if(tries >= maxTries){ callback(null); return; }
+      setTimeout(attempt, 100);
+    }
+    attempt();
   }
 
   function positionTourStep(){
     var step = TOUR_STEPS[tourIdx];
-    var el = getTourEl(step.selector);
     var ring = document.getElementById('tour-spotlight-ring');
     var bubble = document.getElementById('tour-bubble');
 
-    if(!el){
-      // élément non trouvé (page pas encore rendue) : centrer la bulle, masquer le ring
-      ring.style.opacity = '0';
-      bubble.style.top = '50%';
-      bubble.style.left = '50%';
-      bubble.style.transform = 'translate(-50%,-50%)';
-      return;
-    }
-    ring.style.opacity = '1';
-    var rect = el.getBoundingClientRect();
-    var pad = 6;
-    ring.style.top = (rect.top - pad) + 'px';
-    ring.style.left = (rect.left - pad) + 'px';
-    ring.style.width = (rect.width + pad*2) + 'px';
-    ring.style.height = (rect.height + pad*2) + 'px';
+    waitForTourElement(step.selector, 20, function(el){
+      if(!el){
+        // élément vraiment introuvable après attente : centrer la bulle, masquer le ring
+        ring.style.opacity = '0';
+        bubble.style.top = '50%';
+        bubble.style.left = '50%';
+        bubble.style.transform = 'translate(-50%,-50%)';
+        return;
+      }
+      ring.style.opacity = '1';
+      var rect = el.getBoundingClientRect();
+      var pad = 6;
+      ring.style.top = (rect.top - pad) + 'px';
+      ring.style.left = (rect.left - pad) + 'px';
+      ring.style.width = (rect.width + pad*2) + 'px';
+      ring.style.height = (rect.height + pad*2) + 'px';
 
-    // Positionner la bulle : sous l'élément si la place le permet, sinon au-dessus
-    var bubbleW = 300;
-    var spaceBelow = window.innerHeight - rect.bottom;
-    var top, left;
-    if(spaceBelow > 200){
-      top = rect.bottom + 16;
-    } else {
-      top = Math.max(16, rect.top - 16 - 220);
-    }
-    left = Math.min(window.innerWidth - bubbleW - 16, Math.max(16, rect.left));
-    bubble.style.transform = 'none';
-    bubble.style.top = top + 'px';
-    bubble.style.left = left + 'px';
+      // Positionner la bulle : sous l'élément si la place le permet, sinon au-dessus
+      var bubbleW = 300;
+      var spaceBelow = window.innerHeight - rect.bottom;
+      var top, left;
+      if(spaceBelow > 200){
+        top = rect.bottom + 16;
+      } else {
+        top = Math.max(16, rect.top - 16 - 220);
+      }
+      left = Math.min(window.innerWidth - bubbleW - 16, Math.max(16, rect.left));
+      bubble.style.transform = 'none';
+      bubble.style.top = top + 'px';
+      bubble.style.left = left + 'px';
 
-    // Scroll l'élément dans la vue si besoin
-    el.scrollIntoView({behavior:'smooth', block:'center'});
+      // Scroll l'élément dans la vue si besoin
+      el.scrollIntoView({behavior:'smooth', block:'center'});
+    });
   }
 
   function renderTourStep(){
