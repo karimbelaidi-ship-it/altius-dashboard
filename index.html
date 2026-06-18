@@ -7473,20 +7473,20 @@ document.addEventListener('click', function(e){
       gotoPage: 'overview'
     },
     {
-      selector: '#abody',
+      selector: '#pg-agents .card',
       title: 'Liste des agents',
       desc: 'Cliquez sur n\'importe quel agent pour ouvrir sa fiche : scores détaillés, historique des modifications, plans d\'action et suggestions de formation automatiques.',
       gotoPage: 'agents'
     },
     {
-      selector: '.nb-dropdown-item[data-page="mois"]',
+      selector: '#admin-nav-menu .nb-dropdown-item[data-page="mois"]',
       title: 'Saisie des scores',
       desc: 'Direction la page de saisie mensuelle des scores, accessible via le menu Administration.',
       gotoPage: 'agents',
       openAdminMenu: true
     },
     {
-      selector: '#sgrid',
+      selector: '.saisie-info-banner',
       title: 'Mois & Scores',
       desc: 'C\'est ici que vous saisissez Performance, Qualité, Présence, Engagement et avertissements pour chaque agent, mois par mois.',
       gotoPage: 'mois'
@@ -7504,7 +7504,7 @@ document.addEventListener('click', function(e){
       gotoPage: 'mois'
     },
     {
-      selector: '#pgrid',
+      selector: '#proj-section-scores',
       title: 'Performance par projet',
       desc: 'Comparez vos différents projets (JAPHY, Walter Santé, etc.) avec leurs scores moyens et objectifs commerciaux.',
       gotoPage: 'projets'
@@ -7516,7 +7516,7 @@ document.addEventListener('click', function(e){
       gotoPage: 'projets'
     },
     {
-      selector: '#cal-month-grid',
+      selector: '#cal-view-grid .card',
       title: 'Vue calendrier mensuelle',
       desc: 'Une vraie grille de calendrier avec vos événements colorés par catégorie. Cliquez sur un jour pour voir le détail et ajouter des notes de réunion.',
       gotoPage: 'cal-dl'
