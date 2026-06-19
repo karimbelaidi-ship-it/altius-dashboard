@@ -111,8 +111,8 @@
     .pmeta { font-size: 11px; color: var(--muted); display: flex; gap: 10px; flex-wrap: wrap; margin-top: 6px; }
 
     .pill { display: inline-block; font-size: 11px; padding: 3px 10px; border-radius: 20px; font-weight: 600; }
-    .sS{background:#dcfff2;color:#0a6b45}.sA{background:#dcfff2;color:#0a6b45}
-    .sB{background:#dceeff;color:#0a4d8c}.sC{background:#ede8ff;color:#3b2a8c}.sE2{background:#ffe8e8;color:#8c1a1a}.sD{background:#ffe8e8;color:#8c1a1a}
+    .sS{background:#dcfff2;color:#0a6b45}.sA{background:#e3f7ee;color:#0e7a52}
+    .sB{background:#dceeff;color:#0a4d8c}.sC{background:#ede8ff;color:#3b2a8c}.sD{background:#ffe8e8;color:#8c1a1a}
     .badge-ok{background:#dcfff2;color:#0a6b45;font-size:11px;padding:2px 8px;border-radius:20px}
     .badge-off{background:#ffe8e8;color:#8c1a1a;font-size:11px;padding:2px 8px;border-radius:20px}
 
@@ -1428,8 +1428,8 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const REF = doc(db, "dashboard", "data");
 
-const RL={S:'🏆 Rang A',A:'🏆 Rang A',B:'⭐ Rang B',C:'✅ Rang C',E2:'⚠️ Rang E2',D:'⚠️ Rang E2'};
-const RC={S:'#1D9E75',A:'#1D9E75',B:'#378ADD',C:'#7F77DD',E2:'#E24B4A'};
+const RL={S:'🏆 Rang S',A:'🥇 Rang A',B:'⭐ Rang B',C:'✅ Rang C',D:'⚠️ Rang D'};
+const RC={S:'#1D9E75',A:'#1D9E75',B:'#378ADD',C:'#7F77DD',D:'#E24B4A'};
 const PC=['#1D9E75','#378ADD','#7F77DD','#D85A30','#BA7517','#E24B4A','#3B6D11','#533AB7','#D4537E'];
 const AVC=[['#dcfff2','#0a6b45'],['#dceeff','#0a4d8c'],['#ede8ff','#3b2a8c'],['#fff3dc','#7a4e00'],['#ffe8e8','#8c1a1a'],['#e8f5e9','#1b5e20']];
 const MLIST=['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
@@ -1438,15 +1438,16 @@ const MLIST=['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov'
 // SYSTÈME DE SCORING V2
 // ═══════════════════════════════════════
 
-// Rang statique — nomenclature A/B/C/E2
-function rankStatic(s){return s>=80?'B':s>=65?'C':'E2';}
+// Rang statique — nomenclature A/B/C/D (seuils fixes)
+function rankStatic(s){return s>=90?'A':s>=75?'B':s>=60?'C':'D';}
 
-// Rang final (A réservé au top 5 dynamique — calculé dans rankDynamic)
-function rank(s){return s>=80?'B':s>=65?'C':'E2';}
+// Rang final statique (S est distinct, réservé au top 5 dynamique avec score >=95% — calculé dans rankDynamic)
+function rank(s){return s>=90?'A':s>=75?'B':s>=60?'C':'D';}
 
-// Rang dynamique : top 5 agents = S, reste selon score
+// Rang dynamique : top 5 agents ET score >=95% = S, sinon rang fixe selon score
 function rankDynamic(agentId, scoreVal){
   if(!D) return rank(scoreVal);
+  if(scoreVal < 95) return rank(scoreVal);
   var active = D.agents.filter(function(a){return a.active;});
   var allScores = active.map(function(a){
     var ls = lastScore(a);
@@ -1454,14 +1455,14 @@ function rankDynamic(agentId, scoreVal){
   }).filter(function(x){return x.score > 0;});
   allScores.sort(function(a,b){return b.score - a.score;});
   var top5ids = allScores.slice(0,5).map(function(x){return x.id;});
-  if(top5ids.indexOf(agentId) !== -1) return 'A';
+  if(top5ids.indexOf(agentId) !== -1) return 'S';
   return rank(scoreVal);
 }
 
 var AVERT_LABELS={0:'Aucun',1:'Verbal',2:'Écrit',3:'Mise à pied'};
 function avertLabel(v){return AVERT_LABELS[+v]||'Aucun';}
-function col(s){return s>=80?'#378ADD':s>=65?'#7F77DD':'#E24B4A';}
-function colRank(r){return r==='A'||r==='S'?'#1D9E75':r==='B'?'#378ADD':r==='C'?'#7F77DD':'#E24B4A';}
+function col(s){return s>=90?'#1D9E75':s>=75?'#378ADD':s>=60?'#7F77DD':'#E24B4A';}
+function colRank(r){return r==='S'||r==='A'?'#1D9E75':r==='B'?'#378ADD':r==='C'?'#7F77DD':'#E24B4A';}
 function avc(n){let h=0;for(let c of n)h=(h*31+c.charCodeAt(0))%AVC.length;return AVC[h];}
 function ini(n){const p=n.trim().split(' ');return(p[0][0]+(p[1]?p[1][0]:'')).toUpperCase();}
 function uid(){return'id'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
@@ -1580,7 +1581,7 @@ function renderSparkline(a){
       return x+','+y;
     }).join(' ');
     var lastVal = valid[valid.length-1];
-    var color = lastVal >= 80 ? '#378ADD' : lastVal >= 65 ? '#7F77DD' : '#E24B4A';
+    var color = lastVal >= 90 ? '#1D9E75' : lastVal >= 75 ? '#378ADD' : lastVal >= 60 ? '#7F77DD' : '#E24B4A';
     return '<svg width="'+w+'" height="'+h+'" style="vertical-align:middle;margin:0 6px">'
       +'<polyline points="'+points+'" fill="none" stroke="'+color+'" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>'
       +'</svg>';
@@ -1723,7 +1724,12 @@ function renderOverview(){
   const ss=active.map(a=>lastScore(a)).filter(Boolean);
   const avg=ss.length?Math.round(ss.reduce((t,x)=>t+x.score,0)/ss.length):0;
   const rc={S:0,A:0,B:0,C:0,D:0};
-  ss.forEach(s=>rc[rank(s.score)]++);
+  active.forEach(function(a){
+    const ls = lastScore(a);
+    if(!ls || ls.score<=0) return;
+    const dr = rankDynamic(a.id, ls.score);
+    rc[dr]++;
+  });
   const tot=ss.length||1;
   document.getElementById('subtitle').textContent=D.months[0]+' – '+D.months[D.months.length-1]+' · '+D.projects.length+' projets · '+active.length+' agents';
 
@@ -1978,7 +1984,7 @@ function renderAgents(){
   var role = CURRENT_USER ? CURRENT_USER.role : 'admin';
   var userProjets = CURRENT_USER ? (CURRENT_USER.projets||[]) : [];
   document.getElementById('rankfilter').innerHTML='<span style="font-size:12px;color:var(--muted)">Rang :</span>'+
-    ['Tous','A','B','C','E2'].map(r=>`<button class="fb${r===rf?' on':''}" onclick="window._setRF('${r}')">${r==='Tous'?'Tous':RL[r]}</button>`).join('');
+    ['Tous','A','B','C','D'].map(r=>`<button class="fb${r===rf?' on':''}" onclick="window._setRF('${r}')">${r==='Tous'?'Tous':RL[r]}</button>`).join('');
   let list=D.agents.filter(a=>a.active);
   // Filtre par projets selon rôle
   if(role==='respo'&&userProjets.length) list=list.filter(a=>userProjets.indexOf(a.proj)!==-1);
@@ -2111,14 +2117,14 @@ function renderChef(){
   // KPIs
   document.getElementById('chef-kpi-grid').innerHTML =
     '<div class="chef-kpi"><div class="chef-kpi-val" style="color:'+col(avg)+'">'+avg+'%</div><div class="chef-kpi-label">Score moyen</div></div>'
-    + '<div class="chef-kpi"><div class="chef-kpi-val" style="color:#1D9E75">'+rangS.length+'</div><div class="chef-kpi-label">Rang A (Top 5)</div></div>'
-    + '<div class="chef-kpi"><div class="chef-kpi-val" style="color:#E24B4A">'+rangD.length+'</div><div class="chef-kpi-label">Rang E2 critique</div></div>'
+    + '<div class="chef-kpi"><div class="chef-kpi-val" style="color:#1D9E75">'+rangS.length+'</div><div class="chef-kpi-label">Rang S (Top 5)</div></div>'
+    + '<div class="chef-kpi"><div class="chef-kpi-val" style="color:#E24B4A">'+rangD.length+'</div><div class="chef-kpi-label">Rang D critique</div></div>'
     + '<div class="chef-kpi"><div class="chef-kpi-val">'+agents.length+'</div><div class="chef-kpi-label">Agents actifs</div></div>';
 
-  // Alertes Rang E2
+  // Alertes Rang D
   var alertesEl = document.getElementById('chef-alertes');
   if(rangD.length){
-    alertesEl.innerHTML = '<div class="section-bar-red" style="margin-bottom:10px"><div style="font-size:13px;font-weight:700;color:#8c1a1a">⚠️ Agents en Rang E2 ('+rangD.length+')</div></div>'
+    alertesEl.innerHTML = '<div class="section-bar-red" style="margin-bottom:10px"><div style="font-size:13px;font-weight:700;color:#8c1a1a">⚠️ Agents en Rang D ('+rangD.length+')</div></div>'
       + rangD.map(function(x){
         return '<div class="alert-d">'
           + '<div class="alert-d-icon">⚠️</div>'
@@ -2301,7 +2307,7 @@ window.renderHeatmap = function(){
       if(sv===null){
         html += '<div class="comp-heatmap-cell" style="background:var(--light);color:var(--muted);font-size:11px">—</div>';
       } else {
-        var bg = sv>=95?'#1D9E75':sv>=80?'#378ADD':sv>=65?'#7F77DD':sv>=50?'#BA7517':'#E24B4A';
+        var bg = sv>=90?'#1D9E75':sv>=75?'#378ADD':sv>=60?'#7F77DD':'#E24B4A';
         html += '<div class="comp-heatmap-cell" style="background:'+bg+'22;color:'+bg+'" title="'+a.name+' — '+m+' : '+sv.toFixed(1)+'%">'+sv.toFixed(0)+'%</div>';
       }
     });
@@ -2593,7 +2599,7 @@ window.genRapport = function(){
       doc.text(s&&s.perf?s.perf+'%':'—', margin+60, y+4);
       doc.text(s&&s.qual?s.qual+'%':'—', margin+80, y+4);
       doc.text(s&&s.pres?s.pres+'%':'—', margin+100, y+4);
-      var rgb = sf>=80?[55,138,221]:sf>=65?[127,119,221]:sf>=50?[186,117,23]:[226,75,74];
+      var rgb = sf>=90?[55,138,221]:sf>=75?[127,119,221]:sf>=60?[186,117,23]:[226,75,74];
       if(dr==='S') rgb=[29,158,117];
       doc.setTextColor(rgb[0],rgb[1],rgb[2]);
       doc.setFont('helvetica','bold');
@@ -2821,7 +2827,7 @@ window._openFiche = function(id){
         </div>
         <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
           <span class="pill s${dynRank}">${RL[dynRank]}</span>
-          ${dynRank==='A'?'<span class="badge-elite badge-rank-s-anim" id="badge-rank-s">🏆 Top 5 — Rang S</span>':''}
+          ${dynRank==='S'?'<span class="badge-elite badge-rank-s-anim" id="badge-rank-s">🏆 Top 5 — Rang S</span>':''}
           ${isRegular?'<span class="badge-regularite">⭐ Régulier 3 mois</span>':''}
           ${bonus>0?'<span class="badge-progression">▲ En progression</span>':''}
         </div>
@@ -2902,7 +2908,7 @@ window._openFiche = function(id){
   // Charger l'historique de cet agent
   window._loadAgentHistorique(a.id);
   // Animation Rang S (top 5 dynamique)
-  if(r === 'A' && window._playRankSAnimation){
+  if(r === 'S' && window._playRankSAnimation){
     setTimeout(function(){ window._playRankSAnimation(); }, 300);
   }
 }
@@ -3433,14 +3439,15 @@ function renderProjects(){
     );}).join('');
   }
   // Graphiques
-  var rc={A:0,B:0,C:0,E2:0};
+  var rc={A:0,B:0,C:0,D:0};
   var active=D.agents.filter(function(a){return a.active;});
   var ss=active.map(function(a){return lastScore(a);}).filter(Boolean);
   var tot=ss.length||1;
   ss.forEach(function(s){rc[rank(s.score)]++;});
   dc('donut');
   if(document.getElementById('donut')){
-    charts.donut=new Chart(document.getElementById('donut'),{type:'doughnut',data:{labels:Object.values(RL),datasets:[{data:['A','B','C','E2'].map(function(r){return rc[r];}),backgroundColor:Object.values(RC),borderWidth:3,borderColor:'#fff'}]},options:{responsive:true,maintainAspectRatio:false,cutout:'65%',plugins:{legend:{position:'bottom',labels:{font:{size:11},boxWidth:10,padding:8}},tooltip:{callbacks:{label:function(c){return' '+c.raw+' agents ('+Math.round(c.raw/tot*100)+'%)';}}}}}});
+    var donutLabels=['A','B','C','D'].map(function(r){return RL[r];});
+    charts.donut=new Chart(document.getElementById('donut'),{type:'doughnut',data:{labels:donutLabels,datasets:[{data:['A','B','C','D'].map(function(r){return rc[r];}),backgroundColor:['A','B','C','D'].map(function(r){return RC[r];}),borderWidth:3,borderColor:'#fff'}]},options:{responsive:true,maintainAspectRatio:false,cutout:'65%',plugins:{legend:{position:'bottom',labels:{font:{size:11},boxWidth:10,padding:8}},tooltip:{callbacks:{label:function(c){return' '+c.raw+' agents ('+Math.round(c.raw/tot*100)+'%)';}}}}}});
   }
   dc('projbar');
   if(document.getElementById('projbar')){
@@ -3908,7 +3915,7 @@ window._exportExcelWithOptions = async function(opts){
   else if(projFilter!=='tous' && type!=='agent') scope = scope.filter(function(a){return a.proj===projFilter;});
 
   var wb = XLSX.utils.book_new();
-  var rankLabel = function(s){ return s>=95?'S':s>=80?'A':s>=65?'B':s>=50?'C':'D'; };
+  var rankLabel = function(s){ return rank(s); };
   var calcS = function(s){
     if(!s||(s.perf===0&&s.qual===0)) return 0;
     var eng = typeof s.eng==='object' ? s.eng : {briefs:true,remontees:true,comportement:true};
@@ -4022,8 +4029,12 @@ window._exportPDFWithOptions = function(opts){
   var doc = new jsPDF({orientation:'portrait', unit:'mm', format:'a4'});
   var W = doc.internal.pageSize.getWidth();
   var H = doc.internal.pageSize.getHeight();
-  var rankFn = function(s){ return s>=95?'S':s>=80?'A':s>=65?'B':s>=50?'C':'D'; };
-  var colRgb = function(s){ return s>=95?[29,158,117]:s>=80?[55,138,221]:s>=65?[127,119,221]:s>=50?[186,117,23]:[226,75,74]; };
+  var rankFn = function(s){ return rank(s); }; // A>=90, B>=75, C>=60, D<60 (cohérent avec le système global)
+  var colRgb = function(s){
+    var hex = col(s);
+    var r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+    return [r,g,b];
+  };
   var calcS = function(s){
     if(!s||(s.perf===0&&s.qual===0)) return 0;
     var r=(s.perf/100*0.4)+(s.qual/100*0.3)+(s.pres/100*0.2)+engScore(s.eng);
@@ -4041,7 +4052,12 @@ window._exportPDFWithOptions = function(opts){
   var allScores = active.map(function(a){var ls=getLastScore(a);return ls?ls.score:0;}).filter(function(s){return s>0;});
   var avg = allScores.length?Math.round(allScores.reduce(function(a,b){return a+b;},0)/allScores.length):0;
   var rc = {S:0,A:0,B:0,C:0,D:0};
-  allScores.forEach(function(s){rc[rankFn(s)]++;});
+  active.forEach(function(a){
+    var ls = getLastScore(a);
+    if(!ls || ls.score<=0) return;
+    var dr = rankDynamic(a.id, ls.score);
+    rc[dr]++;
+  });
   var tot = allScores.length||1;
   var dateStr = new Date().toLocaleDateString('fr-FR',{day:'2-digit',month:'long',year:'numeric'});
 
@@ -4220,7 +4236,7 @@ window._exportPDFWithOptions = function(opts){
     doc.text(a.score.toFixed(1)+'%', x+w2-3, y+13, {align:'right'});
   });
   y += 24;
-  // Alertes Rang E2
+  // Alertes Rang D
   var rangD = active.map(function(a){var ls=getLastScore(a);return{name:a.name,proj:a.proj,score:ls?ls.score:0,ls:ls};})
     .filter(function(a){return a.score>0&&rankFn(a.score)==='D';}).sort(function(a,b){return a.score-b.score;});
   if(rangD.length){
@@ -5198,7 +5214,7 @@ function generateNotifications(){
           key: key,
           type: 'danger',
           icon: '⚠️',
-          msg: a.name+' est en Rang E2 ('+ls.score.toFixed(1)+'%) — '+a.proj+(a.operation?' - '+a.operation:''),
+          msg: a.name+' est en Rang D ('+ls.score.toFixed(1)+'%) — '+a.proj+(a.operation?' - '+a.operation:''),
           time: now,
           unread: true
         });
@@ -6870,7 +6886,7 @@ setInterval(function(){
 
         <div class="guide-step" onclick="window.onboardingGo('overview')">
           <div class="guide-step-icon">📋</div>
-          <div><div class="guide-step-title">Tableau de bord</div><div class="guide-step-desc">Vue globale : KPIs, Top 5 agents, alertes Rang E2, évolution mensuelle et accès rapide à toutes les sections.</div></div>
+          <div><div class="guide-step-title">Tableau de bord</div><div class="guide-step-desc">Vue globale : KPIs, Top 5 agents, alertes Rang D, évolution mensuelle et accès rapide à toutes les sections.</div></div>
           <div class="guide-step-arr">›</div>
         </div>
         <div class="guide-step" onclick="window.onboardingGo('mois')">
@@ -6924,7 +6940,7 @@ setInterval(function(){
         <div class="aide-section-title">📊 Scoring</div>
         <div class="tip-card purple">
           <div class="tip-icon">🧮</div>
-          <div><div class="tip-title">Formule de calcul du score final</div><div class="tip-desc"><strong>Score = Perf×40% + Qualité×30% + Présence×20% + Engagement×10%</strong><br>Chaque avertissement déduit des points. Rang A ≥ 90%, B ≥ 70%, C ≥ 50%, E2 &lt; 50%.</div></div>
+          <div><div class="tip-title">Formule de calcul du score final</div><div class="tip-desc"><strong>Score = Perf×40% + Qualité×30% + Présence×20% + Engagement×10%</strong><br>Chaque avertissement déduit des points. Rang S = top 5 du mois et ≥95%, A ≥ 90%, B ≥ 75%, C ≥ 60%, D &lt; 60%.</div></div>
         </div>
         <div class="tip-card yellow">
           <div class="tip-icon">🏆</div>
@@ -6932,7 +6948,7 @@ setInterval(function(){
         </div>
         <div class="tip-card red">
           <div class="tip-icon">⚠️</div>
-          <div><div class="tip-title">Alertes Rang E2</div><div class="tip-desc">Tout agent passant en Rang E2 apparaît immédiatement dans la section Alertes du tableau de bord. Agissez rapidement : accompagnement ou plan d'action.</div></div>
+          <div><div class="tip-title">Alertes Rang D</div><div class="tip-desc">Tout agent passant en Rang D apparaît immédiatement dans la section Alertes du tableau de bord. Agissez rapidement : accompagnement ou plan d'action.</div></div>
         </div>
 
         <div class="aide-section-title">📱 Mobile</div>
@@ -6964,7 +6980,7 @@ setInterval(function(){
         </div>
         <div class="faq-item">
           <div class="faq-q" onclick="window.toggleFaq(this)">Comment fonctionne le calcul des rangs ? <span class="faq-arr">›</span></div>
-          <div class="faq-a">Le score final est calculé automatiquement : <strong>Perf×40% + Qualité×30% + Présence×20% + Engagement×10%</strong>, avec déduction par avertissement. Les seuils : <strong>Rang A</strong> ≥ 90% · <strong>Rang B</strong> ≥ 70% · <strong>Rang C</strong> ≥ 50% · <strong>Rang E2</strong> &lt; 50%.</div>
+          <div class="faq-a">Le score final est calculé automatiquement : <strong>Perf×40% + Qualité×30% + Présence×20% + Engagement×10%</strong>, avec déduction par avertissement. Les seuils : <strong>Rang S</strong> top 5 du mois avec score ≥ 95% · <strong>Rang A</strong> ≥ 90% · <strong>Rang B</strong> ≥ 75% · <strong>Rang C</strong> ≥ 60% · <strong>Rang D</strong> &lt; 60%.</div>
         </div>
         <div class="faq-item">
           <div class="faq-q" onclick="window.toggleFaq(this)">Comment créer un nouveau compte utilisateur ? <span class="faq-arr">›</span></div>
@@ -7355,7 +7371,7 @@ document.addEventListener('click', function(e){
   var gsSelectedIdx = -1;
 
   function gsRankLabel(score){
-    return score>=95?'S':score>=80?'A':score>=65?'B':score>=50?'C':'D';
+    return score>=90?'A':score>=75?'B':score>=60?'C':'D';
   }
   function gsCalcScore(s){
     if(!s||(s.perf===0&&s.qual===0)) return 0;
