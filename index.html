@@ -6980,7 +6980,23 @@ setInterval(function(){
         </div>
         <div class="faq-item">
           <div class="faq-q" onclick="window.toggleFaq(this)">Comment fonctionne le calcul des rangs ? <span class="faq-arr">›</span></div>
-          <div class="faq-a">Le score final est calculé automatiquement : <strong>Perf×40% + Qualité×30% + Présence×20% + Engagement×10%</strong>, avec déduction par avertissement. Les seuils : <strong>Rang S</strong> top 5 du mois avec score ≥ 95% · <strong>Rang A</strong> ≥ 90% · <strong>Rang B</strong> ≥ 75% · <strong>Rang C</strong> ≥ 60% · <strong>Rang D</strong> &lt; 60%.</div>
+          <div class="faq-a">
+            <strong>1. Score de base (sur 100%)</strong><br>
+            Performance × 40% + Qualité × 30% + Présence × 20% + Engagement × 10%
+            <br><br>
+            <strong>2. Engagement</strong> — 3 critères cochés (briefs, remontées, comportement) : 3/3 = 10%, 2/3 = 7%, 1/3 = 3%, 0/3 = 0%.
+            <br><br>
+            <strong>3. Pénalité avertissement</strong> — chaque avertissement retire 10% du score total (avert. 1 = -10%, avert. 2 = -20%). À partir du 3ème avertissement, le score tombe à 0%.
+            <br><br>
+            <strong>4. Rangs attribués</strong><br>
+            🏆 <strong>Rang S</strong> — top 5 du mois ET score ≥ 95%<br>
+            🥇 <strong>Rang A</strong> — score ≥ 90%<br>
+            ⭐ <strong>Rang B</strong> — score ≥ 75%<br>
+            ✅ <strong>Rang C</strong> — score ≥ 60%<br>
+            ⚠️ <strong>Rang D</strong> — score &lt; 60% (déclenche une alerte)
+            <br><br>
+            <em>Exemple : Perf 90%, Qualité 85%, Présence 100%, Engagement 3/3, aucun avertissement → (90×0,4)+(85×0,3)+(100×0,2)+10 = 36+25,5+20+10 = 91,5% → Rang A.</em>
+          </div>
         </div>
         <div class="faq-item">
           <div class="faq-q" onclick="window.toggleFaq(this)">Comment créer un nouveau compte utilisateur ? <span class="faq-arr">›</span></div>
