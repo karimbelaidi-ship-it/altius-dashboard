@@ -5369,7 +5369,7 @@ function renderNotifications(){
   // Sort by most recent
   notifs = notifs.slice().reverse();
 
-  // Update badge using localStorage for per-user read state
+  // Update badge using persistent read state (stored in Firebase)
   var readIds = getReadNotifIds();
   var unread = notifs.filter(function(n){ return readIds.indexOf(n.id) === -1; }).length;
   var badge = document.getElementById('notif-count');
@@ -5402,14 +5402,14 @@ function renderNotifications(){
 }
 
 function getReadNotifIds(){
-  var userId = CURRENT_USER ? CURRENT_USER.id : 'guest';
-  try{ return JSON.parse(localStorage.getItem('readNotifs_'+userId)||'[]'); }catch(e){ return []; }
+  if(!D || !D.notifications) return [];
+  // Le statut lu est maintenant stocké directement sur chaque notification (champ 'unread'), persistant via Firebase
+  return D.notifications.filter(function(n){ return n.unread === false; }).map(function(n){ return n.id; });
 }
-function markAllRead(){
+async function markAllRead(){
   if(!D || !D.notifications) return;
-  var userId = CURRENT_USER ? CURRENT_USER.id : 'guest';
-  var ids = D.notifications.map(function(n){ return n.id; });
-  localStorage.setItem('readNotifs_'+userId, JSON.stringify(ids));
+  D.notifications.forEach(function(n){ n.unread = false; });
+  await saveD();
   var badge = document.getElementById('notif-count');
   if(badge) badge.style.display = 'none';
 }
@@ -5419,8 +5419,7 @@ window.toggleNotifPanel = function(){
   if(!panel) return;
   panel.classList.toggle('open');
   if(panel.classList.contains('open')){
-    markAllRead();
-    renderNotifications();
+    markAllRead().then(function(){ renderNotifications(); });
   }
 }
 
