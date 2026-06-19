@@ -1087,7 +1087,24 @@
             <strong>Comment saisir les scores ?</strong><br>
             Sélectionnez le mois et le projet, puis remplissez les colonnes pour chaque agent.
             Le score est calculé automatiquement. Cliquez sur <strong>💾 Enregistrer</strong> quand vous avez terminé.
+            <br>
+            <a href="#" onclick="event.preventDefault();window._toggleScoringDetail()" style="font-size:12px;color:#a08200;text-decoration:underline">📐 Voir le détail du calcul du score</a>
           </div>
+        </div>
+        <div id="scoring-detail-panel" style="display:none;background:var(--light);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:14px;font-size:12.5px;line-height:1.6;color:var(--muted)">
+          <strong style="color:var(--text)">1. Score de base (sur 100%)</strong><br>
+          Performance × 40% + Qualité × 30% + Présence × 20% + Engagement × 10%
+          <br><br>
+          <strong style="color:var(--text)">2. Engagement</strong> — 3 critères cochés (briefs, remontées, comportement) : 3/3 = 10%, 2/3 = 7%, 1/3 = 3%, 0/3 = 0%.
+          <br><br>
+          <strong style="color:var(--text)">3. Pénalité avertissement</strong> — chaque avertissement retire 10% du score total. À partir du 3ème avertissement, le score tombe à 0%.
+          <br><br>
+          <strong style="color:var(--text)">4. Rangs attribués</strong><br>
+          🏆 Rang S — top 5 du mois ET score ≥ 95% &nbsp;·&nbsp;
+          🥇 Rang A — ≥ 90% &nbsp;·&nbsp;
+          ⭐ Rang B — ≥ 75% &nbsp;·&nbsp;
+          ✅ Rang C — ≥ 60% &nbsp;·&nbsp;
+          ⚠️ Rang D — &lt; 60%
         </div>
         <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:flex-end">
           <div><div class="flabel">Mois</div><select id="msel" onchange="renderScoreGrid()" style="width:auto"></select></div>
@@ -3789,6 +3806,11 @@ window._exportPDF = function(){ window.openExportModal(); };
 
 // ── Export Modal ─────────────────────────────────────────────────────────────
 window._exportFormat = 'pdf';
+window._toggleScoringDetail = function(){
+  var panel = document.getElementById('scoring-detail-panel');
+  if(panel) panel.style.display = (panel.style.display === 'none') ? '' : 'none';
+};
+
 window.openExportModal = function(format){
   window._exportFormat = format || 'pdf';
   var el = document.getElementById('export-modal-overlay');
