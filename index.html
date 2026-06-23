@@ -620,6 +620,17 @@
     .formation-suggestion-title { font-size: 13px; font-weight: 700; color: #5a4fc4; margin-bottom: 6px; display:flex; align-items:center; gap:6px; }
     .formation-suggestion-desc { font-size: 12px; color: var(--muted); line-height: 1.5; margin-bottom: 10px; }
     .formation-module-pill { display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:700; padding:4px 10px; border-radius:20px; background:rgba(127,119,221,.15); color:#5a4fc4; margin-right:6px; margin-bottom:6px; }
+    .objectif-card { background: var(--light); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; margin-bottom: 14px; }
+    .objectif-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+    .objectif-current { font-size: 22px; font-weight: 800; }
+    .objectif-target { font-size: 13px; color: var(--muted); }
+    .objectif-bar-track { height: 8px; background: var(--border); border-radius: 6px; overflow: hidden; position: relative; margin-bottom: 8px; }
+    .objectif-bar-fill { height: 100%; border-radius: 6px; transition: width .3s; }
+    .objectif-bar-target-marker { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--text); }
+    .objectif-meta { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); }
+    .objectif-ecart { font-weight: 700; }
+    .objectif-ecart.pos { color: var(--green); }
+    .objectif-ecart.neg { color: #c0392b; }
 
     /* ── VISITE GUIDÉE ── */
     #tour-overlay {
@@ -2877,6 +2888,11 @@ window._openFiche = function(id){
     </div>
 
     <div class="fiche-tab-panel on" data-tab="apercu">
+      <div class="drawer-section-title" style="display:flex;align-items:center;justify-content:space-between;margin-top:0">
+        <span>🎯 Objectif personnalisé</span>
+        <button class="btn" style="font-size:11px;padding:4px 10px" onclick="window._openSetObjectifAgent('${a.id}')">${a.objectif ? 'Modifier' : '+ Définir'}</button>
+      </div>
+      <div id="drawer-objectif-agent">${renderObjectifAgent(a)}</div>
       <div class="drawer-section-title">📁 Historique projets</div>
       <div class="timeline">${timelineHtml}</div>
       <div id="drawer-formation-suggestion">${renderFormationSuggestion(a)}</div>
@@ -3485,10 +3501,19 @@ function renderProjects(){
     var p=ps[i];
     var ops=(D.operations||{})[p.name]||[];
     var opsHtml=ops.map(function(o){return '<span style="font-size:10px;background:#f0f0f0;color:#555;padding:1px 7px;border-radius:20px;margin-right:3px">'+o+'</span>';}).join('');
-    var target=(D.objectifs||{})[p.name];
-    var targetHtml=target
-      ? '<span style="font-weight:700;color:'+(p.score>=target?'var(--green)':'var(--red)')+'">'+p.score.toFixed(1)+'% / '+target+'%</span>'
-      : '<span style="color:var(--muted);font-size:12px">Non défini</span>';
+    var objP = (D.objectifsProjet||{})[p.name];
+    var targetHtml;
+    if(objP){
+      var ecartP = Math.round((p.score - objP.cible)*10)/10;
+      var echP = objP.echeance ? new Date(objP.echeance).toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'numeric'}) : null;
+      var todayP = new Date(); todayP.setHours(0,0,0,0);
+      var isOverdueP = objP.echeance && p.score<objP.cible && new Date(objP.echeance)<todayP;
+      targetHtml = '<span style="font-weight:700;color:'+(p.score>=objP.cible?'var(--green)':'var(--red)')+'">'+p.score.toFixed(1)+'% / '+objP.cible+'%</span>'
+        +'<div style="font-size:10px;color:'+(ecartP>=0?'var(--green)':'#c0392b')+'">'+(ecartP>=0?'▲ +':'▼ ')+ecartP+'%</div>'
+        +(echP ? '<div style="font-size:10px;color:'+(isOverdueP?'#c0392b':'var(--muted)')+'">📅 '+echP+(isOverdueP?' ⚠️':'')+'</div>' : '');
+    } else {
+      targetHtml = '<span style="color:var(--muted);font-size:12px">Non défini</span>';
+    }
     rows+='<tr>';
     rows+='<td><div style="font-weight:600">'+p.name+'</div><div style="margin-top:3px">'+opsHtml+'</div></td>';
     rows+='<td>'+p.n+'</td>';
@@ -3497,6 +3522,7 @@ function renderProjects(){
     rows+='<td><span class="pill s'+p.rank+'">'+RL[p.rank]+'</span></td>';
     rows+='<td style="display:flex;gap:4px;padding:8px 6px">';
     rows+='<button class="abtn" data-proj="'+p.name+'" onclick="window._editProjOps(this.dataset.proj)">Ops</button>';
+    rows+='<button class="abtn" data-proj="'+p.name+'" onclick="window._openSetObjectifProjet(this.dataset.proj)">🎯 Objectif</button>';
     rows+='<button class="abtn red" data-proj="'+p.name+'" onclick="window._delProj(this.dataset.proj)">Suppr.</button>';
     rows+='</td></tr>';
   }
@@ -6143,6 +6169,127 @@ window._saveNotesReunion = async function(evalId){
   // Rafraîchir le détail du jour si toujours affiché
   var d = new Date(ev.date);
   window._showCalDayDetail(d.getFullYear(), d.getMonth(), d.getDate());
+};
+
+// ── OBJECTIFS PERSONNALISÉS AGENT ────────────────────────────────────────────
+function renderObjectifAgent(agent){
+  var obj = agent.objectif;
+  if(!obj){
+    return '<p style="font-size:12px;color:var(--muted);padding:4px 0;font-style:italic">Aucun objectif défini. Fixez une cible pour suivre la progression de cet agent.</p>';
+  }
+  var ls = lastScore(agent);
+  var current = ls ? ls.score : 0;
+  var target = obj.cible;
+  var ecart = Math.round((current - target)*10)/10;
+  var pct = Math.min(100, Math.round((current/target)*100));
+  var barColor = current >= target ? '#1D9E75' : current >= target*0.85 ? '#F5C800' : '#E24B4A';
+  var echDate = obj.echeance ? new Date(obj.echeance) : null;
+  var today = new Date(); today.setHours(0,0,0,0);
+  var isOverdue = echDate && current < target && echDate < today;
+  var echLabel = echDate ? echDate.toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'numeric'}) : '—';
+
+  return '<div class="objectif-card">'
+    +'<div class="objectif-row">'
+      +'<span class="objectif-current" style="color:'+barColor+'">'+current.toFixed(1)+'%</span>'
+      +'<span class="objectif-target">Objectif : <strong>'+target+'%</strong></span>'
+    +'</div>'
+    +'<div class="objectif-bar-track">'
+      +'<div class="objectif-bar-fill" style="width:'+pct+'%;background:'+barColor+'"></div>'
+      +'<div class="objectif-bar-target-marker" style="left:100%"></div>'
+    +'</div>'
+    +'<div class="objectif-meta">'
+      +'<span class="objectif-ecart '+(ecart>=0?'pos':'neg')+'">'+(ecart>=0?'▲ +':'▼ ')+ecart+'% vs objectif</span>'
+      +'<span'+(isOverdue?' style="color:#c0392b;font-weight:700"':'')+'>📅 Échéance : '+echLabel+(isOverdue?' (dépassée)':'')+'</span>'
+    +'</div>'
+  +'</div>';
+}
+
+window._openSetObjectifAgent = function(agentId){
+  var agent = D.agents.find(function(a){return a.id===agentId;});
+  if(!agent) return;
+  var obj = agent.objectif || {cible:85, echeance:''};
+
+  var html = '<div class="mhdr"><h3>🎯 Objectif personnalisé — '+agent.name+'</h3><button class="xbtn" onclick="closeM()">x</button></div>'
+    +'<div id="fa-obj-agent" class="alert-err"></div>'
+    +'<div class="flabel">Score cible (%)</div><input type="number" id="obj-agent-cible" min="0" max="150" value="'+obj.cible+'" style="margin-bottom:14px">'
+    +'<div class="flabel">Échéance</div><input type="date" id="obj-agent-echeance" value="'+(obj.echeance||'')+'" style="margin-bottom:16px">'
+    +'<div class="frow">'
+      +(agent.objectif ? '<button class="btn" style="color:#c0392b" onclick="window._removeObjectifAgent(\''+agentId+'\')">Supprimer l\'objectif</button>' : '')
+      +'<button class="btn" onclick="closeM()">Annuler</button>'
+      +'<button class="btn yellow" onclick="window._saveObjectifAgent(\''+agentId+'\')">💾 Enregistrer</button>'
+    +'</div>';
+
+  showModal(html);
+};
+
+window._saveObjectifAgent = async function(agentId){
+  var agent = D.agents.find(function(a){return a.id===agentId;});
+  if(!agent) return;
+  var cible = parseFloat(document.getElementById('obj-agent-cible').value);
+  var fa = document.getElementById('fa-obj-agent');
+  if(isNaN(cible) || cible<=0){ fa.textContent='Veuillez saisir un score cible valide.'; fa.style.display='block'; return; }
+  agent.objectif = {
+    cible: cible,
+    echeance: document.getElementById('obj-agent-echeance').value,
+    defePar: CURRENT_USER ? CURRENT_USER.nom : 'Admin',
+    defeLe: new Date().toISOString()
+  };
+  await saveD();
+  closeM();
+  var el = document.getElementById('drawer-objectif-agent');
+  if(el) el.innerHTML = renderObjectifAgent(agent);
+};
+
+window._removeObjectifAgent = async function(agentId){
+  var agent = D.agents.find(function(a){return a.id===agentId;});
+  if(!agent) return;
+  delete agent.objectif;
+  await saveD();
+  closeM();
+  var el = document.getElementById('drawer-objectif-agent');
+  if(el) el.innerHTML = renderObjectifAgent(agent);
+};
+
+// ── OBJECTIFS PERSONNALISÉS PROJET ───────────────────────────────────────────
+window._openSetObjectifProjet = function(projName){
+  if(!D.objectifsProjet) D.objectifsProjet = {};
+  var obj = D.objectifsProjet[projName] || {cible:80, echeance:''};
+
+  var html = '<div class="mhdr"><h3>🎯 Objectif personnalisé — '+projName+'</h3><button class="xbtn" onclick="closeM()">x</button></div>'
+    +'<div id="fa-obj-proj" class="alert-err"></div>'
+    +'<div class="flabel">Score cible (%)</div><input type="number" id="obj-proj-cible" min="0" max="150" value="'+obj.cible+'" style="margin-bottom:14px">'
+    +'<div class="flabel">Échéance</div><input type="date" id="obj-proj-echeance" value="'+(obj.echeance||'')+'" style="margin-bottom:16px">'
+    +'<div class="frow">'
+      +(D.objectifsProjet[projName] ? '<button class="btn" style="color:#c0392b" data-proj="'+projName+'" onclick="window._removeObjectifProjet(this.dataset.proj)">Supprimer l\'objectif</button>' : '')
+      +'<button class="btn" onclick="closeM()">Annuler</button>'
+      +'<button class="btn yellow" data-proj="'+projName+'" onclick="window._saveObjectifProjet(this.dataset.proj)">💾 Enregistrer</button>'
+    +'</div>';
+
+  showModal(html);
+};
+
+window._saveObjectifProjet = async function(projName){
+  var cible = parseFloat(document.getElementById('obj-proj-cible').value);
+  var fa = document.getElementById('fa-obj-proj');
+  if(isNaN(cible) || cible<=0){ fa.textContent='Veuillez saisir un score cible valide.'; fa.style.display='block'; return; }
+  if(!D.objectifsProjet) D.objectifsProjet = {};
+  D.objectifsProjet[projName] = {
+    cible: cible,
+    echeance: document.getElementById('obj-proj-echeance').value,
+    defePar: CURRENT_USER ? CURRENT_USER.nom : 'Admin',
+    defeLe: new Date().toISOString()
+  };
+  await saveD();
+  closeM();
+  renderProjects();
+};
+
+window._removeObjectifProjet = async function(projName){
+  if(!D.objectifsProjet) return;
+  delete D.objectifsProjet[projName];
+  await saveD();
+  closeM();
+  renderProjects();
 };
 
 // ── SUGGESTIONS AUTOMATIQUES DE FORMATION ────────────────────────────────────
