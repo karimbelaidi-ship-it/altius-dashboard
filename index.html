@@ -3969,6 +3969,37 @@ window._exportExcelWithOptions = async function(opts){
   };
   var avertLabels = ['Aucun','Verbal','Écrit','Mise à pied'];
 
+  // ── Onglet 0 : Résumé (page de garde) ──
+  var lastMResume = months[months.length-1];
+  var scoresResume = scope.map(function(a){ var s=a.scores[lastMResume]; return s?calcS(s):0; }).filter(function(s){return s>0;});
+  var avgResume = scoresResume.length ? Math.round(scoresResume.reduce(function(t,x){return t+x;},0)/scoresResume.length*10)/10 : 0;
+  var rcResume = {S:0,A:0,B:0,C:0,D:0};
+  scope.forEach(function(a){
+    var s = a.scores[lastMResume];
+    if(!s || (!s.perf && !s.qual)) return;
+    var sf = calcS(s);
+    var dr = rankDynamic(a.id, sf);
+    rcResume[dr]++;
+  });
+  var typeLabels = {complet:'Rapport complet', synthese:'Synthese executive', projet:'Rapport par projet', agent:'Fiche agent individuelle'};
+  var resumeRows = [
+    {Indicateur:'ALTIUS CONTACT', Valeur:''},
+    {Indicateur:'Type de rapport', Valeur: typeLabels[type]||'Rapport'},
+    {Indicateur:'Periode', Valeur: periodLabel},
+    {Indicateur:'Genere le', Valeur: new Date().toLocaleDateString('fr-FR',{day:'2-digit',month:'long',year:'numeric'})},
+    {Indicateur:'', Valeur:''},
+    {Indicateur:'Agents actifs', Valeur: scope.filter(function(a){return a.active;}).length},
+    {Indicateur:'Score moyen global (%)', Valeur: avgResume},
+    {Indicateur:'Rang S - Elite', Valeur: rcResume.S},
+    {Indicateur:'Rang A', Valeur: rcResume.A},
+    {Indicateur:'Rang B', Valeur: rcResume.B},
+    {Indicateur:'Rang C', Valeur: rcResume.C},
+    {Indicateur:'Rang D - Critique', Valeur: rcResume.D}
+  ];
+  var ws0 = XLSX.utils.json_to_sheet(resumeRows, {skipHeader:true});
+  ws0['!cols'] = [{wch:26},{wch:24}];
+  XLSX.utils.book_append_sheet(wb, ws0, 'Résumé');
+
   // ── Onglet 1 : Scores détaillés (pour chaque mois sélectionné x chaque agent) ──
   var scoreRows = [];
   scope.forEach(function(a){
@@ -3989,6 +4020,7 @@ window._exportExcelWithOptions = async function(opts){
   });
   var ws1 = XLSX.utils.json_to_sheet(scoreRows);
   ws1['!cols'] = [{wch:22},{wch:16},{wch:10},{wch:14},{wch:12},{wch:12},{wch:16},{wch:18},{wch:20},{wch:14},{wch:14},{wch:8},{wch:16}];
+  ws1['!autofilter'] = { ref: ws1['!ref'] };
   XLSX.utils.book_append_sheet(wb, ws1, 'Scores détaillés');
 
   // ── Onglet 2 : Classement (dernier mois de la période) ──
@@ -4003,6 +4035,7 @@ window._exportExcelWithOptions = async function(opts){
     rankRows.forEach(function(r,i){ r['Position'] = i+1; });
     var ws2 = XLSX.utils.json_to_sheet(rankRows, {header:['Position','Agent','Projet','Score final (%)','Rang','Mois']});
     ws2['!cols'] = [{wch:10},{wch:22},{wch:16},{wch:16},{wch:8},{wch:10}];
+    ws2['!autofilter'] = { ref: ws2['!ref'] };
     XLSX.utils.book_append_sheet(wb, ws2, 'Classement');
   }
 
@@ -4017,6 +4050,7 @@ window._exportExcelWithOptions = async function(opts){
     });
     var ws3 = XLSX.utils.json_to_sheet(projStatsRows);
     ws3['!cols'] = [{wch:18},{wch:14},{wch:16},{wch:10}];
+    ws3['!autofilter'] = { ref: ws3['!ref'] };
     XLSX.utils.book_append_sheet(wb, ws3, 'Stats par projet');
   }
 
@@ -4041,6 +4075,7 @@ window._exportExcelWithOptions = async function(opts){
     if(histRows.length){
       var ws4 = XLSX.utils.json_to_sheet(histRows);
       ws4['!cols'] = [{wch:22},{wch:10},{wch:16},{wch:18},{wch:14},{wch:14},{wch:18},{wch:18}];
+      ws4['!autofilter'] = { ref: ws4['!ref'] };
       XLSX.utils.book_append_sheet(wb, ws4, 'Historique modifications');
     }
   } catch(e) {
@@ -4058,6 +4093,29 @@ window.doLogout = function(){
     location.reload();
   }
 };
+
+// Dessine le vrai logo Altius (3 polygones precis) en jsPDF.
+// cx, cy = centre horizontal / haut du logo. size = largeur totale en mm.
+function drawAltiusLogo(doc, cx, topY, size){
+  var h = size * (200/208.3); // ratio reel du logo
+  var x0 = cx - size/2;
+  var y0 = topY;
+
+  function poly(startRel, deltasRel, color){
+    doc.setFillColor(color[0], color[1], color[2]);
+    var x = x0 + startRel[0]*size;
+    var y = y0 + startRel[1]*h;
+    var lineArr = deltasRel.map(function(d){ return [d[0]*size, d[1]*h]; });
+    doc.lines(lineArr, x, y, [1,1], 'F', true);
+  }
+
+  // Jambe gauche (blanc)
+  poly([0.5708,0.0], [[-0.2285,0.005],[-0.132,0.407],[0.2285,-0.004]], [255,255,255]);
+  // Jambe droite (blanc)
+  poly([0.6553,0.029], [[-0.1109,0.3075],[0.2247,0.641],[0.2309,0.0225]], [255,255,255]);
+  // Barre transversale (jaune)
+  poly([0.5214,0.505], [[-0.3534,-0.0025],[-0.168,0.491],[0.2285,0.004],[0.097,-0.248],[0.2717,-0.004]], [245,200,0]);
+}
 
 window._exportPDFWithOptions = function(opts){
   if(!D){ alert('Donnees non chargees.'); return; }
@@ -4148,13 +4206,8 @@ window._exportPDFWithOptions = function(opts){
   doc.rect(0,H*0.45,W,2,'F');
   doc.setFillColor(255,255,255);
   doc.setDrawColor(255,255,255);
-  // Logo A shape
-  doc.setFillColor(255,255,255);
-  doc.triangle(W/2-15,H*0.28, W/2,H*0.16, W/2+15,H*0.28,'F');
-  doc.setFillColor(26,26,24);
-  doc.rect(W/2-6,H*0.22,12,5,'F');
-  doc.setFillColor(245,200,0);
-  doc.rect(W/2-8,H*0.25,16,3,'F');
+  // Logo Altius reel (3 polygones precis, dessines via doc.lines avec deltas relatifs)
+  drawAltiusLogo(doc, W/2, H*0.14, 26);
   doc.setTextColor(255,255,255);
   doc.setFontSize(28);
   doc.setFont('helvetica','bold');
