@@ -8161,7 +8161,7 @@ document.addEventListener('click', function(e){
     {
       selector: '#pg-agents .card',
       title: 'Liste des agents',
-      desc: 'Cliquez sur n\'importe quel agent pour ouvrir sa fiche : scores détaillés, historique des modifications, plans d\'action et suggestions de formation automatiques.',
+      desc: 'Cliquez sur n\'importe quel agent pour ouvrir sa fiche : fiches de coaching, plans d\'action, objectif personnalisé avec suivi d\'écart, historique et suggestions de formation automatiques.',
       gotoPage: 'agents'
     },
     {
@@ -8175,6 +8175,12 @@ document.addEventListener('click', function(e){
       selector: '.saisie-info-banner',
       title: 'Mois & Scores',
       desc: 'C\'est ici que vous saisissez Performance, Qualité, Présence, Engagement et avertissements pour chaque agent, mois par mois.',
+      gotoPage: 'mois'
+    },
+    {
+      selector: '#sgrid',
+      title: 'Appels qualité enregistrés',
+      desc: 'L\'icône 📞 à côté du champ Qualité permet de lier un ou plusieurs appels (lien Google Drive, date, commentaire) pour justifier la note attribuée.',
       gotoPage: 'mois'
     },
     {
@@ -8192,8 +8198,15 @@ document.addEventListener('click', function(e){
     {
       selector: '#proj-section-scores',
       title: 'Performance par projet',
-      desc: 'Comparez vos différents projets (JAPHY, Walter Santé, etc.) avec leurs scores moyens et objectifs commerciaux.',
+      desc: 'Comparez vos différents projets (JAPHY, Walter Santé, etc.) avec leurs scores moyens. Un bouton "🎯 Objectif" sur chaque ligne permet de fixer une cible avec échéance.',
       gotoPage: 'projets'
+    },
+    {
+      selector: '.nb[data-page="chef"]',
+      title: 'Mon projet (vue Manager)',
+      desc: 'Pour les Managers et Chefs de projet : suivi détaillé de leur équipe, avec une section "Justificatifs Performance" pour déposer des preuves (export CRM, capture...) appuyant les chiffres.',
+      gotoPage: 'projets',
+      requiresChefAccess: true
     },
     {
       selector: '#admin-nav-menu .nb-dropdown-item[data-page="plans-action"]',
@@ -8381,9 +8394,11 @@ document.addEventListener('click', function(e){
     // Filtrer les pages réservées Admin/Respo si l'utilisateur n'a pas ce rôle
     var role = window.CURRENT_USER ? window.CURRENT_USER.role : '';
     var isAdminRespo = (role === 'admin' || role === 'respo');
+    var hasChefAccess = (role === 'chef' || role === 'teamlead' || role === 'respo');
     var adminOnlyPages = ['plans-action', 'historique', 'comparateur', 'comptes', 'teamleaders', 'archives'];
     activeTourSteps = TOUR_STEPS.filter(function(step){
       if(!isAdminRespo && adminOnlyPages.indexOf(step.gotoPage) !== -1) return false;
+      if(step.requiresChefAccess && !hasChefAccess) return false;
       return true;
     });
     document.getElementById('tour-overlay').style.display = 'block';
