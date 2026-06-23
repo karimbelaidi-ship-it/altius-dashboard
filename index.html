@@ -1430,15 +1430,15 @@
       <div class="chef-kpi-grid" id="chef-kpi-grid"></div>
     </div>
 
-    <!-- Alertes (toujours visible, prioritaire) -->
-    <div id="chef-alertes" style="margin-bottom:16px"></div>
-
     <div class="fiche-tabs" id="chef-tabs">
       <button class="fiche-tab-btn on" data-tab="classement" onclick="window._switchChefTab('classement')">🏆 Classement</button>
       <button class="fiche-tab-btn" data-tab="suivi" onclick="window._switchChefTab('suivi')">📋 Suivi équipe</button>
       <button class="fiche-tab-btn" data-tab="justificatifs" onclick="window._switchChefTab('justificatifs')">📎 Justificatifs</button>
       <button class="fiche-tab-btn" data-tab="evolution" onclick="window._switchChefTab('evolution')">📈 Évolution</button>
     </div>
+
+    <!-- Alertes (sous les onglets, ne bloque plus la navigation) -->
+    <div id="chef-alertes" style="margin-bottom:16px"></div>
 
     <div class="chef-tab-panel on" data-tab="classement">
       <div class="card">
