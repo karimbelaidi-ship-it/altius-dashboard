@@ -1431,6 +1431,15 @@
     <!-- Alertes -->
     <div id="chef-alertes" style="margin-bottom:16px"></div>
 
+    <!-- Justificatifs Performance équipe -->
+    <div class="card" style="margin-bottom:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+        <div class="stitle" style="margin-bottom:0">📎 Justificatifs Performance</div>
+        <button class="btn" style="font-size:11px;padding:4px 10px" onclick="window._openJustifPerf()">+ Ajouter</button>
+      </div>
+      <div id="chef-justif-perf"></div>
+    </div>
+
     <!-- Classement agents -->
     <div class="card" style="margin-bottom:16px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
@@ -2230,7 +2239,119 @@ function renderChef(){
       }
     });
   }
+
+  // Justificatifs Performance
+  var justifEl = document.getElementById('chef-justif-perf');
+  if(justifEl) justifEl.innerHTML = renderJustifPerfList(projName);
+  window._chefCurrentProj = projName;
 }
+
+// ── JUSTIFICATIFS PERFORMANCE PAR PROJET (équipe) ────────────────────────────
+function renderJustifPerfList(projName){
+  if(!D) return '';
+  var byMois = (D.justifsPerf && D.justifsPerf[projName]) || {};
+  var moisAvecJustifs = Object.keys(byMois).filter(function(m){ return byMois[m] && byMois[m].length; });
+  if(!moisAvecJustifs.length){
+    return '<p style="font-size:12px;color:var(--muted);padding:4px 0;font-style:italic">Aucun justificatif déposé pour ce projet. Ajoutez une preuve (export CRM, capture, rapport...) pour appuyer les chiffres de performance de l\'équipe.</p>';
+  }
+  moisAvecJustifs.sort(function(m1,m2){ return D.months.indexOf(m2) - D.months.indexOf(m1); });
+  return moisAvecJustifs.map(function(m){
+    var items = byMois[m];
+    return '<div style="margin-bottom:12px">'
+      +'<div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px">'+m+'</div>'
+      +items.map(function(jp, idx){
+        var dateLabel = jp.date ? new Date(jp.date).toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'numeric'}) : '—';
+        return '<div style="background:var(--light);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:8px">'
+          +'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">'
+            +'<div style="font-size:12px;color:var(--muted)">📅 '+dateLabel+(jp.ajoutePar?' · 👤 '+jp.ajoutePar:'')+'</div>'
+            +'<button onclick="window._deleteJustifPerf(\''+projName+'\',\''+m+'\','+idx+')" style="background:none;border:none;cursor:pointer;color:#c0392b;font-size:11px;text-decoration:underline">Suppr.</button>'
+          +'</div>'
+          +(jp.lien ? '<div style="margin-top:6px"><a href="'+jp.lien+'" target="_blank" rel="noopener" style="font-size:12px;color:#378ADD;word-break:break-all">🔗 '+jp.lien+'</a></div>' : '')
+          +(jp.commentaire ? '<div style="margin-top:6px;font-size:12.5px;color:var(--text)">'+jp.commentaire+'</div>' : '')
+        +'</div>';
+      }).join('')
+    +'</div>';
+  }).join('');
+}
+
+window._jpRowCount = 0;
+
+function jpEmptyRow(idx){
+  return '<div class="jp-row" data-idx="'+idx+'" style="border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:8px;position:relative">'
+    +'<button onclick="window._jpRemoveRow('+idx+')" style="position:absolute;top:8px;right:8px;background:none;border:none;cursor:pointer;color:var(--muted);font-size:14px">✕</button>'
+    +'<div class="flabel">Date</div><input type="date" id="jp-date-'+idx+'" value="'+new Date().toISOString().slice(0,10)+'" style="margin-bottom:8px">'
+    +'<div class="flabel">Lien (export CRM, capture, rapport...)</div><input type="text" id="jp-lien-'+idx+'" placeholder="https://drive.google.com/..." style="margin-bottom:8px">'
+    +'<div class="flabel">Commentaire</div><input type="text" id="jp-commentaire-'+idx+'" placeholder="Ex: Export ventes Juin - equipe complete">'
+  +'</div>';
+}
+
+window._jpAddRow = function(){
+  var container = document.getElementById('jp-rows-container');
+  if(!container) return;
+  var idx = window._jpRowCount++;
+  container.insertAdjacentHTML('beforeend', jpEmptyRow(idx));
+};
+
+window._jpRemoveRow = function(idx){
+  var row = document.querySelector('.jp-row[data-idx="'+idx+'"]');
+  if(row) row.remove();
+};
+
+window._openJustifPerf = function(){
+  var projName = window._chefCurrentProj;
+  if(!projName) return;
+  window._jpRowCount = 0;
+  var lastM = D.months[D.months.length-1];
+
+  var html = '<div class="mhdr"><h3>📎 Justificatifs Performance — '+projName+'</h3><button class="xbtn" onclick="closeM()">x</button></div>'
+    +'<div class="flabel">Mois concerné</div><select id="jp-mois" style="margin-bottom:14px">'+D.months.map(function(m){return '<option value="'+m+'"'+(m===lastM?' selected':'')+'>'+m+'</option>';}).join('')+'</select>'
+    +'<div class="drawer-section-title" style="margin-top:0;display:flex;justify-content:space-between;align-items:center">'
+      +'<span>+ Ajouter des justificatifs</span>'
+      +'<button class="btn" style="font-size:11px;padding:4px 10px" onclick="window._jpAddRow()">+ Ligne</button>'
+    +'</div>'
+    +'<div id="jp-rows-container">'+jpEmptyRow(window._jpRowCount++)+'</div>'
+    +'<div class="frow"><button class="btn" onclick="closeM()">Annuler</button><button class="btn yellow" onclick="window._saveJustifPerf()">💾 Enregistrer tout</button></div>';
+
+  showModal(html);
+};
+
+window._saveJustifPerf = async function(){
+  var projName = window._chefCurrentProj;
+  if(!projName) return;
+  var mois = document.getElementById('jp-mois').value;
+  var rows = document.querySelectorAll('.jp-row');
+  var newJustifs = [];
+  rows.forEach(function(row){
+    var idx = row.dataset.idx;
+    var date = document.getElementById('jp-date-'+idx).value;
+    var lien = document.getElementById('jp-lien-'+idx).value.trim();
+    var commentaire = document.getElementById('jp-commentaire-'+idx).value.trim();
+    if(!date && !lien && !commentaire) return;
+    newJustifs.push({
+      date: date, lien: lien, commentaire: commentaire,
+      ajoutePar: CURRENT_USER ? CURRENT_USER.nom : 'Admin',
+      ajouteLe: new Date().toISOString()
+    });
+  });
+  if(!newJustifs.length) return;
+  if(!D.justifsPerf) D.justifsPerf = {};
+  if(!D.justifsPerf[projName]) D.justifsPerf[projName] = {};
+  if(!D.justifsPerf[projName][mois]) D.justifsPerf[projName][mois] = [];
+  D.justifsPerf[projName][mois] = D.justifsPerf[projName][mois].concat(newJustifs);
+  await saveD();
+  closeM();
+  var justifEl = document.getElementById('chef-justif-perf');
+  if(justifEl) justifEl.innerHTML = renderJustifPerfList(projName);
+};
+
+window._deleteJustifPerf = async function(projName, mois, idx){
+  if(!D.justifsPerf || !D.justifsPerf[projName] || !D.justifsPerf[projName][mois]) return;
+  D.justifsPerf[projName][mois].splice(idx, 1);
+  await saveD();
+  var justifEl = document.getElementById('chef-justif-perf');
+  if(justifEl) justifEl.innerHTML = renderJustifPerfList(projName);
+};
+
 // ══════════════════════════════════════
 // COMPARAISON INTER-MOIS
 // ══════════════════════════════════════
