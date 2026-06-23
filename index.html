@@ -1428,6 +1428,12 @@
       <div class="chef-kpi-grid" id="chef-kpi-grid"></div>
     </div>
 
+    <!-- Actions rapides manager -->
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px" id="chef-quick-actions">
+      <button class="btn" onclick="window._chefGoPlansAction()">🎯 Plans d'action de l'équipe</button>
+      <button class="btn" onclick="window._chefGoCoaching()">🗒️ Coachings récents</button>
+    </div>
+
     <!-- Alertes -->
     <div id="chef-alertes" style="margin-bottom:16px"></div>
 
@@ -2126,6 +2132,11 @@ function renderChef(){
       + '</select>';
   }
   document.getElementById('chef-proj-selector').innerHTML = selHtml;
+  // Bouton "Saisir les scores" uniquement si le rôle a accès à la page Mois & Scores
+  var qaEl = document.getElementById('chef-quick-actions');
+  if(qaEl && !document.getElementById('chef-qa-mois-btn') && (role==='chef' || role==='respo' || role==='admin')){
+    qaEl.insertAdjacentHTML('afterbegin', '<button class="btn yellow" id="chef-qa-mois-btn" onclick="window._qaGo(\'mois\')">📅 Saisir les scores</button>');
+  }
   var agents = D.agents.filter(function(a){ return a.active && a.proj===projName; });
   var lastM = D.months[D.months.length-1];
   var prevM = D.months.length>1 ? D.months[D.months.length-2] : null;
@@ -2207,9 +2218,13 @@ function renderChef(){
         + '<div class="chef-agent-name">'+x.a.name+'</div>'
         + '<div style="display:flex;gap:4px;margin-top:3px;flex-wrap:wrap">'+deltaHtml+badges+'</div>'
       + '</div>'
-      + '<div>'
-        + '<div class="chef-agent-score" style="color:'+col(x.sf)+'">'+x.sf.toFixed(1)+'%</div>'
-        + '<div style="text-align:right;margin-top:2px"><span class="pill s'+x.dr+'" style="font-size:10px">'+RL[x.dr]+'</span></div>'
+      + '<div style="display:flex;align-items:center;gap:6px">'
+        + '<button onclick="event.stopPropagation();window._openAddPlanAction(\''+x.a.id+'\')" title="Créer un plan d\'action" style="background:none;border:1px solid var(--border);border-radius:6px;width:26px;height:26px;cursor:pointer;font-size:12px">🎯</button>'
+        + '<button onclick="event.stopPropagation();window._openAddCoaching(\''+x.a.id+'\')" title="Planifier un coaching" style="background:none;border:1px solid var(--border);border-radius:6px;width:26px;height:26px;cursor:pointer;font-size:12px">🗒️</button>'
+        + '<div style="text-align:right">'
+          + '<div class="chef-agent-score" style="color:'+col(x.sf)+'">'+x.sf.toFixed(1)+'%</div>'
+          + '<div style="margin-top:2px"><span class="pill s'+x.dr+'" style="font-size:10px">'+RL[x.dr]+'</span></div>'
+        + '</div>'
       + '</div>'
     + '</div>';
   });
@@ -2245,6 +2260,67 @@ function renderChef(){
   if(justifEl) justifEl.innerHTML = renderJustifPerfList(projName);
   window._chefCurrentProj = projName;
 }
+
+// ── ACTIONS RAPIDES MANAGER (vue Mon projet) ─────────────────────────────────
+window._chefGoPlansAction = function(){
+  var projName = window._chefCurrentProj;
+  if(!projName || !D) return;
+  var plans = getAllPlansActionFlat().filter(function(p){ return p.projet === projName; });
+  var html = '<div class="mhdr"><h3>🎯 Plans d\'action — '+projName+'</h3><button class="xbtn" onclick="closeM()">x</button></div>';
+  if(!plans.length){
+    html += '<p style="font-size:13px;color:var(--muted);padding:8px 0">Aucun plan d\'action en cours pour cette équipe.</p>';
+  } else {
+    plans.sort(function(a,b){
+      if(a.isOverdue && !b.isOverdue) return -1;
+      if(!a.isOverdue && b.isOverdue) return 1;
+      if(a.statut==='done' && b.statut!=='done') return 1;
+      if(a.statut!=='done' && b.statut==='done') return -1;
+      return new Date(a.echeance||0) - new Date(b.echeance||0);
+    });
+    html += plans.map(function(p){
+      var echLabel = p.echeance ? new Date(p.echeance).toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'numeric'}) : '—';
+      return '<div class="plan-action-card" style="cursor:pointer" onclick="closeM();window._openFiche(\''+p.agentId+'\')">'
+        +'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">'
+          +'<div style="flex:1"><div class="plan-action-title">'+p.titre+'</div><div class="plan-action-desc">'+p.agentNom+'</div></div>'
+          +'<span class="pa-status '+p.statut+'">'+PA_STATUS_LABELS[p.statut]+'</span>'
+        +'</div>'
+        +'<div class="plan-action-meta"><span'+(p.isOverdue?' class="pa-overdue"':'')+'>📅 '+echLabel+(p.isOverdue?' ⚠️':'')+'</span></div>'
+      +'</div>';
+    }).join('');
+  }
+  html += '<div class="frow"><button class="btn yellow" onclick="closeM()">Fermer</button></div>';
+  showModal(html);
+};
+
+window._chefGoCoaching = function(){
+  var projName = window._chefCurrentProj;
+  if(!projName || !D) return;
+  var agents = D.agents.filter(function(a){ return a.proj === projName && a.active; });
+  var allFiches = [];
+  agents.forEach(function(a){
+    (a.coachingFiches||[]).forEach(function(f){
+      allFiches.push({agentNom: a.name, agentId: a.id, fiche: f});
+    });
+  });
+  allFiches.sort(function(x,y){ return new Date(y.fiche.date) - new Date(x.fiche.date); });
+  var recent = allFiches.slice(0,10);
+
+  var html = '<div class="mhdr"><h3>🗒️ Coachings récents — '+projName+'</h3><button class="xbtn" onclick="closeM()">x</button></div>';
+  if(!recent.length){
+    html += '<p style="font-size:13px;color:var(--muted);padding:8px 0">Aucune fiche de coaching enregistrée pour cette équipe.</p>';
+  } else {
+    html += recent.map(function(item){
+      var f = item.fiche;
+      var dateLabel = f.date ? new Date(f.date).toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'numeric'}) : '—';
+      return '<div class="coaching-card" style="cursor:pointer" onclick="closeM();window._openFiche(\''+item.agentId+'\')">'
+        +'<div class="coaching-card-date"><span>📅 '+dateLabel+' · '+item.agentNom+'</span></div>'
+        +(f.pointsForts ? '<div class="coaching-section-label fort">✓ Points forts</div><div class="coaching-section-text">'+f.pointsForts.slice(0,100)+(f.pointsForts.length>100?'...':'')+'</div>' : '')
+      +'</div>';
+    }).join('');
+  }
+  html += '<div class="frow"><button class="btn yellow" onclick="closeM()">Fermer</button></div>';
+  showModal(html);
+};
 
 // ── JUSTIFICATIFS PERFORMANCE PAR PROJET (équipe) ────────────────────────────
 function renderJustifPerfList(projName){
