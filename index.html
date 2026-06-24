@@ -7202,6 +7202,7 @@ window._openUrgentMeetingModal = function(anomalyId, projet){
 };
 
 window._saveUrgentMeeting = async function(anomalyId, projet){
+  try{
   var titre = document.getElementById('urgent-titre').value.trim();
   var date = document.getElementById('urgent-date').value;
   var note = document.getElementById('urgent-note').value.trim();
@@ -7260,6 +7261,10 @@ window._saveUrgentMeeting = async function(anomalyId, projet){
   closeM();
   alert('✅ Réunion convoquée. Les responsables du projet ont été notifiés.');
   if(typeof window._renderCeoView === 'function') window._renderCeoView();
+  } catch(e) {
+    console.error('Erreur _saveUrgentMeeting:', e);
+    alert('❌ Erreur lors de la convocation : '+e.message);
+  }
 };
 
 // ── MOTEUR DE DÉTECTION D'ANOMALIES (vue CEO) ────────────────────────────────
