@@ -6289,7 +6289,9 @@ function showModal(html, wide){
   mb.className='modal'+(wide?' wide':'');
   mb.innerHTML=html;
   document.getElementById('ov').classList.add('on');
-  if(window._isReadOnlyRole){
+  // Les modals de gouvernance CEO (réunion urgente, red flag) restent pleinement actifs même en lecture seule
+  var isGovernanceModal = /id="urgent-|id="redflag-/.test(html);
+  if(window._isReadOnlyRole && !isGovernanceModal){
     setTimeout(function(){
       mb.querySelectorAll('input, textarea, select').forEach(function(el){ el.disabled = true; });
       mb.querySelectorAll('button').forEach(function(btn){
@@ -6412,8 +6414,11 @@ window._applyReadOnlyLock = function(){
     });
     // Désactiver les boutons d'action d'écriture (identifiés par leur fonction), garder navigation/export/lecture
     var actionPatterns = /_save|_add|_delete|_remove|_open(Add|Edit|Set|Coaching|PlanAction|JustifPerf|AppelsQualite|Compte)|openAdd|_editProjOps|_delProj|_doExport|doExportPDF|toggleLockMonth|_addComment|saveScores|window\.doAddCompte|window\.doEditCompte|window\.deleteCompte/;
+    // Actions de gouvernance CEO — toujours autorisées même en lecture seule (ce sont des actions de pilotage, pas de saisie de données métier)
+    var governanceExceptions = /_saveUrgentMeeting|_openUrgentMeetingModal|_saveRedFlag|_openRedFlagModal/;
     main.querySelectorAll('button').forEach(function(btn){
       var oc = btn.getAttribute('onclick') || '';
+      if(governanceExceptions.test(oc)) return;
       if(actionPatterns.test(oc)){
         btn.disabled = true;
         btn.style.opacity = '0.4';
