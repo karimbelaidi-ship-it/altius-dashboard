@@ -3217,6 +3217,7 @@ window._openFiche = function(id){
   if(r === 'S' && window._playRankSAnimation){
     setTimeout(function(){ window._playRankSAnimation(); }, 300);
   }
+  if(window._isReadOnlyRole && window._applyReadOnlyLock) setTimeout(window._applyReadOnlyLock, 100);
 }
 
 // CHANGER DE PROJET avec conservation historique
@@ -5335,7 +5336,7 @@ function applyUserRole(){
     chef:     ['chef','agents','mois','projets','cal-dl','historique'],
     teamlead: ['chef','agents','cal-dl','historique'],
     qualite:  ['chef','agents','cal-dl','historique'],
-    direction:['direction']
+    direction:['direction','overview','chef','agents','mois','projets','archives','teamleaders','comptes','cal-dl','historique','comparateur','plans-action']
   };
   var allowed = tabAccess[role] || ['overview'];
 
@@ -5370,13 +5371,23 @@ function applyUserRole(){
   if(searchBtn) searchBtn.style.display = (role==='direction') ? 'none' : '';
   window._isReadOnlyRole = (role==='direction');
 
-  // Rediriger si la page actuellement active n'est pas autorisée pour ce rôle
+  // Direction : page Direction comme accueil par défaut (uniquement à la connexion initiale)
   var activePg = document.querySelector('.pg.on');
   var activeId = activePg ? activePg.id.replace('pg-','') : null;
+  if(role==='direction' && activeId==='overview' && !window._directionHomeSet){
+    window._directionHomeSet = true;
+    var dirBtn = document.querySelector('.nb[data-page="direction"]');
+    if(typeof goPage === 'function') goPage('direction', dirBtn);
+    return;
+  }
+  // Rediriger si la page actuellement active n'est pas autorisée pour ce rôle
   if(activeId && allowed.indexOf(activeId) === -1 && allowed.length){
     var targetBtn = document.querySelector('.nb[data-page="'+allowed[0]+'"]') || document.querySelector('.nb-dropdown-item[data-page="'+allowed[0]+'"]');
     if(typeof goPage === 'function') goPage(allowed[0], targetBtn);
+    return;
   }
+  // Appliquer le verrou lecture seule sur la page actuellement affichée (cas où goPage n'est pas appelé)
+  if(window._isReadOnlyRole && window._applyReadOnlyLock) setTimeout(window._applyReadOnlyLock, 80);
 }
 
 window.doLogin = function(){
@@ -6124,6 +6135,19 @@ function showModal(html, wide){
   mb.className='modal'+(wide?' wide':'');
   mb.innerHTML=html;
   document.getElementById('ov').classList.add('on');
+  if(window._isReadOnlyRole){
+    setTimeout(function(){
+      mb.querySelectorAll('input, textarea, select').forEach(function(el){ el.disabled = true; });
+      mb.querySelectorAll('button').forEach(function(btn){
+        var txt = (btn.textContent||'').toLowerCase();
+        var isCloseBtn = txt.indexOf('annuler')!==-1 || txt.indexOf('fermer')!==-1 || btn.classList.contains('xbtn');
+        if(!isCloseBtn) btn.disabled = true;
+      });
+      if(!mb.querySelector('.read-only-banner')){
+        mb.insertAdjacentHTML('afterbegin', '<div class="read-only-banner" style="background:rgba(245,200,0,.12);border:1px solid rgba(245,200,0,.3);border-radius:8px;padding:8px 12px;font-size:12px;color:#a08200;margin-bottom:12px">🔒 Mode lecture seule — modification non autorisée pour ce rôle</div>');
+      }
+    }, 0);
+  }
 }
 window.closeM=function(){document.getElementById('ov').classList.remove('on');}
 function showFA(msg){const e=document.getElementById('fa');if(e){e.textContent=msg;e.style.display='block';}}
@@ -6182,6 +6206,7 @@ window.goPage=function(id,btn){
     document.getElementById('pg-cal-dl').classList.add('on');
     if(btn) btn.classList.add('on');
     renderCalDl();
+    if(window._isReadOnlyRole) setTimeout(window._applyReadOnlyLock, 80);
     return;
   }
   // Page chef de projet
@@ -6189,6 +6214,7 @@ window.goPage=function(id,btn){
     document.getElementById('pg-chef').classList.add('on');
     if(btn) btn.classList.add('on');
     renderChef();
+    if(window._isReadOnlyRole) setTimeout(window._applyReadOnlyLock, 80);
     return;
   }
   document.getElementById('pg-'+id).classList.add('on');
@@ -6215,7 +6241,33 @@ window.goPage=function(id,btn){
   if(id==='direction'){
     window._renderDirectionView();
   }
+  if(window._isReadOnlyRole) setTimeout(window._applyReadOnlyLock, 80);
 }
+
+// ── VERROU LECTURE SEULE GLOBAL (rôle Direction) ─────────────────────────────
+window._applyReadOnlyLock = function(){
+  var containers = [document.querySelector('.main'), document.getElementById('agent-drawer')].filter(Boolean);
+  // Désactiver tous les champs de saisie dans les pages (hors filtres de lecture identifiés ci-dessous)
+  var readOnlyFilterIds = ['cmp-mois','hf-mois','hf-projet','hf-agent','pa-f-statut','pa-f-echeance','pa-f-projet','pa-f-resp','chef-proj-sel','msel','psel','search-trigger-btn'];
+  containers.forEach(function(main){
+    main.querySelectorAll('input, textarea, select').forEach(function(el){
+      if(readOnlyFilterIds.indexOf(el.id) !== -1) return; // filtres de consultation, on les laisse actifs
+      if(el.closest('#rankfilter')) return; // filtre de rang, lecture seule
+      if(el.id === 'c-author' || el.id === 'c-month' || el.id === 'c-text') { el.disabled = true; return; }
+      el.disabled = true;
+    });
+    // Désactiver les boutons d'action d'écriture (identifiés par leur fonction), garder navigation/export/lecture
+    var actionPatterns = /_save|_add|_delete|_remove|_open(Add|Edit|Set|Coaching|PlanAction|JustifPerf|AppelsQualite|Compte)|openAdd|_editProjOps|_delProj|_doExport|doExportPDF|toggleLockMonth|_addComment|saveScores|window\.doAddCompte|window\.doEditCompte|window\.deleteCompte/;
+    main.querySelectorAll('button').forEach(function(btn){
+      var oc = btn.getAttribute('onclick') || '';
+      if(actionPatterns.test(oc)){
+        btn.disabled = true;
+        btn.style.opacity = '0.4';
+        btn.style.cursor = 'not-allowed';
+      }
+    });
+  });
+};
 
 window.toggleAdminMenu = function(e){
   e.stopPropagation();
