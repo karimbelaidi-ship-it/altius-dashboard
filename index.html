@@ -1186,6 +1186,12 @@
       <!-- ── ALERTES & ANOMALIES ── -->
       <div class="dir-tab-panel" data-dtab="alertes" style="padding:32px 24px">
         <div style="max-width:820px;margin:0 auto" id="dir-alertes-list"></div>
+        <div style="max-width:820px;margin:24px auto 0">
+          <button onclick="window._toggleResolvedAnomalies()" style="background:none;border:none;color:rgba(255,255,255,.5);font-size:12px;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:6px">
+            <span id="dir-resolved-arrow">▸</span> Alertes traitées (<span id="dir-resolved-count">0</span>)
+          </button>
+          <div id="dir-resolved-list" style="display:none;margin-top:14px"></div>
+        </div>
       </div>
 
       <!-- ── PROJETS ── -->
@@ -7207,6 +7213,7 @@ window._saveUrgentMeeting = async function(anomalyId, projet){
   var note = document.getElementById('urgent-note').value.trim();
   var fa = document.getElementById('fa-urgent');
   if(!titre || !date){ fa.textContent='Le sujet et la date sont obligatoires.'; fa.style.display='block'; return; }
+  var an = detectCeoAnomalies().find(function(a){ return a.id === anomalyId; });
 
   var evId = 'ev'+Date.now();
   if(!D.evaluations) D.evaluations = [];
@@ -7255,6 +7262,20 @@ window._saveUrgentMeeting = async function(anomalyId, projet){
     auteur: CURRENT_USER ? CURRENT_USER.nom : 'CEO',
     refId: evId
   });
+
+  // Marquer l'anomalie comme résolue (traitée via réunion urgente)
+  if(anomalyId){
+    if(!D.ceoAnomaliesResolved) D.ceoAnomaliesResolved = {};
+    D.ceoAnomaliesResolved[anomalyId] = {
+      titre: an ? an.titre : anomalyId,
+      detail: an ? an.detail : '',
+      projet: projet || '',
+      severite: an ? an.severite : '',
+      mode: 'reunion',
+      resoluPar: CURRENT_USER ? CURRENT_USER.nom : 'CEO',
+      resoluLe: new Date().toISOString()
+    };
+  }
 
   await saveD();
   closeM();
@@ -7353,12 +7374,54 @@ function detectCeoAnomalies(){
     }
   });
 
-  return anomalies.sort(function(a,b){
+  var allAnomalies = anomalies.sort(function(a,b){
     if(a.severite==='critique' && b.severite!=='critique') return -1;
     if(a.severite!=='critique' && b.severite==='critique') return 1;
     return 0;
   });
+
+  // Filtrer celles déjà marquées comme traitées (résolues)
+  var resolved = D.ceoAnomaliesResolved || {};
+  return allAnomalies.filter(function(a){ return !resolved[a.id]; });
 }
+
+// Récupère l'historique des anomalies résolues, enrichi avec leur détail d'origine si possible
+function getCeoResolvedAnomalies(){
+  if(!D || !D.ceoAnomaliesResolved) return [];
+  var resolved = D.ceoAnomaliesResolved;
+  return Object.keys(resolved).map(function(id){
+    return Object.assign({id:id}, resolved[id]);
+  }).sort(function(a,b){ return new Date(b.resoluLe||0) - new Date(a.resoluLe||0); });
+}
+
+window._resolveCeoAnomaly = async function(anomalyId, mode){
+  if(!D) return;
+  var anomalies = detectCeoAnomalies();
+  var an = anomalies.find(function(a){ return a.id === anomalyId; });
+  if(!D.ceoAnomaliesResolved) D.ceoAnomaliesResolved = {};
+  D.ceoAnomaliesResolved[anomalyId] = {
+    titre: an ? an.titre : anomalyId,
+    detail: an ? an.detail : '',
+    projet: an ? an.projet : '',
+    severite: an ? an.severite : '',
+    mode: mode, // 'manuel' ou 'reunion'
+    resoluPar: CURRENT_USER ? CURRENT_USER.nom : 'CEO',
+    resoluLe: new Date().toISOString()
+  };
+  // Journaliser dans le fil de gouvernance
+  if(!D.ceoGovernanceLog) D.ceoGovernanceLog = [];
+  D.ceoGovernanceLog.push({
+    id: 'gov'+Date.now(),
+    type: 'anomalie_traitee',
+    icon: mode==='reunion' ? '🚨' : '✅',
+    texte: (mode==='reunion' ? 'Alerte traitée via réunion urgente : ' : 'Alerte marquée comme traitée : ')+(an?an.titre:anomalyId),
+    date: new Date().toISOString(),
+    auteur: CURRENT_USER ? CURRENT_USER.nom : 'CEO',
+    refId: anomalyId
+  });
+  await saveD();
+  if(typeof window._renderCeoView === 'function') window._renderCeoView();
+};
 
 window._renderCeoView = function(){
   if(!D) return;
@@ -7516,11 +7579,43 @@ window._renderCeoView = function(){
             +'<button class="dir-alert-btn" onclick="window._qaGo(\'projets\')">👁️ Voir le détail</button>'
             +'<button class="dir-alert-btn" onclick="window._openRedFlagModal(\''+an.id+'\',\''+projEsc+'\')">🚩 Poser un red flag</button>'
             +'<button class="dir-alert-btn primary" onclick="window._openUrgentMeetingModal(\''+an.id+'\',\''+projEsc+'\')">📅 Reunion urgente</button>'
+            +'<button class="dir-alert-btn" style="border-color:rgba(29,158,117,.4);color:#5fcfa3" onclick="window._resolveCeoAnomaly(\''+an.id+'\',\'manuel\')">✓ Marquer traitée</button>'
           +'</div>'
         +'</div>';
       }).join('');
     }
   }
+
+  // Historique des alertes traitées
+  var resolvedList = getCeoResolvedAnomalies();
+  var resolvedCountEl = document.getElementById('dir-resolved-count');
+  if(resolvedCountEl) resolvedCountEl.textContent = resolvedList.length;
+  var resolvedListEl = document.getElementById('dir-resolved-list');
+  if(resolvedListEl){
+    if(!resolvedList.length){
+      resolvedListEl.innerHTML = '<p style="color:rgba(255,255,255,.35);font-size:12.5px;text-align:center;padding:10px 0">Aucune alerte traitée pour le moment.</p>';
+    } else {
+      resolvedListEl.innerHTML = resolvedList.map(function(r){
+        var dateLabel = r.resoluLe ? new Date(r.resoluLe).toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '';
+        return '<div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:10px;padding:12px 14px;margin-bottom:8px;opacity:.75">'
+          +'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">'
+            +'<div style="color:rgba(255,255,255,.7);font-size:13px;text-decoration:line-through">'+r.titre+'</div>'
+            +'<span style="font-size:10px;color:rgba(255,255,255,.4);white-space:nowrap">'+(r.mode==='reunion'?'🚨 via réunion':'✓ manuel')+'</span>'
+          +'</div>'
+          +'<div style="font-size:11px;color:rgba(255,255,255,.35);margin-top:4px">Traitée par '+r.resoluPar+' le '+dateLabel+'</div>'
+        +'</div>';
+      }).join('');
+    }
+  }
+};
+
+window._toggleResolvedAnomalies = function(){
+  var list = document.getElementById('dir-resolved-list');
+  var arrow = document.getElementById('dir-resolved-arrow');
+  if(!list) return;
+  var isOpen = list.style.display !== 'none';
+  list.style.display = isOpen ? 'none' : 'block';
+  if(arrow) arrow.textContent = isOpen ? '▸' : '▾';
 };
 
 function getAllPlansActionFlat(){
