@@ -1008,6 +1008,7 @@
 
 <div class="nav" id="main-nav" style="display:none">
   <button class="nb on" data-page="overview" onclick="goPage('overview',this)">📋 Tableau de bord</button>
+  <button class="nb" data-page="direction" onclick="goPage('direction',this)">📊 Direction</button>
   <button class="nb" data-page="chef" onclick="goPage('chef',this)">🎯 Mon projet</button>
   <button class="nb" data-page="agents" onclick="goPage('agents',this)">👥 Agents</button>
   <button class="nb" data-page="projets" onclick="goPage('projets',this)">🏢 Projets</button>
@@ -1071,6 +1072,43 @@
       <div style="font-size:13px;font-weight:600;color:#1D9E75;margin-bottom:8px">📥 Données réelles disponibles (Octobre 2025)</div>
       <div style="font-size:12px;color:var(--muted);margin-bottom:10px">64 agents issus de votre fichier Excel sont prêts à être chargés dans la base. Cliquez pour initialiser.</div>
       <button class="btn green" onclick="window.resetDemoData()">📥 Charger les 64 agents (Oct 25)</button>
+    </div>
+  </div>
+
+  <!-- VUE DIRECTION (lecture seule, synthèse globale) -->
+  <div class="pg" id="pg-direction">
+    <div style="text-align:center;padding:20px 10px 30px">
+      <div style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px" id="dir-period"></div>
+      <div style="font-size:15px;color:var(--muted);margin-bottom:30px">Synthèse globale — tous projets</div>
+      <div style="font-size:72px;font-weight:900;line-height:1" id="dir-score-global">—</div>
+      <div style="font-size:14px;color:var(--muted);margin-top:8px">Score moyen de l'entreprise</div>
+      <div id="dir-trend-badge" style="margin-top:14px"></div>
+    </div>
+
+    <div style="max-width:700px;margin:0 auto 30px"><svg viewBox="0 0 700 160" id="dir-trend-svg" style="width:100%;height:140px"></svg></div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;max-width:900px;margin:0 auto 40px">
+      <div style="text-align:center;padding:18px;background:var(--surface);border:1px solid var(--border);border-radius:16px">
+        <div style="font-size:32px;font-weight:800" id="dir-agents-actifs">—</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:4px">Agents actifs</div>
+      </div>
+      <div style="text-align:center;padding:18px;background:var(--surface);border:1px solid var(--border);border-radius:16px">
+        <div style="font-size:32px;font-weight:800" id="dir-projets">—</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:4px">Projets en cours</div>
+      </div>
+      <div style="text-align:center;padding:18px;background:var(--surface);border:1px solid var(--border);border-radius:16px">
+        <div style="font-size:32px;font-weight:800;color:#1D9E75" id="dir-rang-s">—</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:4px">Agents Rang S/A</div>
+      </div>
+      <div style="text-align:center;padding:18px;background:var(--surface);border:1px solid var(--border);border-radius:16px">
+        <div style="font-size:32px;font-weight:800;color:#E24B4A" id="dir-rang-d">—</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:4px">Agents Rang D</div>
+      </div>
+    </div>
+
+    <div style="max-width:900px;margin:0 auto">
+      <div style="font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:14px;text-align:center">Performance par projet</div>
+      <div id="dir-projets-bars" style="display:flex;flex-direction:column;gap:12px"></div>
     </div>
   </div>
 
@@ -5253,7 +5291,8 @@ var ROLES = {
   respo:    {label:'Responsable de production',badge:'role-chef',     desc:'Multi-projets, sans gestion comptes'},
   chef:     {label:'Chef de projet',           badge:'role-chef',     desc:'Ses projets uniquement'},
   teamlead: {label:'Manager',                  badge:'role-teamlead', desc:'Son equipe uniquement'},
-  qualite:  {label:'Qualticien',               badge:'role-qualite',  desc:'Scores qualite de son equipe'}
+  qualite:  {label:'Qualticien',               badge:'role-qualite',  desc:'Scores qualite de son equipe'},
+  direction:{label:'Direction',                badge:'role-patron',   desc:'Lecture seule, vue synthese globale'}
 };
 
 function getAccounts(){
@@ -5295,7 +5334,8 @@ function applyUserRole(){
     respo:    ['overview','chef','agents','mois','projets','archives','teamleaders','cal-dl','historique','comparateur','plans-action'],
     chef:     ['chef','agents','mois','projets','cal-dl','historique'],
     teamlead: ['chef','agents','cal-dl','historique'],
-    qualite:  ['chef','agents','cal-dl','historique']
+    qualite:  ['chef','agents','cal-dl','historique'],
+    direction:['direction']
   };
   var allowed = tabAccess[role] || ['overview'];
 
@@ -5323,6 +5363,19 @@ function applyUserRole(){
   var userInfo = document.getElementById('user-info');
   if(userInfo){
     userInfo.textContent = CURRENT_USER.nom + ' - ' + (ROLES[role]?ROLES[role].label:role);
+  }
+
+  // Direction : lecture seule totale — pas de recherche (qui mène à des fiches avec actions d'écriture)
+  var searchBtn = document.getElementById('search-trigger-btn');
+  if(searchBtn) searchBtn.style.display = (role==='direction') ? 'none' : '';
+  window._isReadOnlyRole = (role==='direction');
+
+  // Rediriger si la page actuellement active n'est pas autorisée pour ce rôle
+  var activePg = document.querySelector('.pg.on');
+  var activeId = activePg ? activePg.id.replace('pg-','') : null;
+  if(activeId && allowed.indexOf(activeId) === -1 && allowed.length){
+    var targetBtn = document.querySelector('.nb[data-page="'+allowed[0]+'"]') || document.querySelector('.nb-dropdown-item[data-page="'+allowed[0]+'"]');
+    if(typeof goPage === 'function') goPage(allowed[0], targetBtn);
   }
 }
 
@@ -5399,7 +5452,7 @@ window.openAddCompte = function(){
     +'<div style="grid-column:1/-1"><div class="flabel">Nom complet</div><input type="text" id="acc-nom" placeholder="Ex: Dyhia Amrani"></div>'
     +'<div><div class="flabel">Nom utilisateur</div><input type="text" id="acc-user" placeholder="Ex: dyhia"></div>'
     +'<div><div class="flabel">Mot de passe</div><input type="password" id="acc-pass" placeholder="Choisir un mot de passe"></div>'
-    +'<div><div class="flabel">Role</div><select id="acc-role" onchange="window.updateAccRoleFields()"><option value="admin">Admin</option><option value="respo">Responsable de production</option><option value="chef">Chef de projet</option><option value="teamlead" selected>Manager</option><option value="qualite">Qualticien</option></select></div>'
+    +'<div><div class="flabel">Role</div><select id="acc-role" onchange="window.updateAccRoleFields()"><option value="admin">Admin</option><option value="respo">Responsable de production</option><option value="chef">Chef de projet</option><option value="teamlead" selected>Manager</option><option value="qualite">Qualticien</option><option value="direction">Direction (lecture seule)</option></select></div>'
     +'<div><div class="flabel">Projet assigne</div><select id="acc-proj" onchange="window.updateAccOps()">'+projOpts+'</select></div>'
     +'</div>'
     +'<div id="acc-proj-wrap"></div>'
@@ -5412,7 +5465,7 @@ window.updateAccRoleFields = function(){
   var role = document.getElementById('acc-role').value;
   var wrap = document.getElementById('acc-op-wrap');
   var projWrap = document.getElementById('acc-proj-wrap');
-  if(wrap) wrap.style.display = (role==='admin') ? 'none' : 'block';
+  if(wrap) wrap.style.display = (role==='admin' || role==='direction') ? 'none' : 'block';
   // Respo can select multiple projets
   if(projWrap){
     projWrap.innerHTML = '';
@@ -6090,6 +6143,7 @@ var PAGE_LABELS = {
   'historique':  {section:'Administration', page:'Historique scores'},
   'comparateur': {section:'Administration', page:'Comparateur projets'},
   'plans-action':{section:'Administration', page:"Plans d'action"},
+  'direction':   {section:'', page:'Direction'},
 };
 
 function updateBreadcrumb(id){
@@ -6157,6 +6211,9 @@ window.goPage=function(id,btn){
   }
   if(id==='plans-action'){
     window._initPlansActionView();
+  }
+  if(id==='direction'){
+    window._renderDirectionView();
   }
 }
 
@@ -6901,6 +6958,93 @@ window._deletePlanAction = async function(agentId, idx){
 };
 
 // ── VUE D'ENSEMBLE DES PLANS D'ACTION ────────────────────────────────────────
+// ── VUE DIRECTION (lecture seule, synthèse globale) ──────────────────────────
+window._renderDirectionView = function(){
+  if(!D) return;
+  var active = D.agents.filter(function(a){return a.active;});
+  var lastM = D.months[D.months.length-1];
+
+  // Score global (dernier mois)
+  var scores = active.map(function(a){ var ls=lastScore(a); return ls?ls.score:0; }).filter(function(s){return s>0;});
+  var avgGlobal = scores.length ? Math.round(scores.reduce(function(t,x){return t+x;},0)/scores.length*10)/10 : 0;
+
+  document.getElementById('dir-period').textContent = D.months[0]+' — '+lastM;
+  document.getElementById('dir-score-global').textContent = avgGlobal+'%';
+  document.getElementById('dir-score-global').style.color = avgGlobal>=75 ? '#1D9E75' : avgGlobal>=60 ? '#F5C800' : '#E24B4A';
+  document.getElementById('dir-agents-actifs').textContent = active.length;
+  document.getElementById('dir-projets').textContent = D.projects.length;
+
+  var rangS = 0, rangD = 0;
+  active.forEach(function(a){
+    var ls = lastScore(a);
+    if(!ls || ls.score<=0) return;
+    var dr = rankDynamic(a.id, ls.score);
+    if(dr==='S' || dr==='A') rangS++;
+    if(dr==='D') rangD++;
+  });
+  document.getElementById('dir-rang-s').textContent = rangS;
+  document.getElementById('dir-rang-d').textContent = rangD;
+
+  // Tendance 6 mois + badge
+  var last6 = D.months.slice(-6);
+  var getAvgMonth = function(m){
+    var sc2 = active.map(function(a){
+      var s = a.scores[m];
+      if(!s || (!s.perf && !s.qual)) return null;
+      return sc(s.perf, s.qual, s.pres, s.eng, s.avert);
+    }).filter(function(x){return x!==null;});
+    return sc2.length ? Math.round(sc2.reduce(function(t,x){return t+x;},0)/sc2.length*10)/10 : 0;
+  };
+  var vals = last6.map(getAvgMonth);
+  var trendEl = document.getElementById('dir-trend-badge');
+  if(last6.length>=2 && trendEl){
+    var diff = Math.round((vals[vals.length-1] - vals[vals.length-2])*10)/10;
+    var color = diff>0?'#1D9E75':diff<0?'#E24B4A':'#888';
+    var icon = diff>0?'▲':diff<0?'▼':'=';
+    trendEl.innerHTML = '<span style="font-size:13px;font-weight:700;color:'+color+';background:'+color+'14;padding:5px 14px;border-radius:20px">'+icon+' '+(diff>0?'+':'')+diff+'% vs mois precedent</span>';
+  }
+
+  // Courbe SVG tendance
+  var svg = document.getElementById('dir-trend-svg');
+  if(svg && last6.length>=2){
+    var W=700, H=140, pad=20;
+    var maxV = Math.max.apply(null, vals.concat([1])), minV = Math.min.apply(null, vals);
+    var range = (maxV-minV)||1;
+    var pts = vals.map(function(v,i){
+      var x = pad + i*((W-pad*2)/(vals.length-1));
+      var y = H-pad - ((v-minV)/range)*(H-pad*2);
+      return {x:x,y:y,v:v,m:last6[i]};
+    });
+    var poly = pts.map(function(p){return p.x+','+p.y;}).join(' ');
+    var areaPath = 'M'+pts[0].x+','+H+' '+pts.map(function(p){return 'L'+p.x+','+p.y;}).join(' ')+' L'+pts[pts.length-1].x+','+H+' Z';
+    svg.innerHTML =
+      '<defs><linearGradient id="dirGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#F5C800" stop-opacity="0.25"/><stop offset="100%" stop-color="#F5C800" stop-opacity="0"/></linearGradient></defs>'
+      +'<path d="'+areaPath+'" fill="url(#dirGrad)"/>'
+      +'<polyline points="'+poly+'" fill="none" stroke="#F5C800" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>'
+      +pts.map(function(p,i){ return '<circle cx="'+p.x+'" cy="'+p.y+'" r="'+(i===pts.length-1?5:3)+'" fill="#F5C800"/>'; }).join('')
+      +pts.map(function(p){ return '<text x="'+p.x+'" y="'+(H-2)+'" text-anchor="middle" font-size="11" fill="#999">'+p.m+'</text>'; }).join('');
+  }
+
+  // Barres par projet
+  var barsEl = document.getElementById('dir-projets-bars');
+  if(barsEl){
+    var projStats = D.projects.map(function(p){
+      var ags = active.filter(function(a){return a.proj===p;});
+      var ss = ags.map(function(a){var ls=lastScore(a);return ls?ls.score:0;}).filter(function(s){return s>0;});
+      var avg = ss.length ? Math.round(ss.reduce(function(t,x){return t+x;},0)/ss.length*10)/10 : 0;
+      return {name:p, score:avg, n:ags.length};
+    }).filter(function(p){return p.n>0;}).sort(function(a,b){return b.score-a.score;});
+
+    barsEl.innerHTML = projStats.map(function(p){
+      var color = p.score>=75?'#1D9E75':p.score>=60?'#F5C800':'#E24B4A';
+      return '<div>'
+        +'<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px"><strong>'+p.name+'</strong><span style="font-weight:700;color:'+color+'">'+p.score.toFixed(1)+'%</span></div>'
+        +'<div style="height:10px;background:var(--light);border-radius:6px;overflow:hidden"><div style="height:100%;width:'+Math.min(100,p.score)+'%;background:'+color+';border-radius:6px"></div></div>'
+      +'</div>';
+    }).join('');
+  }
+};
+
 function getAllPlansActionFlat(){
   if(!D) return [];
   var today = new Date(); today.setHours(0,0,0,0);
@@ -8125,7 +8269,7 @@ document.addEventListener('click', function(e){
     if((e.ctrlKey || e.metaKey) && e.key === 'k'){
       e.preventDefault();
       var loginOv = document.getElementById('loginOverlay');
-      if(loginOv && loginOv.style.display === 'none'){
+      if(loginOv && loginOv.style.display === 'none' && !window._isReadOnlyRole){
         window.openGlobalSearch();
       }
     }
