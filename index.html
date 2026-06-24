@@ -6005,6 +6005,8 @@ var EVENT_CATEGORIES = {
     desc: 'Toutes les personnes du projet + Responsable' },
   'Audit':      { icon: '🔍', color: '#E24B4A', targets: 'admin',
     desc: 'Tout le monde' },
+  'Reunion urgente': { icon: '🚨', color: '#C0392B', targets: 'projet_respo',
+    desc: 'Toutes les personnes du projet + Responsable — declenchee par la Direction' },
   'Autre':      { icon: '📌', color: '#666', targets: 'individuel_only',
     desc: 'Personne concernee uniquement' }
 };
@@ -7166,7 +7168,93 @@ window._openRedFlagModal = function(anomalyId, projet){
   alert('Fonctionnalité "Red flag" en cours de construction — disponible prochainement.');
 };
 window._openUrgentMeetingModal = function(anomalyId, projet){
-  alert('Fonctionnalité "Réunion urgente" en cours de construction — disponible prochainement.');
+  if(!D) return;
+  var anomalies = detectCeoAnomalies();
+  var an = anomalies.find(function(a){ return a.id === anomalyId; });
+  var sujetAuto = an ? an.titre + ' — ' + an.detail : 'Point urgent sur '+projet;
+  var defaultDate = new Date(); defaultDate.setDate(defaultDate.getDate()+1);
+  var defaultDateStr = defaultDate.toISOString().slice(0,10);
+
+  // Identifier les destinataires (Chef/Manager/Respo de ce projet) pour affichage
+  var targetIds = getEventTargetAccounts('Reunion urgente', projet, '');
+  var targetNames = (D.accounts||[]).filter(function(a){return targetIds.indexOf(a.id)!==-1;}).map(function(a){return a.nom;});
+
+  var html = '<div class="mhdr"><h3>🚨 Planifier une réunion d\'urgence</h3><button class="xbtn" onclick="closeM()">x</button></div>'
+    +'<div id="fa-urgent" class="alert-err"></div>'
+    +'<div style="background:rgba(192,57,43,.08);border:1px solid rgba(192,57,43,.25);border-radius:10px;padding:12px 14px;margin-bottom:16px;font-size:12.5px;color:#8c1a1a">'
+      +'<strong>Contexte :</strong> '+(an?an.titre:'Point sur '+projet)
+    +'</div>'
+    +'<div class="flabel">Sujet de la réunion</div><input type="text" id="urgent-titre" value="'+sujetAuto.replace(/"/g,'&quot;').slice(0,120)+'" style="margin-bottom:14px">'
+    +'<div class="fgrid" style="margin-bottom:14px">'
+      +'<div><div class="flabel">Date proposée</div><input type="date" id="urgent-date" value="'+defaultDateStr+'"></div>'
+      +'<div><div class="flabel">Projet concerné</div><input type="text" id="urgent-proj" value="'+(projet||'')+'" readonly style="background:var(--light)"></div>'
+    +'</div>'
+    +'<div class="flabel">Note / ordre du jour</div><textarea id="urgent-note" rows="3" placeholder="Points à aborder..." style="width:100%;resize:vertical;font-family:inherit;font-size:13px;padding:10px;border:1px solid var(--border);border-radius:8px;margin-bottom:14px">'+(an?an.detail:'')+'</textarea>'
+    +'<div style="font-size:12px;color:var(--muted);margin-bottom:16px">👥 Convoqués : '+(targetNames.length?targetNames.join(', '):'Chef de projet / Manager du projet')+'</div>'
+    +'<div class="frow"><button class="btn" onclick="closeM()">Annuler</button><button class="btn red" onclick="window._saveUrgentMeeting(\''+anomalyId+'\',\''+(projet||'').replace(/'/g,"\\'")+'\')">🚨 Convoquer la réunion</button></div>';
+
+  showModal(html);
+};
+
+window._saveUrgentMeeting = async function(anomalyId, projet){
+  var titre = document.getElementById('urgent-titre').value.trim();
+  var date = document.getElementById('urgent-date').value;
+  var note = document.getElementById('urgent-note').value.trim();
+  var fa = document.getElementById('fa-urgent');
+  if(!titre || !date){ fa.textContent='Le sujet et la date sont obligatoires.'; fa.style.display='block'; return; }
+
+  var evId = 'ev'+Date.now();
+  if(!D.evaluations) D.evaluations = [];
+  D.evaluations.push({
+    id: evId,
+    titre: '🚨 '+titre,
+    date: date,
+    categorie: 'Reunion urgente',
+    projet: projet,
+    operation: '',
+    concerne: '',
+    note: note,
+    createdBy: CURRENT_USER ? CURRENT_USER.nom : 'CEO',
+    declencheePar: 'ceo',
+    anomalyId: anomalyId
+  });
+
+  // Notifications ciblées vers le Chef/Manager/Respo du projet
+  if(!D.notifications) D.notifications = [];
+  var targetIds = getEventTargetAccounts('Reunion urgente', projet, '');
+  var dateStr = new Date(date).toLocaleDateString('fr-FR',{weekday:'long',day:'2-digit',month:'long'});
+  targetIds.forEach(function(accId){
+    D.notifications.push({
+      id: 'n'+Date.now()+Math.random().toString(36).slice(2,5),
+      key: 'urgent_meeting_'+evId+'_'+accId,
+      type: 'danger',
+      icon: '🚨',
+      categorie: 'Reunion urgente',
+      msg: '🚨 Réunion urgente convoquée par la Direction : "'+titre+'" — '+dateStr+(projet?' ('+projet+')':''),
+      time: new Date().toLocaleDateString('fr-FR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}),
+      unread: true,
+      targetAccId: accId,
+      targetProjet: projet,
+      createdBy: CURRENT_USER ? CURRENT_USER.nom : 'CEO'
+    });
+  });
+
+  // Journaliser dans le fil de gouvernance CEO
+  if(!D.ceoGovernanceLog) D.ceoGovernanceLog = [];
+  D.ceoGovernanceLog.push({
+    id: 'gov'+Date.now(),
+    type: 'reunion_urgente',
+    icon: '🚨',
+    texte: 'Réunion d\'urgence convoquée : "'+titre+'" — '+(projet||'global'),
+    date: new Date().toISOString(),
+    auteur: CURRENT_USER ? CURRENT_USER.nom : 'CEO',
+    refId: evId
+  });
+
+  await saveD();
+  closeM();
+  alert('✅ Réunion convoquée. Les responsables du projet ont été notifiés.');
+  if(typeof window._renderCeoView === 'function') window._renderCeoView();
 };
 
 // ── MOTEUR DE DÉTECTION D'ANOMALIES (vue CEO) ────────────────────────────────
