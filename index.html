@@ -7177,8 +7177,7 @@ window._openUrgentMeetingModal = function(anomalyId, projet){
   var anomalies = detectCeoAnomalies();
   var an = anomalies.find(function(a){ return a.id === anomalyId; });
   var sujetAuto = an ? an.titre + ' — ' + an.detail : 'Point urgent sur '+projet;
-  var defaultDate = new Date(); defaultDate.setDate(defaultDate.getDate()+1);
-  var defaultDateStr = defaultDate.toISOString().slice(0,10);
+  var todayStr = new Date().toISOString().slice(0,10);
 
   // Identifier les destinataires (Chef/Manager/Respo de ce projet) pour affichage
   var targetIds = getEventTargetAccounts('Reunion urgente', projet, '');
@@ -7191,7 +7190,7 @@ window._openUrgentMeetingModal = function(anomalyId, projet){
     +'</div>'
     +'<div class="flabel">Sujet de la réunion</div><input type="text" id="urgent-titre" value="'+sujetAuto.replace(/"/g,'&quot;').slice(0,120)+'" style="margin-bottom:14px">'
     +'<div class="fgrid" style="margin-bottom:14px">'
-      +'<div><div class="flabel">Date proposée</div><input type="date" id="urgent-date" value="'+defaultDateStr+'"></div>'
+      +'<div><div class="flabel">Date proposée <span style="color:#c0392b">*</span></div><input type="date" id="urgent-date" min="'+todayStr+'" style="border-color:#c0392b"></div>'
       +'<div><div class="flabel">Projet concerné</div><input type="text" id="urgent-proj" value="'+(projet||'')+'" readonly style="background:var(--light)"></div>'
     +'</div>'
     +'<div class="flabel">Note / ordre du jour</div><textarea id="urgent-note" rows="3" placeholder="Points à aborder..." style="width:100%;resize:vertical;font-family:inherit;font-size:13px;padding:10px;border:1px solid var(--border);border-radius:8px;margin-bottom:14px">'+(an?an.detail:'')+'</textarea>'
