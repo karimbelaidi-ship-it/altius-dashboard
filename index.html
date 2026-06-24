@@ -7199,6 +7199,12 @@ window._openUrgentMeetingModal = function(anomalyId, projet){
     +'<div class="frow"><button class="btn" onclick="closeM()">Annuler</button><button class="btn red" onclick="window._saveUrgentMeeting(\''+anomalyId+'\',\''+(projet||'').replace(/'/g,"\\'")+'\')">🚨 Convoquer la réunion</button></div>';
 
   showModal(html);
+  setTimeout(function(){
+    var btns = document.querySelectorAll('#mbox button');
+    btns.forEach(function(b){ console.log('[DEBUG-URGENT]', b.textContent.trim(), '| disabled:', b.disabled, '| onclick:', b.getAttribute('onclick')); });
+    var titreInput = document.getElementById('urgent-titre');
+    console.log('[DEBUG-URGENT] champ titre disabled:', titreInput ? titreInput.disabled : 'INTROUVABLE');
+  }, 150);
 };
 
 window._saveUrgentMeeting = async function(anomalyId, projet){
