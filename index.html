@@ -6284,14 +6284,13 @@ window.delEval = async function(id){
   renderCalendrier();
 }
 
-function showModal(html, wide){
+function showModal(html, wide, allowWrite){
   const mb=document.getElementById('mbox');
   mb.className='modal'+(wide?' wide':'');
   mb.innerHTML=html;
   document.getElementById('ov').classList.add('on');
-  // Les modals de gouvernance CEO (réunion urgente, red flag) restent pleinement actifs même en lecture seule
-  var isGovernanceModal = /id="urgent-|id="redflag-/.test(html);
-  if(window._isReadOnlyRole && !isGovernanceModal){
+  // allowWrite=true : modals de gouvernance CEO (réunion urgente, red flag) — restent actifs même en lecture seule
+  if(window._isReadOnlyRole && !allowWrite){
     setTimeout(function(){
       mb.querySelectorAll('input, textarea, select').forEach(function(el){ el.disabled = true; });
       mb.querySelectorAll('button').forEach(function(btn){
@@ -6409,6 +6408,7 @@ window._applyReadOnlyLock = function(){
     main.querySelectorAll('input, textarea, select').forEach(function(el){
       if(readOnlyFilterIds.indexOf(el.id) !== -1) return; // filtres de consultation, on les laisse actifs
       if(el.closest('#rankfilter')) return; // filtre de rang, lecture seule
+      if(/^urgent-|^redflag-/.test(el.id||'')) return; // champs des modals de gouvernance CEO, toujours actifs
       if(el.id === 'c-author' || el.id === 'c-month' || el.id === 'c-text') { el.disabled = true; return; }
       el.disabled = true;
     });
@@ -7198,13 +7198,7 @@ window._openUrgentMeetingModal = function(anomalyId, projet){
     +'<div style="font-size:12px;color:var(--muted);margin-bottom:16px">👥 Convoqués : '+(targetNames.length?targetNames.join(', '):'Chef de projet / Manager du projet')+'</div>'
     +'<div class="frow"><button class="btn" onclick="closeM()">Annuler</button><button class="btn red" onclick="window._saveUrgentMeeting(\''+anomalyId+'\',\''+(projet||'').replace(/'/g,"\\'")+'\')">🚨 Convoquer la réunion</button></div>';
 
-  showModal(html);
-  setTimeout(function(){
-    var btns = document.querySelectorAll('#mbox button');
-    btns.forEach(function(b){ console.log('[DEBUG-URGENT]', b.textContent.trim(), '| disabled:', b.disabled, '| onclick:', b.getAttribute('onclick')); });
-    var titreInput = document.getElementById('urgent-titre');
-    console.log('[DEBUG-URGENT] champ titre disabled:', titreInput ? titreInput.disabled : 'INTROUVABLE');
-  }, 150);
+  showModal(html, false, true);
 };
 
 window._saveUrgentMeeting = async function(anomalyId, projet){
