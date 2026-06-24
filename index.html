@@ -3945,6 +3945,16 @@ window._delProj=async function(name){
   if(!confirm('Supprimer "'+name+'" ?'))return;
   D.projects=D.projects.filter(p=>p!==name);
   D.agents=D.agents.filter(a=>a.proj!==name);
+  if(!D.notifications) D.notifications = [];
+  D.notifications.push({
+    id: 'n'+Date.now()+Math.random(),
+    key: 'projet_suppr_'+name+'_'+Date.now(),
+    type: 'warning',
+    icon: '🏢➖',
+    msg: 'Projet terminé / supprimé : '+name,
+    time: new Date().toLocaleDateString('fr-FR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}),
+    unread: true
+  });
   await saveD();renderOverview();renderAgents();renderProjects();renderMois();
 }
 window._confirmDem=function(id){
@@ -3965,6 +3975,16 @@ window._doDem=async function(id){
     a.active=false;
     var dd=document.getElementById('dem-date');
     a.dateDemission=dd?dd.value:'';
+    if(!D.notifications) D.notifications = [];
+    D.notifications.push({
+      id: 'n'+Date.now()+Math.random(),
+      key: 'demission_'+a.id+'_'+a.dateDemission,
+      type: 'info',
+      icon: '👤➖',
+      msg: a.name+' a quitté l\'entreprise ('+a.proj+(a.operation?' - '+a.operation:'')+')',
+      time: new Date().toLocaleDateString('fr-FR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}),
+      unread: true
+    });
     await saveD();
     closeM();
     renderAgents();
@@ -4079,6 +4099,16 @@ window._doAddProj=async function(){
     if(!D.operations) D.operations={};
     D.operations[n]=ops;
   }
+  if(!D.notifications) D.notifications = [];
+  D.notifications.push({
+    id: 'n'+Date.now()+Math.random(),
+    key: 'projet_ajout_'+n,
+    type: 'info',
+    icon: '🏢➕',
+    msg: 'Nouveau projet ajouté : '+n,
+    time: new Date().toLocaleDateString('fr-FR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}),
+    unread: true
+  });
   await saveD();closeM();renderProjects();renderMois();renderOverview();
 }
 
@@ -5563,6 +5593,8 @@ window.doEditCompte = async function(id){
   var pass = document.getElementById('acc-pass').value.trim();
   var fa = document.getElementById('fa');
   if(!nom){fa.textContent='Le nom est obligatoire.';fa.style.display='block';return;}
+  var oldRole = acc.role;
+  var oldProj = (acc.projets||[]).join(',');
   acc.nom = nom;
   acc.username = user;
   if(pass) acc.password = pass;
@@ -5570,6 +5602,21 @@ window.doEditCompte = async function(id){
   var proj = document.getElementById('acc-proj').value;
   acc.projets = proj ? [proj] : [];
   acc.operation = document.getElementById('acc-op').value;
+  // Notifier si changement de rôle ou de projet pour un poste de management
+  var managementRoles = ['chef','teamlead','respo'];
+  var newProj = (acc.projets||[]).join(',');
+  if((managementRoles.indexOf(oldRole)!==-1 || managementRoles.indexOf(acc.role)!==-1) && (oldRole!==acc.role || oldProj!==newProj)){
+    if(!D.notifications) D.notifications = [];
+    D.notifications.push({
+      id: 'n'+Date.now()+Math.random(),
+      key: 'mgmt_change_'+acc.id+'_'+Date.now(),
+      type: 'info',
+      icon: '🔄',
+      msg: 'Changement de management : '+nom+' — '+(ROLES[acc.role]?ROLES[acc.role].label:acc.role)+(newProj?' ('+newProj+')':''),
+      time: new Date().toLocaleDateString('fr-FR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}),
+      unread: true
+    });
+  }
   await saveD();
   closeM();
   renderComptes();
