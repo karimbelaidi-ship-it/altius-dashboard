@@ -639,6 +639,32 @@
       display: flex; gap: 12px; align-items: flex-start; padding: 14px 0;
       border-bottom: 1px solid rgba(255,255,255,.06);
     }
+    .dir-tab-badge {
+      font-size: 10px; font-weight: 800; background: #E24B4A; color: #fff;
+      padding: 1px 7px; border-radius: 20px; margin-left: 5px; vertical-align: middle;
+    }
+    .dir-heat-tile {
+      border-radius: 14px; padding: 16px 14px; cursor: pointer; transition: transform .15s;
+      position: relative; overflow: hidden;
+    }
+    .dir-heat-tile:hover { transform: translateY(-2px); }
+    .dir-heat-tile .ht-name { font-size: 13px; font-weight: 700; color: #fff; margin-bottom: 8px; }
+    .dir-heat-tile .ht-score { font-size: 24px; font-weight: 900; color: #fff; }
+    .dir-heat-tile .ht-meta { font-size: 10.5px; color: rgba(255,255,255,.6); margin-top: 4px; }
+    .dir-alert-card {
+      background: rgba(255,255,255,.04); border-left: 4px solid #E24B4A;
+      border-radius: 10px; padding: 16px 18px; margin-bottom: 12px;
+    }
+    .dir-alert-card.attention { border-left-color: #F5C800; }
+    .dir-alert-card .ac-title { color: #fff; font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+    .dir-alert-card .ac-detail { color: rgba(255,255,255,.55); font-size: 12.5px; margin-bottom: 12px; }
+    .dir-alert-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .dir-alert-btn {
+      background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.12); color: #fff;
+      font-size: 12px; padding: 6px 12px; border-radius: 8px; cursor: pointer; font-family: inherit;
+    }
+    .dir-alert-btn:hover { background: rgba(255,255,255,.14); }
+    .dir-alert-btn.primary { background: #F5C800; color: #1a1a18; border-color: #F5C800; font-weight: 700; }
     .formation-suggestion {
       background: linear-gradient(135deg, rgba(127,119,221,.08), rgba(55,138,221,.06));
       border: 1px solid rgba(127,119,221,.25); border-radius: 12px;
@@ -1033,7 +1059,7 @@
 
 <div class="nav" id="main-nav" style="display:none">
   <button class="nb on" data-page="overview" onclick="goPage('overview',this)">📋 Tableau de bord</button>
-  <button class="nb" data-page="direction" onclick="goPage('direction',this)">📊 Direction</button>
+  <button class="nb" data-page="ceo" onclick="goPage('ceo',this)">📊 CEO</button>
   <button class="nb" data-page="chef" onclick="goPage('chef',this)">🎯 Mon projet</button>
   <button class="nb" data-page="agents" onclick="goPage('agents',this)">👥 Agents</button>
   <button class="nb" data-page="projets" onclick="goPage('projets',this)">🏢 Projets</button>
@@ -1101,22 +1127,23 @@
   </div>
 
   <!-- VUE DIRECTION (lecture seule, synthèse globale) -->
-  <div class="pg" id="pg-direction">
+  <div class="pg" id="pg-ceo">
     <div id="dir-shell" style="background:#0d0d0c;border-radius:20px;padding:0;margin:-10px -10px 0;min-height:calc(100vh - 140px)">
 
       <!-- En-tête signature Direction -->
       <div style="padding:28px 24px 0">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:24px">
           <div>
-            <div style="font-size:11px;color:#F5C800;text-transform:uppercase;letter-spacing:.12em;font-weight:700;margin-bottom:4px">Espace Direction</div>
+            <div style="font-size:11px;color:#F5C800;text-transform:uppercase;letter-spacing:.12em;font-weight:700;margin-bottom:4px">Espace CEO</div>
             <div style="font-size:22px;font-weight:800;color:#fff" id="dir-period"></div>
           </div>
           <div id="dir-trend-badge"></div>
         </div>
 
         <!-- Onglets internes, propres à cette interface -->
-        <div style="display:flex;gap:4px;border-bottom:1px solid rgba(255,255,255,.08)" id="dir-tabs">
+        <div style="display:flex;gap:4px;border-bottom:1px solid rgba(255,255,255,.08);overflow-x:auto" id="dir-tabs">
           <button class="dir-tab-btn on" data-dtab="overview" onclick="window._switchDirTab('overview')">Vue d'ensemble</button>
+          <button class="dir-tab-btn" data-dtab="alertes" onclick="window._switchDirTab('alertes')">⚠️ Alertes <span id="dir-alert-count" class="dir-tab-badge" style="display:none">0</span></button>
           <button class="dir-tab-btn" data-dtab="projets" onclick="window._switchDirTab('projets')">Projets</button>
           <button class="dir-tab-btn" data-dtab="agents" onclick="window._switchDirTab('agents')">Agents clés</button>
           <button class="dir-tab-btn" data-dtab="activite" onclick="window._switchDirTab('activite')">Activité récente</button>
@@ -1125,11 +1152,17 @@
 
       <!-- ── VUE D'ENSEMBLE ── -->
       <div class="dir-tab-panel on" data-dtab="overview" style="padding:32px 24px">
-        <div style="text-align:center;margin-bottom:36px">
+        <div style="text-align:center;margin-bottom:30px">
           <div style="font-size:13px;color:rgba(255,255,255,.45);margin-bottom:10px">Score moyen de l'entreprise</div>
           <div style="font-size:80px;font-weight:900;line-height:1;color:#fff" id="dir-score-global">—</div>
         </div>
         <div style="max-width:760px;margin:0 auto 36px"><svg viewBox="0 0 760 160" id="dir-trend-svg" style="width:100%;height:150px"></svg></div>
+
+        <div style="max-width:920px;margin:0 auto 36px">
+          <div style="font-size:13px;font-weight:700;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.07em;margin-bottom:14px;text-align:center">Santé des projets — vue d'ensemble</div>
+          <div id="dir-heatmap" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px"></div>
+        </div>
+
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;max-width:920px;margin:0 auto">
           <div class="dir-kpi-card">
             <div class="dir-kpi-val" id="dir-agents-actifs">—</div>
@@ -1148,6 +1181,11 @@
             <div class="dir-kpi-label">Agents Rang D</div>
           </div>
         </div>
+      </div>
+
+      <!-- ── ALERTES & ANOMALIES ── -->
+      <div class="dir-tab-panel" data-dtab="alertes" style="padding:32px 24px">
+        <div style="max-width:820px;margin:0 auto" id="dir-alertes-list"></div>
       </div>
 
       <!-- ── PROJETS ── -->
@@ -5390,7 +5428,7 @@ var ROLES = {
   chef:     {label:'Chef de projet',           badge:'role-chef',     desc:'Ses projets uniquement'},
   teamlead: {label:'Manager',                  badge:'role-teamlead', desc:'Son equipe uniquement'},
   qualite:  {label:'Qualticien',               badge:'role-qualite',  desc:'Scores qualite de son equipe'},
-  direction:{label:'Direction',                badge:'role-patron',   desc:'Lecture seule, vue synthese globale'}
+  ceo:      {label:'CEO',                      badge:'role-patron',   desc:'Vision strategique, gouvernance globale'}
 };
 
 function getAccounts(){
@@ -5433,7 +5471,7 @@ function applyUserRole(){
     chef:     ['chef','agents','mois','projets','cal-dl','historique'],
     teamlead: ['chef','agents','cal-dl','historique'],
     qualite:  ['chef','agents','cal-dl','historique'],
-    direction:['direction','overview','chef','agents','mois','projets','archives','teamleaders','comptes','cal-dl','historique','comparateur','plans-action']
+    ceo:      ['ceo','overview','chef','agents','mois','projets','archives','teamleaders','comptes','cal-dl','historique','comparateur','plans-action']
   };
   var allowed = tabAccess[role] || ['overview'];
 
@@ -5465,16 +5503,16 @@ function applyUserRole(){
 
   // Direction : lecture seule totale — pas de recherche (qui mène à des fiches avec actions d'écriture)
   var searchBtn = document.getElementById('search-trigger-btn');
-  if(searchBtn) searchBtn.style.display = (role==='direction') ? 'none' : '';
-  window._isReadOnlyRole = (role==='direction');
+  if(searchBtn) searchBtn.style.display = (role==='ceo') ? 'none' : '';
+  window._isReadOnlyRole = (role==='ceo');
 
-  // Direction : page Direction comme accueil par défaut (uniquement à la connexion initiale)
+  // CEO : page CEO comme accueil par défaut (uniquement à la connexion initiale)
   var activePg = document.querySelector('.pg.on');
   var activeId = activePg ? activePg.id.replace('pg-','') : null;
-  if(role==='direction' && activeId==='overview' && !window._directionHomeSet){
-    window._directionHomeSet = true;
-    var dirBtn = document.querySelector('.nb[data-page="direction"]');
-    if(typeof goPage === 'function') goPage('direction', dirBtn);
+  if(role==='ceo' && activeId==='overview' && !window._ceoHomeSet){
+    window._ceoHomeSet = true;
+    var ceoBtn = document.querySelector('.nb[data-page="ceo"]');
+    if(typeof goPage === 'function') goPage('ceo', ceoBtn);
     return;
   }
   // Rediriger si la page actuellement active n'est pas autorisée pour ce rôle
@@ -5560,7 +5598,7 @@ window.openAddCompte = function(){
     +'<div style="grid-column:1/-1"><div class="flabel">Nom complet</div><input type="text" id="acc-nom" placeholder="Ex: Dyhia Amrani"></div>'
     +'<div><div class="flabel">Nom utilisateur</div><input type="text" id="acc-user" placeholder="Ex: dyhia"></div>'
     +'<div><div class="flabel">Mot de passe</div><input type="password" id="acc-pass" placeholder="Choisir un mot de passe"></div>'
-    +'<div><div class="flabel">Role</div><select id="acc-role" onchange="window.updateAccRoleFields()"><option value="admin">Admin</option><option value="respo">Responsable de production</option><option value="chef">Chef de projet</option><option value="teamlead" selected>Manager</option><option value="qualite">Qualticien</option><option value="direction">Direction (lecture seule)</option></select></div>'
+    +'<div><div class="flabel">Role</div><select id="acc-role" onchange="window.updateAccRoleFields()"><option value="admin">Admin</option><option value="respo">Responsable de production</option><option value="chef">Chef de projet</option><option value="teamlead" selected>Manager</option><option value="qualite">Qualticien</option><option value="ceo">CEO</option></select></div>'
     +'<div><div class="flabel">Projet assigne</div><select id="acc-proj" onchange="window.updateAccOps()">'+projOpts+'</select></div>'
     +'</div>'
     +'<div id="acc-proj-wrap"></div>'
@@ -5573,7 +5611,7 @@ window.updateAccRoleFields = function(){
   var role = document.getElementById('acc-role').value;
   var wrap = document.getElementById('acc-op-wrap');
   var projWrap = document.getElementById('acc-proj-wrap');
-  if(wrap) wrap.style.display = (role==='admin' || role==='direction') ? 'none' : 'block';
+  if(wrap) wrap.style.display = (role==='admin' || role==='ceo') ? 'none' : 'block';
   // Respo can select multiple projets
   if(projWrap){
     projWrap.innerHTML = '';
@@ -6281,7 +6319,7 @@ var PAGE_LABELS = {
   'historique':  {section:'Administration', page:'Historique scores'},
   'comparateur': {section:'Administration', page:'Comparateur projets'},
   'plans-action':{section:'Administration', page:"Plans d'action"},
-  'direction':   {section:'', page:'Direction'},
+  'ceo':         {section:'', page:'CEO'},
 };
 
 function updateBreadcrumb(id){
@@ -6352,8 +6390,8 @@ window.goPage=function(id,btn){
   if(id==='plans-action'){
     window._initPlansActionView();
   }
-  if(id==='direction'){
-    window._renderDirectionView();
+  if(id==='ceo'){
+    window._renderCeoView();
   }
   if(window._isReadOnlyRole) setTimeout(window._applyReadOnlyLock, 80);
 }
@@ -7123,9 +7161,109 @@ window._deletePlanAction = async function(agentId, idx){
   refreshFicheTabBadges(agent);
 };
 
-// ── VUE D'ENSEMBLE DES PLANS D'ACTION ────────────────────────────────────────
-// ── VUE DIRECTION (lecture seule, synthèse globale) ──────────────────────────
-window._renderDirectionView = function(){
+// ── Stubs temporaires — seront remplacés par les vraies implémentations (red flags, réunions urgentes) ──
+window._openRedFlagModal = function(anomalyId, projet){
+  alert('Fonctionnalité "Red flag" en cours de construction — disponible prochainement.');
+};
+window._openUrgentMeetingModal = function(anomalyId, projet){
+  alert('Fonctionnalité "Réunion urgente" en cours de construction — disponible prochainement.');
+};
+
+// ── MOTEUR DE DÉTECTION D'ANOMALIES (vue CEO) ────────────────────────────────
+function detectCeoAnomalies(){
+  if(!D) return [];
+  var anomalies = [];
+  var active = D.agents.filter(function(a){return a.active;});
+  var lastM = D.months[D.months.length-1];
+  var prevM = D.months[D.months.length-2];
+
+  var getProjAvg = function(proj, mois){
+    var ags = active.filter(function(a){return a.proj===proj;});
+    var scores = ags.map(function(a){
+      var s = a.scores[mois];
+      if(!s || (!s.perf && !s.qual)) return null;
+      return sc(s.perf, s.qual, s.pres, s.eng, s.avert);
+    }).filter(function(x){return x!==null;});
+    return scores.length ? Math.round(scores.reduce(function(t,x){return t+x;},0)/scores.length*10)/10 : null;
+  };
+
+  // 1. Baisse brutale de performance sur un projet (vs mois précédent)
+  D.projects.forEach(function(p){
+    var curr = getProjAvg(p, lastM);
+    var prev = prevM ? getProjAvg(p, prevM) : null;
+    if(curr!==null && prev!==null && prev>0){
+      var dropPct = Math.round(((prev-curr)/prev)*1000)/10;
+      if(dropPct >= 15){
+        anomalies.push({
+          id:'drop_'+p, severite: dropPct>=25?'critique':'attention',
+          icon:'📉', titre:'Baisse de performance — '+p,
+          detail: 'Score moyen passé de '+prev+'% à '+curr+'% ('+dropPct+'% de baisse) entre '+prevM+' et '+lastM+'.',
+          projet:p, type:'sales_drop'
+        });
+      }
+    }
+  });
+
+  // 2. Objectif projet manqué (cible définie vs réalisé)
+  if(D.objectifsProjet){
+    Object.keys(D.objectifsProjet).forEach(function(p){
+      var obj = D.objectifsProjet[p];
+      var curr = getProjAvg(p, lastM);
+      if(curr!==null && obj.cible && curr < obj.cible){
+        var ecart = Math.round((obj.cible-curr)*10)/10;
+        if(ecart >= 10){
+          anomalies.push({
+            id:'objmiss_'+p, severite: ecart>=20?'critique':'attention',
+            icon:'🎯', titre:'Objectif non atteint — '+p,
+            detail: 'Score actuel '+curr+'% pour un objectif de '+obj.cible+'% (écart de '+ecart+' points).',
+            projet:p, type:'objectif_manque'
+          });
+        }
+      }
+    });
+  }
+
+  // 3. Qualité critique sur un projet (moyenne qualité basse)
+  D.projects.forEach(function(p){
+    var ags = active.filter(function(a){return a.proj===p;});
+    var quals = ags.map(function(a){ var s=a.scores[lastM]; return (s&&s.qual)?s.qual:null; }).filter(function(x){return x!==null;});
+    if(quals.length){
+      var avgQ = Math.round(quals.reduce(function(t,x){return t+x;},0)/quals.length);
+      if(avgQ < 60){
+        anomalies.push({
+          id:'qual_'+p, severite: avgQ<45?'critique':'attention',
+          icon:'☎️', titre:'Qualité critique — '+p,
+          detail: 'Score qualité moyen de l\'équipe : '+avgQ+'% ce mois ('+quals.length+' agents évalués).',
+          projet:p, type:'qualite_critique'
+        });
+      }
+    }
+  });
+
+  // 4. Concentration anormale d'agents en Rang D sur un même projet
+  D.projects.forEach(function(p){
+    var ags = active.filter(function(a){return a.proj===p;});
+    if(!ags.length) return;
+    var rangD = ags.filter(function(a){ var ls=lastScore(a); return ls && ls.score>0 && rank(ls.score)==='D'; }).length;
+    var pct = Math.round((rangD/ags.length)*100);
+    if(pct >= 30 && rangD>=2){
+      anomalies.push({
+        id:'rangd_concentre_'+p, severite: pct>=50?'critique':'attention',
+        icon:'⚠️', titre:'Forte proportion de Rang D — '+p,
+        detail: pct+'% de l\'équipe ('+rangD+'/'+ags.length+' agents) en Rang D ce mois.',
+        projet:p, type:'rang_d_concentre'
+      });
+    }
+  });
+
+  return anomalies.sort(function(a,b){
+    if(a.severite==='critique' && b.severite!=='critique') return -1;
+    if(a.severite!=='critique' && b.severite==='critique') return 1;
+    return 0;
+  });
+}
+
+window._renderCeoView = function(){
   if(!D) return;
   var active = D.agents.filter(function(a){return a.active;});
   var lastM = D.months[D.months.length-1];
@@ -7242,6 +7380,46 @@ window._renderDirectionView = function(){
         return '<div class="dir-activity-item">'
           +'<span style="font-size:18px">'+n.icon+'</span>'
           +'<div><div style="color:#fff;font-size:13.5px">'+n.msg+'</div><div style="color:rgba(255,255,255,.35);font-size:11px;margin-top:2px">'+n.time+'</div></div>'
+        +'</div>';
+      }).join('');
+    }
+  }
+
+  // ── HEAT-MAP PROJETS ──
+  var heatmapEl = document.getElementById('dir-heatmap');
+  if(heatmapEl){
+    heatmapEl.innerHTML = projStats.map(function(p){
+      var bg = p.score>=75 ? 'linear-gradient(135deg,#1D9E75,#157a5a)' : p.score>=60 ? 'linear-gradient(135deg,#caa000,#a08200)' : 'linear-gradient(135deg,#c0392b,#962d22)';
+      return '<div class="dir-heat-tile" style="background:'+bg+'" onclick="window._switchDirTab(\'projets\')">'
+        +'<div class="ht-name">'+p.name+'</div>'
+        +'<div class="ht-score">'+p.score.toFixed(1)+'%</div>'
+        +'<div class="ht-meta">'+p.n+' agents</div>'
+      +'</div>';
+    }).join('');
+  }
+
+  // ── ALERTES & ANOMALIES ──
+  var anomalies = detectCeoAnomalies();
+  var alertCountEl = document.getElementById('dir-alert-count');
+  if(alertCountEl){
+    if(anomalies.length){ alertCountEl.textContent = anomalies.length; alertCountEl.style.display = ''; }
+    else { alertCountEl.style.display = 'none'; }
+  }
+  var alertesListEl = document.getElementById('dir-alertes-list');
+  if(alertesListEl){
+    if(!anomalies.length){
+      alertesListEl.innerHTML = '<div style="text-align:center;padding:40px 0"><div style="font-size:40px;margin-bottom:12px">✅</div><div style="color:rgba(255,255,255,.6);font-size:14px">Aucune anomalie détectée. Tout est sous contrôle.</div></div>';
+    } else {
+      alertesListEl.innerHTML = anomalies.map(function(an){
+        var projEsc = (an.projet||'').replace(/'/g, "\\'");
+        return '<div class="dir-alert-card '+(an.severite==='attention'?'attention':'')+'">'
+          +'<div class="ac-title">'+an.icon+' '+an.titre+'</div>'
+          +'<div class="ac-detail">'+an.detail+'</div>'
+          +'<div class="dir-alert-actions">'
+            +'<button class="dir-alert-btn" onclick="window._qaGo(\'projets\')">👁️ Voir le détail</button>'
+            +'<button class="dir-alert-btn" onclick="window._openRedFlagModal(\''+an.id+'\',\''+projEsc+'\')">🚩 Poser un red flag</button>'
+            +'<button class="dir-alert-btn primary" onclick="window._openUrgentMeetingModal(\''+an.id+'\',\''+projEsc+'\')">📅 Reunion urgente</button>'
+          +'</div>'
         +'</div>';
       }).join('');
     }
