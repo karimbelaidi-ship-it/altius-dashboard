@@ -3201,11 +3201,18 @@ window._switchFicheTab = function(tabId){
 };
 
 window._switchChefTab = function(tabId){
-  document.querySelectorAll('#chef-tabs .fiche-tab-btn').forEach(function(btn){
+  console.log('[DEBUG-CHEF-TAB] appelé avec tabId =', tabId);
+  var btns = document.querySelectorAll('#chef-tabs .fiche-tab-btn');
+  console.log('[DEBUG-CHEF-TAB] nombre de boutons trouvés:', btns.length);
+  btns.forEach(function(btn){
     btn.classList.toggle('on', btn.dataset.tab === tabId);
   });
-  document.querySelectorAll('.chef-tab-panel').forEach(function(panel){
-    panel.classList.toggle('on', panel.dataset.tab === tabId);
+  var panels = document.querySelectorAll('.chef-tab-panel');
+  console.log('[DEBUG-CHEF-TAB] nombre de panels trouvés:', panels.length);
+  panels.forEach(function(panel){
+    var match = panel.dataset.tab === tabId;
+    console.log('[DEBUG-CHEF-TAB] panel data-tab=', panel.dataset.tab, '| match:', match);
+    panel.classList.toggle('on', match);
   });
   // Chart.js a besoin d'un resize forcé après que son conteneur redevienne visible
   if(tabId === 'evolution' && typeof charts !== 'undefined' && charts['chef-trend-chart']){
