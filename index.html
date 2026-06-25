@@ -1599,6 +1599,10 @@
     </div>
 
     <div class="chef-tab-panel" data-tab="justificatifs">
+      <div class="card" style="margin-bottom:16px" id="chef-redflags-card">
+        <div class="stitle" style="margin-bottom:14px;color:#a08200">🚩 Red flags de la Direction</div>
+        <div id="chef-redflags-list"></div>
+      </div>
       <div class="card">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
           <div class="stitle" style="margin-bottom:0">📎 Justificatifs Performance</div>
@@ -2409,11 +2413,46 @@ function renderChef(){
     });
   }
 
+  // Red flags de la Direction
+  var redflagsEl = document.getElementById('chef-redflags-list');
+  var redflagsCard = document.getElementById('chef-redflags-card');
+  var projRedflags = (D.redFlags||[]).filter(function(rf){ return rf.projet === projName; });
+  if(redflagsCard) redflagsCard.style.display = projRedflags.length ? '' : 'none';
+  if(redflagsEl) redflagsEl.innerHTML = renderRedFlagsList(projName);
+
   // Justificatifs Performance
   var justifEl = document.getElementById('chef-justif-perf');
   if(justifEl) justifEl.innerHTML = renderJustifPerfList(projName);
   window._chefCurrentProj = projName;
 }
+
+function renderRedFlagsList(projName){
+  var flags = (D.redFlags||[]).filter(function(rf){ return rf.projet === projName; }).sort(function(a,b){ return new Date(b.date)-new Date(a.date); });
+  if(!flags.length) return '';
+  return flags.map(function(rf){
+    var dateLabel = new Date(rf.date).toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+    var sevColor = rf.severite==='critique' ? '#c0392b' : '#a08200';
+    var sevIcon = rf.severite==='critique' ? '🔴' : '⚠️';
+    return '<div style="background:rgba(245,200,0,.06);border-left:4px solid '+sevColor+';border-radius:8px;padding:12px 14px;margin-bottom:10px'+(rf.statut==='traite'?';opacity:.6':'')+'">'
+      +'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px">'
+        +'<span style="font-size:12px;color:var(--muted)">'+sevIcon+' Posé par <strong>'+rf.auteur+'</strong> · '+dateLabel+'</span>'
+        +(rf.statut!=='traite' ? '<button class="btn" style="font-size:10px;padding:3px 8px" onclick="window._markRedFlagTraite(\''+rf.id+'\')">✓ Marquer pris en compte</button>' : '<span style="font-size:10px;color:var(--green);font-weight:700">✓ Pris en compte</span>')
+      +'</div>'
+      +(rf.anomalyTitre ? '<div style="font-size:11px;color:var(--muted);margin-bottom:4px">Contexte : '+rf.anomalyTitre+'</div>' : '')
+      +'<div style="font-size:13px;color:var(--text)">'+rf.texte+'</div>'
+    +'</div>';
+  }).join('');
+}
+
+window._markRedFlagTraite = async function(rfId){
+  var rf = (D.redFlags||[]).find(function(r){ return r.id === rfId; });
+  if(!rf) return;
+  rf.statut = 'traite';
+  rf.traitePar = CURRENT_USER ? CURRENT_USER.nom : '';
+  rf.traiteLe = new Date().toISOString();
+  await saveD();
+  if(typeof renderChef === 'function') renderChef();
+};
 
 // ── ACTIONS RAPIDES MANAGER (vue Mon projet) ─────────────────────────────────
 window._chefGoPlansAction = function(){
@@ -7176,7 +7215,92 @@ window._deletePlanAction = async function(agentId, idx){
 
 // ── Stubs temporaires — seront remplacés par les vraies implémentations (red flags, réunions urgentes) ──
 window._openRedFlagModal = function(anomalyId, projet){
-  alert('Fonctionnalité "Red flag" en cours de construction — disponible prochainement.');
+  if(!D) return;
+  var anomalies = detectCeoAnomalies();
+  var an = anomalies.find(function(a){ return a.id === anomalyId; });
+
+  var targetIds = getEventTargetAccounts('Reunion urgente', projet, ''); // même ciblage : Chef/Manager/Qualticien/Respo du projet
+  var targetNames = (D.accounts||[]).filter(function(a){return targetIds.indexOf(a.id)!==-1;}).map(function(a){return a.nom;});
+
+  var html = '<div class="mhdr"><h3>🚩 Poser un red flag</h3><button class="xbtn" onclick="closeM()">x</button></div>'
+    +'<div id="fa-redflag" class="alert-err"></div>'
+    +'<div style="background:rgba(245,200,0,.08);border:1px solid rgba(245,200,0,.3);border-radius:10px;padding:12px 14px;margin-bottom:16px;font-size:12.5px;color:#7a5e00">'
+      +'<strong>Contexte :</strong> '+(an?an.titre:'Point sur '+projet)
+    +'</div>'
+    +'<div class="flabel">Commentaire / annotation</div><textarea id="redflag-texte" rows="4" placeholder="Ex: Surveiller ce projet de pres, revoir le plan d\'action avec l\'equipe..." style="width:100%;resize:vertical;font-family:inherit;font-size:13px;padding:10px;border:1px solid var(--border);border-radius:8px;margin-bottom:14px"></textarea>'
+    +'<div class="flabel">Sévérité</div>'
+    +'<select id="redflag-severite" style="margin-bottom:14px">'
+      +'<option value="attention">⚠️ Attention</option>'
+      +'<option value="critique">🔴 Critique</option>'
+    +'</select>'
+    +'<div style="font-size:12px;color:var(--muted);margin-bottom:16px">👥 Visible par : '+(targetNames.length?targetNames.join(', '):'Chef de projet / Manager / Qualticien du projet')+'</div>'
+    +'<div class="frow"><button class="btn" onclick="closeM()">Annuler</button><button class="btn yellow" onclick="window._saveRedFlag(\''+anomalyId+'\',\''+(projet||'').replace(/'/g,"\\'")+'\')">🚩 Poser le red flag</button></div>';
+
+  showModal(html, false, true);
+};
+
+window._saveRedFlag = async function(anomalyId, projet){
+  try{
+  var texte = document.getElementById('redflag-texte').value.trim();
+  var severite = document.getElementById('redflag-severite').value;
+  var fa = document.getElementById('fa-redflag');
+  if(!texte){ fa.textContent='Le commentaire est obligatoire.'; fa.style.display='block'; return; }
+  var an = detectCeoAnomalies().find(function(a){ return a.id === anomalyId; });
+
+  var rfId = 'rf'+Date.now();
+  if(!D.redFlags) D.redFlags = [];
+  D.redFlags.push({
+    id: rfId,
+    cibleType: projet ? 'projet' : 'global',
+    projet: projet || '',
+    texte: texte,
+    severite: severite,
+    date: new Date().toISOString(),
+    auteur: CURRENT_USER ? CURRENT_USER.nom : 'CEO',
+    statut: 'ouvert',
+    anomalyId: anomalyId || null,
+    anomalyTitre: an ? an.titre : null
+  });
+
+  // Notifications vers les responsables du projet
+  if(!D.notifications) D.notifications = [];
+  var targetIds = getEventTargetAccounts('Reunion urgente', projet, '');
+  targetIds.forEach(function(accId){
+    D.notifications.push({
+      id: 'n'+Date.now()+Math.random().toString(36).slice(2,5),
+      key: 'redflag_'+rfId+'_'+accId,
+      type: 'warning',
+      icon: '🚩',
+      categorie: 'Red flag',
+      msg: '🚩 Red flag posé par la Direction sur '+(projet||'l\'entreprise')+' : "'+texte.slice(0,80)+(texte.length>80?'...':'')+'"',
+      time: new Date().toLocaleDateString('fr-FR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}),
+      unread: true,
+      targetAccId: accId,
+      targetProjet: projet,
+      createdBy: CURRENT_USER ? CURRENT_USER.nom : 'CEO'
+    });
+  });
+
+  // Journaliser dans le fil de gouvernance
+  if(!D.ceoGovernanceLog) D.ceoGovernanceLog = [];
+  D.ceoGovernanceLog.push({
+    id: 'gov'+Date.now(),
+    type: 'red_flag',
+    icon: '🚩',
+    texte: 'Red flag posé sur '+(projet||'global')+' : "'+texte.slice(0,100)+'"',
+    date: new Date().toISOString(),
+    auteur: CURRENT_USER ? CURRENT_USER.nom : 'CEO',
+    refId: rfId
+  });
+
+  await saveD();
+  closeM();
+  alert('🚩 Red flag posé. Les responsables du projet ont été notifiés.');
+  if(typeof window._renderCeoView === 'function') window._renderCeoView();
+  } catch(e) {
+    console.error('Erreur _saveRedFlag:', e);
+    alert('❌ Erreur lors de la création du red flag : '+e.message);
+  }
 };
 window._openUrgentMeetingModal = function(anomalyId, projet){
   if(!D) return;
