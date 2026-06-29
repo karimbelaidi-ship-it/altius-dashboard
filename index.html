@@ -4174,16 +4174,25 @@ window._delMonth=async function(m){
   await saveD();renderMois();renderOverview();
 }
 window._delProj=async function(name){
-  if(!confirm('Supprimer "'+name+'" ?'))return;
+  var agentsConcernes = D.agents.filter(a=>a.proj===name);
+  var msg = 'Supprimer le projet "'+name+'" ?';
+  if(agentsConcernes.length){
+    msg += '\n\n'+agentsConcernes.length+' agent(s) sont rattachés à ce projet. Ils seront conservés (historique intact) mais désactivés et sans projet, à réaffecter manuellement si besoin.';
+  }
+  if(!confirm(msg))return;
   D.projects=D.projects.filter(p=>p!==name);
-  D.agents=D.agents.filter(a=>a.proj!==name);
+  // Ne JAMAIS supprimer les agents : on les désactive et on retire leur projet, leur historique reste intact
+  agentsConcernes.forEach(function(a){
+    a.proj = '';
+    a.active = false;
+  });
   if(!D.notifications) D.notifications = [];
   D.notifications.push({
     id: 'n'+Date.now()+Math.random(),
     key: 'projet_suppr_'+name+'_'+Date.now(),
     type: 'warning',
     icon: '🏢➖',
-    msg: 'Projet terminé / supprimé : '+name,
+    msg: 'Projet terminé / supprimé : '+name+(agentsConcernes.length?' ('+agentsConcernes.length+' agent(s) désactivé(s), à réaffecter)':''),
     time: new Date().toLocaleDateString('fr-FR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}),
     unread: true
   });
