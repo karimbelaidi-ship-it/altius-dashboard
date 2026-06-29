@@ -1270,6 +1270,11 @@
           <strong style="color:var(--text)">1. Score de base (sur 100%)</strong><br>
           Performance × 40% + Qualité × 30% + Présence × 20% + Engagement × 10%
           <br><br>
+          <strong style="color:var(--text)">📋 Performance selon le type de projet :</strong><br>
+          <strong>Standard</strong> — saisie manuelle directe.<br>
+          <strong>Télévente</strong> — calculée auto : CA réalisé ÷ Objectif individuel × 100.<br>
+          <strong>BPO</strong> — calculée auto : Volume réalisé ÷ Objectif individuel × 100.
+          <br><br>
           <strong style="color:var(--text)">2. Engagement</strong> — 3 critères cochés (briefs, remontées, comportement) : 3/3 = 10%, 2/3 = 7%, 1/3 = 3%, 0/3 = 0%.
           <br><br>
           <strong style="color:var(--text)">3. Pénalité avertissement</strong> — chaque avertissement retire 10% du score total. À partir du 3ème avertissement, le score tombe à 0%.
@@ -4302,9 +4307,11 @@ window._editProjOps = function(projName){
   }
   var curType = (D.activityType||{})[projName] || '';
   showModal('<div class="mhdr"><h3>Operations - '+projName+'</h3><button class="xbtn" onclick="closeM()">x</button></div>'
-    +'<div style="margin-bottom:14px"><div class="flabel">Type d\'activite (scoring)</div><select id="eat"><option value=""'+(curType===''?' selected':'')+'>Standard (Perf saisie manuellement)</option><option value="televente"'+(curType==='televente'?' selected':'')+'>Televente — Perf calculee depuis le CA</option><option value="bpo"'+(curType==='bpo'?' selected':'')+'>BPO — Perf calculee depuis le volume (RDV/flux)</option></select></div>'
+    +'<div style="margin-bottom:6px"><div class="flabel">Type d\'activite (scoring)</div><select id="eat" onchange="window._updateActTypeHelp(\'eat-help\')"><option value=""'+(curType===''?' selected':'')+'>Standard (Perf saisie manuellement)</option><option value="televente"'+(curType==='televente'?' selected':'')+'>Televente — Perf calculee depuis le CA</option><option value="bpo"'+(curType==='bpo'?' selected':'')+'>BPO — Perf calculee depuis le volume (RDV/flux)</option></select></div>'
+    +'<div id="eat-help" style="margin-bottom:14px"></div>'
     +'<div style="margin-bottom:14px"><div class="flabel">Operations (laisser vide pour supprimer)</div>'+opsInputs+'</div>'
     +'<div class="frow"><button class="btn" onclick="closeM()">Annuler</button><button class="btn yellow" data-proj="'+projName+'" onclick="window._doEditOps(this.dataset.proj)">Enregistrer</button></div>');
+  window._updateActTypeHelp('eat-help', 'eat');
 }
 
 window._doEditOps = async function(projName){
@@ -4331,10 +4338,26 @@ window.openAddProj=function(){
   showModal('<div class="mhdr"><h3>Nouveau projet</h3><button class="xbtn" onclick="closeM()">x</button></div>'
     +'<div id="fa" class="alert-err"></div>'
     +'<div style="margin-bottom:12px"><div class="flabel">Nom du projet</div><input type="text" id="fpn" placeholder="Ex: NOUVEAU CLIENT"></div>'
-    +'<div style="margin-bottom:12px"><div class="flabel">Type d\'activite (scoring)</div><select id="fat"><option value="">Standard (Perf saisie manuellement)</option><option value="televente">Televente — Perf calculee depuis le CA</option><option value="bpo">BPO — Perf calculee depuis le volume (RDV/flux)</option></select></div>'
+    +'<div style="margin-bottom:6px"><div class="flabel">Type d\'activite (scoring)</div><select id="fat" onchange="window._updateActTypeHelp(\'fat-help\')"><option value="">Standard (Perf saisie manuellement)</option><option value="televente">Televente — Perf calculee depuis le CA</option><option value="bpo">BPO — Perf calculee depuis le volume (RDV/flux)</option></select></div>'
+    +'<div id="fat-help" style="margin-bottom:14px"></div>'
     +'<div style="margin-bottom:14px"><div class="flabel">Operations (une par ligne, optionnel)</div><input type="text" id="fop1" placeholder="Ex: Retention" style="margin-bottom:4px"><input type="text" id="fop2" placeholder="Ex: Lead" style="margin-bottom:4px"><input type="text" id="fop3" placeholder="Ex: Care" style="margin-bottom:4px"><input type="text" id="fop4" placeholder="Ex: Policia"></div>'
     +'<div class="frow"><button class="btn" onclick="closeM()">Annuler</button><button class="btn yellow" onclick="window._doAddProj()">Creer</button></div>');
+  window._updateActTypeHelp('fat-help', 'fat');
 }
+
+window._updateActTypeHelp = function(helpId, selectId){
+  selectId = selectId || helpId.replace('-help','');
+  var sel = document.getElementById(selectId);
+  var helpEl = document.getElementById(helpId);
+  if(!sel || !helpEl) return;
+  var val = sel.value;
+  var content = {
+    '': '<div style="background:var(--light);border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-size:12px;color:var(--muted)"><strong>📋 Standard</strong> — Le pourcentage de Performance est saisi à la main pour chaque agent, comme pour tous les projets classiques (ventes, objectifs commerciaux).</div>',
+    'televente': '<div style="background:rgba(55,138,221,.08);border:1px solid rgba(55,138,221,.25);border-radius:8px;padding:10px 12px;font-size:12px;color:#1a5a8c"><strong>💰 Télévente</strong> — Vous saisissez le <strong>CA réalisé</strong> (en €) par chaque agent. La Performance % se calcule automatiquement : <strong>CA réalisé ÷ Objectif individuel de l\'agent × 100</strong>. L\'objectif global du projet reste visible pour la vision macro.</div>',
+    'bpo': '<div style="background:rgba(127,119,221,.08);border:1px solid rgba(127,119,221,.25);border-radius:8px;padding:10px 12px;font-size:12px;color:#5a4fc4"><strong>📞 BPO</strong> — Vous saisissez le <strong>volume réalisé</strong> (RDV pris, flux traités...) par chaque agent. La Performance % se calcule automatiquement : <strong>Volume réalisé ÷ Objectif individuel de l\'agent × 100</strong>. Même logique que Télévente, mais en nombre plutôt qu\'en €.</div>'
+  };
+  helpEl.innerHTML = content[val] || content[''];
+};
 window._doAddProj=async function(){
   var n=document.getElementById('fpn').value.trim().toUpperCase();
   if(!n){showFA('Le nom est obligatoire.');return;}
@@ -8600,6 +8623,26 @@ setInterval(function(){
             ⚠️ <strong>Rang D</strong> — score &lt; 60% (déclenche une alerte)
             <br><br>
             <em>Exemple : Perf 90%, Qualité 85%, Présence 100%, Engagement 3/3, aucun avertissement → (90×0,4)+(85×0,3)+(100×0,2)+10 = 36+25,5+20+10 = 91,5% → Rang A.</em>
+          </div>
+        </div>
+        <div class="faq-item">
+          <div class="faq-q" onclick="window.toggleFaq(this)">Comment fonctionne le scoring Standard / Télévente / BPO ? <span class="faq-arr">›</span></div>
+          <div class="faq-a">
+            Chaque projet a un <strong>type d'activité</strong> qui détermine comment la Performance est calculée. La Qualité, Présence et Engagement fonctionnent toujours pareil, quel que soit le type.
+            <br><br>
+            <strong>📋 Standard</strong> — Le % de Performance est saisi <strong>directement à la main</strong> par le Manager, comme pour la majorité des projets (Japhy, Walter Santé classique, etc.).
+            <br><br>
+            <strong>💰 Télévente</strong> (Edumiam, Walter Santé CA, Walter Alternance...) — On saisit le <strong>CA réalisé en €</strong> par l'agent. La Performance se calcule automatiquement :<br>
+            <em>Performance % = CA réalisé ÷ Objectif individuel de l'agent × 100</em><br>
+            Exemple : objectif 5 000€, réalisé 5 500€ → 110% de Performance.
+            <br><br>
+            <strong>📞 BPO</strong> (Patimovie, Japhy BPO...) — On saisit le <strong>volume réalisé</strong> (RDV pris, flux traités...) par l'agent. Même calcul automatique, mais en nombre plutôt qu'en € :<br>
+            <em>Performance % = Volume réalisé ÷ Objectif individuel de l'agent × 100</em><br>
+            Exemple : objectif 15 RDV, réalisé 12 RDV → 80% de Performance.
+            <br><br>
+            <strong>Deux niveaux d'objectif</strong> — chaque projet a un <strong>objectif global</strong> (vision macro, ex: 50 000€ pour tout le projet) ET chaque agent a son <strong>objectif individuel</strong> (ex: 5 000€). Le calcul de la Performance utilise toujours l'objectif individuel.
+            <br><br>
+            <em>Le type d'activité se choisit à la création du projet, ou se modifie ensuite via le bouton "Ops" sur la page Projets.</em>
           </div>
         </div>
         <div class="faq-item">
