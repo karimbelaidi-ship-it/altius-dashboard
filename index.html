@@ -1294,6 +1294,7 @@
           </div>
           <div id="lock-unlock-btn-wrap" style="margin-left:auto"></div>
         </div>
+        <div id="sgrid-objectif-banner"></div>
         <div class="twrap" id="sgrid"></div>
         <div style="display:flex;justify-content:flex-end;margin-top:12px">
           <button class="btn yellow" id="save-scores-btn" onclick="saveScores()">💾 Enregistrer les scores</button>
@@ -1868,7 +1869,14 @@ function dureeEntreMois(debut, fin) {
 }
 
 const DEF = {
-  projects: ['AEC','EURO-PARE-BRISE','JAPHY','ALTERNANCE','VITALIVET','EDEN-ENERGIE','WALTER SANTÉ','ENERIX'],
+  projects: ['AEC','EURO-PARE-BRISE','JAPHY','ALTERNANCE','VITALIVET','EDEN-ENERGIE','WALTER SANTÉ','ENERIX','EDUMIAM','WALTER ALTERNANCE','PATIMOVIE','JAPHY BPO'],
+  activityType: {
+    'EDUMIAM': 'televente',
+    'WALTER SANTÉ': 'televente',
+    'WALTER ALTERNANCE': 'televente',
+    'PATIMOVIE': 'bpo',
+    'JAPHY BPO': 'bpo'
+  },
   months: ['Oct 25'],
   agents: [{"id": "a71958c36", "name": "Larbi Yanis", "proj": "JAPHY", "active": true, "dateEntree": "2019-10", "projHistory": [{"proj": "JAPHY", "debut": "Oct 25", "fin": null}], "scores": {"Oct 25": {"perf": 140, "qual": 56, "pres": 100, "eng": {"briefs": true, "remontees": true, "comportement": true}, "avert": 0}}}, {"id": "ac7d417ea", "name": "Metahri Manyl", "proj": "JAPHY", "active": true, "dateEntree": "2024-09", "projHistory": [{"proj": "JAPHY", "debut": "Oct 25", "fin": null}], "scores": {"Oct 25": {"perf": 112, "qual": 80, "pres": 95, "eng": {"briefs": false, "remontees": false, "comportement": false}, "avert": 0}}}, {"id": "aa686e05c", "name": "Hamachi Walid", "proj": "JAPHY", "active": true, "dateEntree": "2025-09", "projHistory": [{"proj": "JAPHY", "debut": "Oct 25", "fin": null}], "scores": {"Oct 25": {"perf": 142, "qual": 56, "pres": 95, "eng": {"briefs": false, "remontees": false, "comportement": false}, "avert": 0}}}, {"id": "ab9cd4b43", "name": "Hamachi Hani", "proj": "JAPHY", "active": true, "dateEntree": "2025-12", "projHistory": [{"proj": "JAPHY", "debut": "Oct 25", "fin": null}], "scores": {"Oct 25": {"perf": 0, "qual": 0, "pres": 100, "eng": {"briefs": false, "remontees": false, "comportement": false}, "avert": 0}}}, {"id": "aceb3c88a", "name": "Abdellaoui Noureddine", "proj": "JAPHY", "active": true, "dateEntree": "2025-09", "projHistory": [{"proj": "JAPHY", "debut": "Oct 25", "fin": null}], "scores": {"Oct 25": {"perf": 112, "qual": 64, "pres": 95, "eng": {"briefs": false, "remontees": false, "comportement": false}, "avert": 0}}}, {"id": "a71cdc0a3", "name": "Koudil Malik", "proj": "JAPHY", "active": true, "dateEntree": "2024-09", "projHistory": [{"proj": "JAPHY", "debut": "Oct 25", "fin": null}], "scores": {"Oct 25": {"perf": 144, "qual": 84, "pres": 95, "eng": {"briefs": false, "remontees": false, "comportement": false}, "avert": 0}}}, {"id": "ad6245e1f", "name": "Senouci Farida", "proj": "JAPHY", "active": true, "dateEntree": "2022-05", "projHistory": [{"proj": "JAPHY", "debut": "Oct 25", "fin": null}], "scores": {"Oct 25": {"perf": 27, "qual": 54, "pres": 94, "eng": {"briefs": false, "remontees": false, "comportement": false}, "avert": 0}}}, {"id": "aedbaae74", "name": "Sehab Camelia", "proj": "JAPHY", "active": true, "dateEntree": "2025-10", "projHistory": [{"proj": "JAPHY", "debut": "Oct 25", "fin": null}], "scores": {"Oct 25": {"perf": 32, "qual": 35, "pres": 100, "eng": {"briefs": false, "remontees": false, "comportement": false}, "avert": 0}}}, {"id": "af9e43e6e", "name": "Bouchakour Linda", "proj": "JAPHY", "active": true, "dateEntree": "2025-05", "projHistory": [{"proj": "JAPHY", "debut": "Oct 25", "fin": null}], "scores": {"Oct 25": {"perf": 33, "qual": 37, "pres": 100, "eng": {"briefs": false, "remontees": false, "comportement": false}, "avert": 0}}}, {"id": "a4f99b21b", "name": "Belalia Amina", "proj": "JAPHY", "active": true, "dateEntree": "2023-11", "projHistory": [{"proj": "JAPHY", "debut": "Oct 25", "fin": null}], "scores": {"Oct 25": {"perf": 0, "qual": 100, "pres": 100, "eng": {"briefs": false, "remontees": false, "comportement": false}, "avert": 0}}}, {"id": "a0958a4c8", "name": "Amira Aba", "proj": "JAPHY", "active": true, "dateEntree": "2021-07", "projHistory": [{"proj": "JAPHY", "debut": "Oct 25", "fin": null}], "scores": {"Oct 25": {"perf": 0, "qual": 85, "pres": 100, "eng": {"briefs": false, "remontees": false, "comportement": false}, "avert": 0}}}, {"id": "abdb61ac6", "name": "Benmessaoud Kenza", "proj": "JAPHY", "active": true, "dateEntree": "2024-04", "projHistory": [{"proj": "JAPHY", "debut": "Oct 25", "fin": null}], "scores": {"Oct 25": {"perf": 67, "qual": 97, "pres": 95, "eng": {"briefs": false, "remontees": false, "comportement": false}, "avert": 0}}}, {"id": "a839ca8fe", "name": "Kouchkar Sabah", "proj": "JAPHY", "active": true, "dateEntree": "2025-07", "projHistory": [{"proj": "JAPHY", "debut": "Oct 25", "fin": null}], "scores": {"Oct 25": {"perf": 0, "qual": 45, "pres": 97, "eng": {"briefs": false, "remontees": false, "comportement": false}, "avert": 0}}}, {"id": "a39220ba7", "name": "Ouerden Djoher", "proj": "JAPHY", "active": true, "dateEntree": "2021-05", "projHistory": [{"proj": "JAPHY", "debut": "Oct 25", "fin": null}], "scores": {"Oct 25": {"perf": 69, "qual": 92, "pres": 100, "eng": {"briefs": true, "remontees": false, "comportement": false}, "avert": 0}}}, {"id": "adbca8cee", "name": "Meddour Sarah", "proj": "JAPHY", "active": true, "dateEntree": "2023-08", "projHistory": [{"proj": "JAPHY", "debut": "Oct 25", "fin": null}], "scores": {"Oct 25": {"perf": 62, "qual": 62, "pres": 100, "eng": {"briefs": false, "remontees": false, "comportement": false}, "avert": 0}}}, {"id": "a4daf1d2c", "name": "Oubrika Anissa", "proj": "JAPHY", "active": true, "dateEntree": "2025-09", "projHistory": [{"proj": "JAPHY", "debut": "Oct 25", "fin": null}], "scores": {"Oct 25": {"perf": 60, "qual": 50, "pres": 91, "eng": {"briefs": false, "remontees": false, "comportement": false}, "avert": 0}}}, {"id": "aec054a8f", "name": "Nour Kribi", "proj": "JAPHY", "active": true, "dateEntree": "2025-10", "projHistory": [{"proj": "JAPHY", "debut": "Oct 25", "fin": null}], "scores": {"Oct 25": {"perf": 25, "qual": 37, "pres": 100, "eng": {"briefs": false, "remontees": false, "comportement": false}, "avert": 0}}}, {"id": "a3eb4581b", "name": "Haddab Maria", "proj": "JAPHY", "active": true, "dateEntree": "2025-09", "projHistory": [{"proj": "JAPHY", "debut": "Oct 25", "fin": null}], "scores": {"Oct 25": {"perf": 64, "qual": 40, "pres": 100, "eng": {"briefs": false, "remontees": false, "comportement": false}, "avert": 0}}}, {"id": "afceca3b9", "name": "Bensedid Mohamed", "proj": "JAPHY", "active": true, "dateEntree": "2024-08", "projHistory": [{"proj": "JAPHY", "debut": "Oct 25", "fin": null}], "scores": {"Oct 25": {"perf": 0, "qual": 48, "pres": 100, "eng": {"briefs": false, "remontees": false, "comportement": false}, "avert": 0}}}, {"id": "a36a0ebea", "name": "Borsla Yasmine", "proj": "JAPHY", "active": true, "dateEntree": "2023-02", "projHistory": [{"proj": "JAPHY", "debut": "Oct 25", "fin": null}], "scores": {"Oct 25": {"perf": 100, "qual": 100, "pres": 100, "eng": {"briefs": true, "remontees": true, "comportement": true}, "avert": 0}}}, {"id": "af7f569eb", "name": "Atek Tania", "proj": "JAPHY", "active": true, "dateEntree": "2022-01", "projHistory": [{"proj": "JAPHY", "debut": "Oct 25", "fin": null}], "scores": {"Oct 25": {"perf": 120, "qual": 100, "pres": 95, "eng": {"briefs": false, "remontees": false, "comportement": false}, "avert": 0}}}, {"id": "a0b1cfb60", "name": "Menaceur Camelia", "proj": "JAPHY", "active": true, "dateEntree": "2023-12", "projHistory": [{"proj": "JAPHY", "debut": "Oct 25", "fin": null}], "scores": {"Oct 25": {"perf": 66, "qual": 100, "pres": 95, "eng": {"briefs": false, "remontees": false, "comportement": false}, "avert": 0}}}, {"id": "a9ae22554", "name": "Mokrane Samia", "proj": "JAPHY", "active": true, "dateEntree": "2021-05", "projHistory": [{"proj": "JAPHY", "debut": "Oct 25", "fin": null}], "scores": {"Oct 25": {"perf": 119, "qual": 100, "pres": 99, "eng": {"briefs": true, "remontees": true, "comportement": true}, "avert": 0}}}, {"id": "a279f4b61", "name": "Kaci Tassadit", "proj": "JAPHY", "active": true, "dateEntree": "2026-01", "projHistory": [{"proj": "JAPHY", "debut": "Oct 25", "fin": null}], "scores": {"Oct 25": {"perf": 0, "qual": 0, "pres": 100, "eng": {"briefs": false, "remontees": false, "comportement": false}, "avert": 0}}}, {"id": "a230b0dad", "name": "Drareni Manel", "proj": "JAPHY", "active": true, "dateEntree": "2025-07", "projHistory": [{"proj": "JAPHY", "debut": "Oct 25", "fin": null}], "scores": {"Oct 25": {"perf": 30, "qual": 70, "pres": 99, "eng": {"briefs": false, "remontees": false, "comportement": false}, "avert": 0}}}, {"id": "a245ae2fb", "name": "Ramdane Amira", "proj": "WALTER SANTÉ", "active": true, "dateEntree": "2024-04", "projHistory": [{"proj": "WALTER SANTÉ", "debut": "Oct 25", "fin": null}], "scores": {"Oct 25": {"perf": 83, "qual": 84, "pres": 100, "eng": {"briefs": true, "remontees": false, "comportement": false}, "avert": 0}}}, {"id": "a9951eb35", "name": "Ait Hammou Amine", "proj": "WALTER SANTÉ", "active": true, "dateEntree": "2024-04", "projHistory": [{"proj": "WALTER SANTÉ", "debut": "Oct 25", "fin": null}], "scores": {"Oct 25": {"perf": 70, "qual": 95, "pres": 88, "eng": {"briefs": false, "remontees": false, "comportement": false}, "avert": 0}}}, {"id": "a764ca5b0", "name": "Laras Rania", "proj": "WALTER SANTÉ", "active": true, "dateEntree": "2024-07", "projHistory": [{"proj": "WALTER SANTÉ", "debut": "Oct 25", "fin": null}], "scores": {"Oct 25": {"perf": 83, "qual": 78, "pres": 98, "eng": {"briefs": false, "remontees": false, "comportement": false}, "avert": 0}}}, {"id": "a0894e3c7", "name": "Younsi Sabri", "proj": "WALTER SANTÉ", "active": true, "dateEntree": "2024-10", "projHistory": [{"proj": "WALTER SANTÉ", "debut": "Oct 25", "fin": null}], "scores": {"Oct 25": {"perf": 114, "qual": 74, "pres": 98, "eng": {"briefs": false, "remontees": false, "comportement": false}, "avert": 0}}}, {"id": "a89719a27", "name": "Khalef Redouane", "proj": "WALTER SANTÉ", "active": true, "dateEntree": "2024-11", "projHistory": [{"proj": "WALTER SANTÉ", "debut": "Oct 25", "fin": null}], "scores": {"Oct 25": {"perf": 84, "qual": 87, "pres": 100, "eng": {"briefs": true, "remontees": true, "comportement": false}, "avert": 0}}}, {"id": "a225f6a4e", "name": "Magmoun Sabrina", "proj": "WALTER SANTÉ", "active": true, "dateEntree": "2025-07", "projHistory": [{"proj": "WALTER SANTÉ", "debut": "Oct 25", "fin": null}], "scores": {"Oct 25": {"perf": 51, "qual": 81, "pres": 100, "eng": {"briefs": false, "remontees": false, "comportement": false}, "avert": 0}}}, {"id": "a6f72c682", "name": "Moates Sofia", "proj": "WALTER SANTÉ", "active": true, "dateEntree": "2025-07", "projHistory": [{"proj": "WALTER SANTÉ", "debut": "Oct 25", "fin": null}], "scores": {"Oct 25": {"perf": 62, "qual": 68, "pres": 100, "eng": {"briefs": false, "remontees": false, "comportement": false}, "avert": 0}}}, {"id": "aa0324a54", "name": "Djaber Nadia", "proj": "WALTER SANTÉ", "active": true, "dateEntree": "2023-05", "projHistory": [{"proj": "WALTER SANTÉ", "debut": "Oct 25", "fin": null}], "scores": {"Oct 25": {"perf": 21, "qual": 80, "pres": 61, "eng": {"briefs": false, "remontees": false, "comportement": false}, "avert": 0}}}, {"id": "a0a1b2d77", "name": "Guerfi Nesrine", "proj": "WALTER SANTÉ", "active": true, "dateEntree": "2023-11", "projHistory": [{"proj": "WALTER SANTÉ", "debut": "Oct 25", "fin": null}], "scores": {"Oct 25": {"perf": 101, "qual": 90, "pres": 100, "eng": {"briefs": true, "remontees": true, "comportement": true}, "avert": 0}}}, {"id": "a6254c68d", "name": "Boumaiza Maya", "proj": "WALTER SANTÉ", "active": true, "dateEntree": "2024-10", "projHistory": [{"proj": "WALTER SANTÉ", "debut": "Oct 25", "fin": null}], "scores": {"Oct 25": {"perf": 26, "qual": 50, "pres": 91, "eng": {"briefs": false, "remontees": false, "comportement": false}, "avert": 0}}}, {"id": "af21ea6f0", "name": "Ahres Thiziri", "proj": "WALTER SANTÉ", "active": true, "dateEntree": "2025-05", "projHistory": [{"proj": "WALTER SANTÉ", "debut": "Oct 25", "fin": null}], "scores": {"Oct 25": {"perf": 18, "qual": 50, "pres": 100, "eng": {"briefs": false, "remontees": false, "comportement": false}, "avert": 0}}}, {"id": "ac751c1bb", "name": "Drareni Zineb", "proj": "WALTER SANTÉ", "active": true, "dateEntree": "2025-07", "projHistory": [{"proj": "WALTER SANTÉ", "debut": "Oct 25", "fin": null}], "scores": {"Oct 25": {"perf": 31, "qual": 35, "pres": 99, "eng": {"briefs": false, "remontees": false, "comportement": false}, "avert": 0}}}, {"id": "a2c2b1e18", "name": "Kernaout Houssem", "proj": "WALTER SANTÉ", "active": true, "dateEntree": "2026-02", "projHistory": [{"proj": "WALTER SANTÉ", "debut": "Oct 25", "fin": null}], "scores": {"Oct 25": {"perf": 0, "qual": 0, "pres": 100, "eng": {"briefs": false, "remontees": false, "comportement": false}, "avert": 0}}}, {"id": "a8ff3b1a2", "name": "Saada Elias", "proj": "WALTER SANTÉ", "active": true, "dateEntree": "2025-12", "projHistory": [{"proj": "WALTER SANTÉ", "debut": "Oct 25", "fin": null}], "scores": {"Oct 25": {"perf": 0, "qual": 0, "pres": 100, "eng": {"briefs": true, "remontees": true, "comportement": true}, "avert": 0}}}, {"id": "a32e1703a", "name": "Zerrouki Racim", "proj": "WALTER SANTÉ", "active": true, "dateEntree": "2026-01", "projHistory": [{"proj": "WALTER SANTÉ", "debut": "Oct 25", "fin": null}], "scores": {"Oct 25": {"perf": 0, "qual": 0, "pres": 100, "eng": {"briefs": true, "remontees": true, "comportement": true}, "avert": 0}}}, {"id": "a433ab0ac", "name": "Knayaz Wassim", "proj": "ALTERNANCE", "active": true, "dateEntree": "2023-08", "projHistory": [{"proj": "ALTERNANCE", "debut": "Oct 25", "fin": null}], "scores": {"Oct 25": {"perf": 83, "qual": 80, "pres": 100, "eng": {"briefs": true, "remontees": false, "comportement": false}, "avert": 0}}}, {"id": "a8273abbf", "name": "TAIRI Marem", "proj": "ALTERNANCE", "active": true, "dateEntree": "2024-09", "projHistory": [{"proj": "ALTERNANCE", "debut": "Oct 25", "fin": null}], "scores": {"Oct 25": {"perf": 43, "qual": 55, "pres": 87, "eng": {"briefs": false, "remontees": false, "comportement": false}, "avert": 0}}}, {"id": "a3da0e1db", "name": "Lyna Boukhenouf", "proj": "ALTERNANCE", "active": true, "dateEntree": "2025-02", "projHistory": [{"proj": "ALTERNANCE", "debut": "Oct 25", "fin": null}], "scores": {"Oct 25": {"perf": 45, "qual": 61, "pres": 100, "eng": {"briefs": false, "remontees": false, "comportement": false}, "avert": 0}}}, {"id": "a92d8eac4", "name": "Attouchi Melissa", "proj": "ALTERNANCE", "active": true, "dateEntree": "2025-02", "projHistory": [{"proj": "ALTERNANCE", "debut": "Oct 25", "fin": null}], "scores": {"Oct 25": {"perf": 149, "qual": 85, "pres": 100, "eng": {"briefs": true, "remontees": true, "comportement": true}, "avert": 0}}}, {"id": "a6077e5a7", "name": "BENSALAH Racha", "proj": "ALTERNANCE", "active": true, "dateEntree": "2025-04", "projHistory": [{"proj": "ALTERNANCE", "debut": "Oct 25", "fin": null}], "scores": {"Oct 25": {"perf": 102, "qual": 80, "pres": 96, "eng": {"briefs": false, "remontees": false, "comportement": false}, "avert": 1}}}, {"id": "a304a8b09", "name": "CHERIFI Yasmine", "proj": "ALTERNANCE", "active": true, "dateEntree": "2025-05", "projHistory": [{"proj": "ALTERNANCE", "debut": "Oct 25", "fin": null}], "scores": {"Oct 25": {"perf": 52, "qual": 55, "pres": 100, "eng": {"briefs": false, "remontees": false, "comportement": false}, "avert": 0}}}, {"id": "ad5758fc1", "name": "HENNAD Arab", "proj": "ALTERNANCE", "active": true, "dateEntree": "2025-11", "projHistory": [{"proj": "ALTERNANCE", "debut": "Oct 25", "fin": null}], "scores": {"Oct 25": {"perf": 57, "qual": 45, "pres": 100, "eng": {"briefs": false, "remontees": false, "comportement": false}, "avert": 0}}}, {"id": "a0ae04946", "name": "LATRECHE Hadjer", "proj": "ALTERNANCE", "active": true, "dateEntree": "2025-08", "projHistory": [{"proj": "ALTERNANCE", "debut": "Oct 25", "fin": null}], "scores": {"Oct 25": {"perf": 55, "qual": 53, "pres": 100, "eng": {"briefs": false, "remontees": false, "comportement": false}, "avert": 0}}}, {"id": "ab3ce54bb", "name": "OURZIK Wafa", "proj": "ALTERNANCE", "active": true, "dateEntree": "2025-09", "projHistory": [{"proj": "ALTERNANCE", "debut": "Oct 25", "fin": null}], "scores": {"Oct 25": {"perf": 27, "qual": 88, "pres": 100, "eng": {"briefs": false, "remontees": false, "comportement": false}, "avert": 0}}}, {"id": "a4f6997ae", "name": "Belhadjer Abla", "proj": "ALTERNANCE", "active": true, "dateEntree": "2025-11", "projHistory": [{"proj": "ALTERNANCE", "debut": "Oct 25", "fin": null}], "scores": {"Oct 25": {"perf": 0, "qual": 0, "pres": 100, "eng": {"briefs": false, "remontees": false, "comportement": false}, "avert": 0}}}, {"id": "a749316f2", "name": "AMAR YOUCEF Wassil", "proj": "ALTERNANCE", "active": true, "dateEntree": "2025-09", "projHistory": [{"proj": "ALTERNANCE", "debut": "Oct 25", "fin": null}], "scores": {"Oct 25": {"perf": 5, "qual": 60, "pres": 82, "eng": {"briefs": false, "remontees": false, "comportement": false}, "avert": 0}}}, {"id": "a03480445", "name": "Yacef Meriem", "proj": "ALTERNANCE", "active": true, "dateEntree": "2025-11", "projHistory": [{"proj": "ALTERNANCE", "debut": "Oct 25", "fin": null}], "scores": {"Oct 25": {"perf": 0, "qual": 0, "pres": 100, "eng": {"briefs": false, "remontees": false, "comportement": false}, "avert": 0}}}, {"id": "abaded673", "name": "Metref Nesrine", "proj": "ALTERNANCE", "active": true, "dateEntree": "2025-11", "projHistory": [{"proj": "ALTERNANCE", "debut": "Oct 25", "fin": null}], "scores": {"Oct 25": {"perf": 0, "qual": 0, "pres": 100, "eng": {"briefs": false, "remontees": false, "comportement": false}, "avert": 0}}}, {"id": "afef6f300", "name": "Mekhzoum Anais", "proj": "ALTERNANCE", "active": true, "dateEntree": "2024-05", "projHistory": [{"proj": "ALTERNANCE", "debut": "Oct 25", "fin": null}], "scores": {"Oct 25": {"perf": 40, "qual": 60, "pres": 95, "eng": {"briefs": false, "remontees": false, "comportement": false}, "avert": 0}}}, {"id": "abdaa2953", "name": "Bouchakour Lynda", "proj": "ALTERNANCE", "active": true, "dateEntree": "2025-05", "projHistory": [{"proj": "ALTERNANCE", "debut": "Oct 25", "fin": null}], "scores": {"Oct 25": {"perf": 33, "qual": 37, "pres": 100, "eng": {"briefs": false, "remontees": false, "comportement": false}, "avert": 0}}}, {"id": "a6b4f8461", "name": "Benarousse Fatiha", "proj": "VITALIVET", "active": true, "dateEntree": "2021-05", "projHistory": [{"proj": "VITALIVET", "debut": "Oct 25", "fin": null}], "scores": {"Oct 25": {"perf": 50, "qual": 90, "pres": 101, "eng": {"briefs": false, "remontees": false, "comportement": false}, "avert": 0}}}, {"id": "a12bf0d6e", "name": "Bouchene Mounia", "proj": "VITALIVET", "active": true, "dateEntree": "2022-12", "projHistory": [{"proj": "VITALIVET", "debut": "Oct 25", "fin": null}], "scores": {"Oct 25": {"perf": 0, "qual": 0, "pres": 77, "eng": {"briefs": true, "remontees": true, "comportement": true}, "avert": 0}}}, {"id": "a048c63c8", "name": "Billel Kaci Aissa", "proj": "VITALIVET", "active": true, "dateEntree": "2025-12", "projHistory": [{"proj": "VITALIVET", "debut": "Oct 25", "fin": null}], "scores": {"Oct 25": {"perf": 0, "qual": 0, "pres": 99, "eng": {"briefs": true, "remontees": true, "comportement": true}, "avert": 0}}}, {"id": "afacad01f", "name": "Sarah Dabouz", "proj": "AEC", "active": true, "dateEntree": "2024-01", "projHistory": [{"proj": "AEC", "debut": "Oct 25", "fin": null}], "scores": {"Oct 25": {"perf": 0, "qual": 91, "pres": 100, "eng": {"briefs": true, "remontees": true, "comportement": true}, "avert": 0}}}, {"id": "a9289cbf8", "name": "Malika Abdeslam", "proj": "ENERIX", "active": true, "dateEntree": "2026-04", "projHistory": [{"proj": "ENERIX", "debut": "Oct 25", "fin": null}], "scores": {"Oct 25": {"perf": 0, "qual": 0, "pres": 100, "eng": {"briefs": true, "remontees": true, "comportement": true}, "avert": 0}}}, {"id": "a9f441ca2", "name": "HIMRANE Lokman", "proj": "EDEN-ENERGIE", "active": true, "dateEntree": "2024-08", "projHistory": [{"proj": "EDEN-ENERGIE", "debut": "Oct 25", "fin": null}], "scores": {"Oct 25": {"perf": 15, "qual": 25, "pres": 84, "eng": {"briefs": false, "remontees": false, "comportement": false}, "avert": 0}}}, {"id": "a2822a36a", "name": "LOTFI Berrabah", "proj": "EDEN-ENERGIE", "active": true, "dateEntree": "2024-10", "projHistory": [{"proj": "EDEN-ENERGIE", "debut": "Oct 25", "fin": null}], "scores": {"Oct 25": {"perf": 20, "qual": 100, "pres": 94, "eng": {"briefs": false, "remontees": false, "comportement": false}, "avert": 0}}}, {"id": "afc64f06b", "name": "Bilel Kaci Aissa", "proj": "EURO-PARE-BRISE", "active": true, "dateEntree": "2025-12", "projHistory": [{"proj": "EURO-PARE-BRISE", "debut": "Oct 25", "fin": null}], "scores": {"Oct 25": {"perf": 106, "qual": 75, "pres": 100, "eng": {"briefs": true, "remontees": true, "comportement": false}, "avert": 0}}}, {"id": "a3772b661", "name": "Nesrine Aib", "proj": "AEC", "active": true, "dateEntree": "2024-01", "projHistory": [{"proj": "AEC", "debut": "Oct 25", "fin": null}], "scores": {"Oct 25": {"perf": 160, "qual": 60, "pres": 95, "eng": {"briefs": false, "remontees": false, "comportement": false}, "avert": 0}}}],
   accounts: [],
@@ -3733,10 +3741,33 @@ window.renderScoreGrid=function(){
   const saveBtn = document.getElementById('save-scores-btn');
   if(saveBtn){ saveBtn.disabled = _isLocked; saveBtn.style.opacity = _isLocked ? '.4' : '1'; saveBtn.style.cursor = _isLocked ? 'not-allowed' : ''; }
 
-  if(!ags.length){document.getElementById('sgrid').innerHTML='<p style="font-size:13px;color:var(--muted);padding:8px 0">Aucun agent actif dans ce projet.</p>';return;}
+  if(!ags.length){document.getElementById('sgrid').innerHTML='<p style="font-size:13px;color:var(--muted);padding:8px 0">Aucun agent actif dans ce projet.</p>';document.getElementById('sgrid-objectif-banner').innerHTML='';return;}
+  const _actType = (D.activityType||{})[p] || '';
+  const _isSpecialAct = _actType==='televente' || _actType==='bpo';
+  const _realiseUnit = _actType==='televente' ? '€ (CA)' : 'RDV/flux';
+  const _realiseLabel = _actType==='televente' ? 'CA réalisé' : 'Volume réalisé';
+
+  // Bannière objectif global du projet (vision macro) — uniquement pour Télévente/BPO
+  const objBannerEl = document.getElementById('sgrid-objectif-banner');
+  if(objBannerEl){
+    if(_isSpecialAct){
+      const objProj = (D.objectifsProjet||{})[p];
+      const objSomme = ags.reduce((t,a)=>t+(+((a.objectifsIndividuels||{})[m]||0)),0);
+      objBannerEl.innerHTML = '<div style="background:rgba(245,200,0,.08);border:1px solid rgba(245,200,0,.25);border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:12.5px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">'
+        +'<span>🎯 Objectif global du projet ('+m+') : <strong>'+(objProj?objProj.cible+(_actType==="televente"?" €":" RDV"):'non défini')+'</strong>'
+        +' &nbsp;·&nbsp; Somme des objectifs individuels saisis : <strong>'+objSomme+(_actType==="televente"?" €":" RDV")+'</strong></span>'
+        +'<button class="btn" style="font-size:11px;padding:4px 10px" onclick="window._openSetObjectifProjet(\''+p+'\')">Modifier l\'objectif global</button>'
+      +'</div>';
+    } else {
+      objBannerEl.innerHTML = '';
+    }
+  }
+
   document.getElementById('sgrid').innerHTML=`<table class="tbl"><thead><tr>
     <th>Agent</th>
-    <th><div class="tooltip-wrap">Performance %<span class="help-icon">?</span><div class="tooltip-box">% d'atteinte de l'objectif commercial.<br>Ex: objectif 50 ventes, réalisé 60 → 120%.<br><strong>Poids : 40% du score final.</strong></div></div></th>
+    <th>${_isSpecialAct
+      ? '<div class="tooltip-wrap">'+_realiseLabel+' ('+_realiseUnit+')<span class="help-icon">?</span><div class="tooltip-box">Saisissez le '+(_actType==='televente'?'CA':'volume')+' réalisé par l\'agent ce mois.<br>La Performance % se calcule automatiquement : Réalisé ÷ Objectif individuel.<br><strong>Poids : 40% du score final.</strong></div></div>'
+      : '<div class="tooltip-wrap">Performance %<span class="help-icon">?</span><div class="tooltip-box">% d\'atteinte de l\'objectif commercial.<br>Ex: objectif 50 ventes, réalisé 60 → 120%.<br><strong>Poids : 40% du score final.</strong></div></div>'}</th>
     <th><div class="tooltip-wrap">Qualité %<span class="help-icon">?</span><div class="tooltip-box">Note de qualité des appels (grille d'écoute).<br>Entre 0% et 100%.<br><strong>Poids : 30% du score final.</strong></div></div></th>
     <th><div class="tooltip-wrap">Présence %<span class="help-icon">?</span><div class="tooltip-box">Taux de présence sur le mois.<br>100% = aucune absence. Par défaut : 100%.<br><strong>Poids : 20% du score final.</strong></div></div></th>
     <th><div class="tooltip-wrap">Engagement <span style="font-size:10px;color:var(--muted)">(3 critères)</span><span class="help-icon">?</span><div class="tooltip-box">3 critères objectifs :<br>✅ Présent aux briefs<br>✅ Remontées terrain<br>✅ Comportement équipe<br><strong>Poids : 10% du score final.</strong></div></div></th>
@@ -3762,9 +3793,19 @@ window.renderScoreGrid=function(){
     const canPresF = !_locked && canPres;
     const canEngF  = !_locked && canEng;
     const canAvertF= !_locked && canAvert;
+    const _objIndiv = (a.objectifsIndividuels||{})[m] || 0;
     return`<tr>
       <td style="font-weight:600;white-space:nowrap">${a.name}</td>
-      <td><input type="number" class="score-input" min="0" max="200" value="${s.perf||''}" id="p-${a.id}" oninput="window._upPrev('${a.id}')" placeholder="ex: 110" ${canPerfF?'':''+roDisabled}></td>
+      <td>${_isSpecialAct
+        ? '<input type="hidden" id="p-'+a.id+'" value="'+(s.perf||0)+'">'
+          +'<div style="display:flex;flex-direction:column;gap:3px">'
+          +'<input type="number" class="score-input" min="0" value="'+(s.realise||'')+'" id="real-'+a.id+'" oninput="window._upPrevSpecial(\''+a.id+'\',\''+p+'\')" placeholder="ex: 4500" '+(canPerfF?'':roDisabled)+'>'
+          +'<div style="font-size:10px;color:var(--muted);display:flex;align-items:center;gap:4px">'
+            +'Obj: <input type="number" min="0" value="'+_objIndiv+'" id="obj-'+a.id+'" oninput="window._upPrevSpecial(\''+a.id+'\',\''+p+'\')" style="width:60px;padding:2px 4px;font-size:10px;border:1px solid var(--border);border-radius:4px" '+(canPerfF?'':roDisabled)+'> → <strong id="perf-display-'+a.id+'">'+(s.perf||0)+'%</strong>'
+          +'</div>'
+        +'</div>'
+        : '<input type="number" class="score-input" min="0" max="200" value="'+(s.perf||'')+'" id="p-'+a.id+'" oninput="window._upPrev(\''+a.id+'\')" placeholder="ex: 110" '+(canPerfF?'':roDisabled)+'>'
+      }</td>
       <td>
         <div style="display:flex;align-items:center;gap:4px">
           <input type="number" class="score-input" min="0" max="100" value="${s.qual||''}" id="q-${a.id}" oninput="window._upPrev('${a.id}')" placeholder="ex: 80" ${canQualF?'':''+roDisabled} style="flex:1">
@@ -3805,6 +3846,26 @@ window._upPrev=function(id){
   if(el){el.textContent=perf||qual?s.toFixed(1)+'%':'—';el.style.color=col(s);}
 }
 
+// Calcul automatique de la Performance pour les projets Télévente (CA) et BPO (volume RDV/flux)
+window._upPrevSpecial=function(id, projName){
+  const realiseEl = document.getElementById('real-'+id);
+  const objEl = document.getElementById('obj-'+id);
+  const realise = +(realiseEl ? realiseEl.value : 0) || 0;
+  const objIndiv = +(objEl ? objEl.value : 0) || 0;
+  const perfCalc = objIndiv > 0 ? Math.round((realise / objIndiv) * 1000) / 10 : 0;
+
+  // Mettre à jour le champ caché compatible avec saveScores()
+  const hiddenP = document.getElementById('p-'+id);
+  if(hiddenP) hiddenP.value = perfCalc;
+
+  // Affichage du % calculé à côté de l'objectif
+  const displayEl = document.getElementById('perf-display-'+id);
+  if(displayEl) displayEl.textContent = perfCalc+'%';
+
+  // Recalculer le score final comme _upPrev
+  window._upPrev(id);
+}
+
 window.saveScores=async function(){
   const m=document.getElementById('msel').value;
   const p=document.getElementById('psel').value;
@@ -3830,11 +3891,14 @@ window.saveScores=async function(){
     const erS=document.getElementById('er-'+a.id);
     const ecS=document.getElementById('ec-'+a.id);
     const engVal = (_canEng && ebS) ? {briefs:ebS.checked, remontees:erS.checked, comportement:ecS.checked} : existing.eng;
+    const realiseEl = document.getElementById('real-'+a.id);
+    const objEl = document.getElementById('obj-'+a.id);
     const newScores = {
       perf:  _canPerf ? (+pi.value||0) : existing.perf,
       qual:  _canQual ? (+document.getElementById('q-'+a.id).value||0) : existing.qual,
       pres:  _canPres ? (+document.getElementById('r-'+a.id).value||100) : existing.pres,
       eng:   engVal,
+      realise: (_canPerf && realiseEl) ? (+realiseEl.value||0) : existing.realise,
       avert: _canAvert ? (+document.getElementById('av-'+a.id).value||0) : existing.avert
     };
     // Détecter les changements
@@ -3869,6 +3933,11 @@ window.saveScores=async function(){
       });
     }
     a.scores[m] = newScores;
+    // Sauvegarder l'objectif individuel de l'agent pour ce mois (projets Télévente/BPO)
+    if(_canPerf && objEl){
+      if(!a.objectifsIndividuels) a.objectifsIndividuels = {};
+      a.objectifsIndividuels[m] = +objEl.value || 0;
+    }
   });
   await saveD();
   // Sauvegarder l'historique dans Firebase
@@ -4222,7 +4291,9 @@ window._editProjOps = function(projName){
   for(var i=0; i<4; i++){
     opsInputs += '<input type="text" id="eop'+i+'" value="'+(ops[i]||'')+'" placeholder="Operation '+(i+1)+'" style="margin-bottom:4px">';
   }
+  var curType = (D.activityType||{})[projName] || '';
   showModal('<div class="mhdr"><h3>Operations - '+projName+'</h3><button class="xbtn" onclick="closeM()">x</button></div>'
+    +'<div style="margin-bottom:14px"><div class="flabel">Type d\'activite (scoring)</div><select id="eat"><option value=""'+(curType===''?' selected':'')+'>Standard (Perf saisie manuellement)</option><option value="televente"'+(curType==='televente'?' selected':'')+'>Televente — Perf calculee depuis le CA</option><option value="bpo"'+(curType==='bpo'?' selected':'')+'>BPO — Perf calculee depuis le volume (RDV/flux)</option></select></div>'
     +'<div style="margin-bottom:14px"><div class="flabel">Operations (laisser vide pour supprimer)</div>'+opsInputs+'</div>'
     +'<div class="frow"><button class="btn" onclick="closeM()">Annuler</button><button class="btn yellow" data-proj="'+projName+'" onclick="window._doEditOps(this.dataset.proj)">Enregistrer</button></div>');
 }
@@ -4236,6 +4307,12 @@ window._doEditOps = async function(projName){
   if(!D.operations) D.operations={};
   if(ops.length) D.operations[projName]=ops;
   else delete D.operations[projName];
+  var atEl = document.getElementById('eat');
+  if(atEl){
+    if(!D.activityType) D.activityType = {};
+    if(atEl.value) D.activityType[projName] = atEl.value;
+    else delete D.activityType[projName];
+  }
   await saveD();
   closeM();
   renderProjects();
@@ -4245,6 +4322,7 @@ window.openAddProj=function(){
   showModal('<div class="mhdr"><h3>Nouveau projet</h3><button class="xbtn" onclick="closeM()">x</button></div>'
     +'<div id="fa" class="alert-err"></div>'
     +'<div style="margin-bottom:12px"><div class="flabel">Nom du projet</div><input type="text" id="fpn" placeholder="Ex: NOUVEAU CLIENT"></div>'
+    +'<div style="margin-bottom:12px"><div class="flabel">Type d\'activite (scoring)</div><select id="fat"><option value="">Standard (Perf saisie manuellement)</option><option value="televente">Televente — Perf calculee depuis le CA</option><option value="bpo">BPO — Perf calculee depuis le volume (RDV/flux)</option></select></div>'
     +'<div style="margin-bottom:14px"><div class="flabel">Operations (une par ligne, optionnel)</div><input type="text" id="fop1" placeholder="Ex: Retention" style="margin-bottom:4px"><input type="text" id="fop2" placeholder="Ex: Lead" style="margin-bottom:4px"><input type="text" id="fop3" placeholder="Ex: Care" style="margin-bottom:4px"><input type="text" id="fop4" placeholder="Ex: Policia"></div>'
     +'<div class="frow"><button class="btn" onclick="closeM()">Annuler</button><button class="btn yellow" onclick="window._doAddProj()">Creer</button></div>');
 }
@@ -4253,6 +4331,11 @@ window._doAddProj=async function(){
   if(!n){showFA('Le nom est obligatoire.');return;}
   if(D.projects.includes(n)){showFA('Ce projet existe deja.');return;}
   D.projects.push(n);
+  var actType = document.getElementById('fat').value;
+  if(actType){
+    if(!D.activityType) D.activityType = {};
+    D.activityType[n] = actType;
+  }
   var ops=[];
   for(var i=1;i<=4;i++){
     var el=document.getElementById('fop'+i);
