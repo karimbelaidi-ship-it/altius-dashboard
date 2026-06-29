@@ -1927,7 +1927,7 @@ function projStats(){
     const ss=ags.map(a=>lastScore(a)).filter(Boolean);
     const avg=ss.length?Math.round(ss.reduce((t,x)=>t+x.score,0)/ss.length*10)/10:0;
     return{name:p,n:ags.length,score:avg,perf:ss.length?Math.round(ss.reduce((t,x)=>t+x.perf,0)/ss.length):0,qual:ss.length?Math.round(ss.reduce((t,x)=>t+x.qual,0)/ss.length):0,pres:ss.length?Math.round(ss.reduce((t,x)=>t+(x.pres||100),0)/ss.length):0,rank:rank(avg),color:PC[pi%PC.length]};
-  }).filter(p=>p.n>0);
+  });
 }
 
 const charts={};
