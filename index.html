@@ -1421,6 +1421,14 @@
       <button class="btn yellow" onclick="window.openAddCompte()">+ Nouveau compte</button>
     </div>
     <div id="comptes-body"></div>
+
+    <div style="margin-top:36px;border:2px solid #c0392b;border-radius:12px;padding:18px 20px;background:rgba(192,57,43,.04)">
+      <div style="font-size:13px;font-weight:800;color:#c0392b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">⚠️ Zone de danger</div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:14px;max-width:600px">
+        Cette action supprime <strong>définitivement</strong> tous les agents de tous les projets, ainsi que leur historique complet (scores, coaching, plans d'action, appels qualité, commentaires). <strong>Aucune récupération possible.</strong> Les projets, comptes utilisateurs et paramètres ne sont pas affectés.
+      </div>
+      <button class="btn red" onclick="window._openResetAllAgentsModal()">🗑️ Supprimer tous les agents</button>
+    </div>
   </div>
 
   <div class="pg" id="pg-historique">
@@ -5762,6 +5770,49 @@ function renderComptes(){
   document.getElementById('comptes-body').innerHTML = html || '<p style="color:var(--muted);font-size:13px">Aucun compte.</p>';
 }
 
+// ── ZONE DE DANGER : suppression totale des agents ───────────────────────────
+window._openResetAllAgentsModal = function(){
+  if(!D) return;
+  var nbAgents = (D.agents||[]).length;
+  var html = '<div class="mhdr"><h3 style="color:#c0392b">⚠️ Supprimer tous les agents</h3><button class="xbtn" onclick="closeM()">x</button></div>'
+    +'<div style="background:rgba(192,57,43,.08);border:1px solid rgba(192,57,43,.3);border-radius:10px;padding:14px 16px;margin-bottom:16px">'
+      +'<p style="font-size:13px;color:#8c1a1a;margin-bottom:8px"><strong>Cette action est irréversible.</strong></p>'
+      +'<p style="font-size:12.5px;color:#8c1a1a">Vous êtes sur le point de supprimer <strong>'+nbAgents+' agent(s)</strong> et toutes leurs données associées : scores, historique, fiches de coaching, plans d\'action, appels qualité, commentaires. Aucune sauvegarde ne sera conservée.</p>'
+    +'</div>'
+    +'<div class="flabel">Pour confirmer, tapez <strong>SUPPRIMER</strong> ci-dessous :</div>'
+    +'<input type="text" id="reset-confirm-input" placeholder="SUPPRIMER" style="margin-bottom:16px;border-color:#c0392b" autocomplete="off">'
+    +'<div id="fa-reset" class="alert-err"></div>'
+    +'<div class="frow"><button class="btn" onclick="closeM()">Annuler</button><button class="btn red" onclick="window._confirmResetAllAgents()">🗑️ Supprimer définitivement</button></div>';
+  showModal(html);
+};
+
+window._confirmResetAllAgents = async function(){
+  var input = document.getElementById('reset-confirm-input');
+  var fa = document.getElementById('fa-reset');
+  if(!input || input.value.trim().toUpperCase() !== 'SUPPRIMER'){
+    if(fa){ fa.textContent = 'Veuillez taper exactement SUPPRIMER pour confirmer.'; fa.style.display = 'block'; }
+    return;
+  }
+  D.agents = [];
+  if(!D.notifications) D.notifications = [];
+  D.notifications.push({
+    id: 'n'+Date.now()+Math.random(),
+    key: 'reset_all_agents_'+Date.now(),
+    type: 'danger',
+    icon: '🗑️',
+    msg: 'Tous les agents ont été supprimés définitivement par '+(CURRENT_USER?CURRENT_USER.nom:'Admin')+'.',
+    time: new Date().toLocaleDateString('fr-FR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}),
+    unread: true
+  });
+  await saveD();
+  closeM();
+  renderOverview();
+  renderAgents();
+  renderProjects();
+  if(typeof renderMois === 'function') renderMois();
+  alert('✅ Tous les agents ont été supprimés.');
+};
+
 window.openAddCompte = function(){
   var projOpts = '<option value="">-- Aucun --</option>' + D.projects.map(function(p){return '<option value="'+p+'">'+p+'</option>';}).join('');
   var roleOpts = Object.keys(ROLES).map(function(r){return '<option value="'+r+'">'+ROLES[r].label+' - '+ROLES[r].desc+'</option>';}).join('');
@@ -6586,7 +6637,7 @@ window._applyReadOnlyLock = function(){
       el.disabled = true;
     });
     // Désactiver les boutons d'action d'écriture (identifiés par leur fonction), garder navigation/export/lecture
-    var actionPatterns = /_save|_add|_delete|_remove|_open(Add|Edit|Set|Coaching|PlanAction|JustifPerf|AppelsQualite|Compte)|openAdd|_editProjOps|_delProj|_doExport|doExportPDF|toggleLockMonth|_addComment|saveScores|window\.doAddCompte|window\.doEditCompte|window\.deleteCompte/;
+    var actionPatterns = /_save|_add|_delete|_remove|_open(Add|Edit|Set|Coaching|PlanAction|JustifPerf|AppelsQualite|Compte)|openAdd|_editProjOps|_delProj|_doExport|doExportPDF|toggleLockMonth|_addComment|saveScores|window\.doAddCompte|window\.doEditCompte|window\.deleteCompte|_openResetAllAgentsModal|_confirmResetAllAgents/;
     // Actions de gouvernance CEO — toujours autorisées même en lecture seule (ce sont des actions de pilotage, pas de saisie de données métier)
     var governanceExceptions = /_saveUrgentMeeting|_openUrgentMeetingModal|_saveRedFlag|_openRedFlagModal/;
     main.querySelectorAll('button').forEach(function(btn){
