@@ -1870,6 +1870,12 @@ function anciennete(dateEntree, dateFin) {
 // Calcule durée entre deux dates label "Mmm AA"
 function dureeEntreMois(debut, fin) {
   const parse = s => {
+    // Nouveau format date complète "YYYY-MM-DD"
+    if(/^\d{4}-\d{2}-\d{2}$/.test(s)){
+      const [yr, mo] = s.split('-');
+      return (+yr)*12 + (+mo - 1);
+    }
+    // Ancien format "Mmm AA" (ex: "Oct 25")
     const [mo, yr] = s.split(' ');
     return +('20'+yr)*12 + MLIST.indexOf(mo);
   };
@@ -1881,6 +1887,16 @@ function dureeEntreMois(debut, fin) {
   const ans = Math.floor(diff/12);
   const m = diff%12;
   return ans + ' an' + (ans>1?'s':'') + (m>0?' '+m+' mois':'');
+}
+
+// Formate une date pour affichage lisible, compatible ancien ("Mmm AA") et nouveau format ("YYYY-MM-DD")
+function formatDateLabel(s){
+  if(!s) return '';
+  if(/^\d{4}-\d{2}-\d{2}$/.test(s)){
+    const d = new Date(s+'T00:00:00');
+    return d.toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'numeric'});
+  }
+  return s; // déjà au format lisible "Mmm AA"
 }
 
 const DEF = {
@@ -3264,7 +3280,7 @@ window._openFiche = function(id){
     const isCurrent=h.fin===null;
     const duree=dureeEntreMois(h.debut, h.fin||D.months[D.months.length-1]);
     return`<div class="tl-item${isCurrent?'':' past'}">
-      <div class="tl-date">${h.debut} → ${h.fin||'Auj.'}</div>
+      <div class="tl-date">${formatDateLabel(h.debut)} → ${h.fin?formatDateLabel(h.fin):'Auj.'}</div>
       <div class="tl-proj">${h.proj} ${isCurrent?'<span class="badge-ok" style="font-size:10px">Actuel</span>':''}</div>
       <div class="tl-duration">⏱ ${duree}</div>
     </div>`;
@@ -3622,14 +3638,9 @@ window._renderComparateur = function(){
 window._openChangerProjet = function(id){ window.closeDrawer();
   var a=D.agents.find(function(x){return x.id===id;});
   if(!a) return;
-  var dernierMois=D.months[D.months.length-1];
   var projOptions='';
   for(var i=0;i<D.projects.length;i++){
     if(D.projects[i]!==a.proj) projOptions+='<option value="'+D.projects[i]+'">'+D.projects[i]+'</option>';
-  }
-  var moisOptions='';
-  for(var j=0;j<D.months.length;j++){
-    moisOptions+='<option value="'+D.months[j]+'"'+(D.months[j]===dernierMois?' selected':'')+'>'+D.months[j]+'</option>';
   }
   var h='';
   h+='<div class="mhdr"><h3>Changer de projet</h3><button class="xbtn" onclick="closeM()">x</button></div>';
@@ -3637,7 +3648,7 @@ window._openChangerProjet = function(id){ window.closeDrawer();
   h+='<p style="font-size:13px;color:var(--muted);margin-bottom:16px"><strong>'+a.name+'</strong> - projet actuel : <strong>'+a.proj+'</strong></p>';
   h+='<div class="fgrid" style="margin-bottom:12px">';
   h+='<div><div class="flabel">Nouveau projet</div><select id="newproj">'+projOptions+'</select></div>';
-  h+='<div><div class="flabel">Mois de debut</div><select id="newdebut">'+moisOptions+'</select></div>';
+  h+='<div><div class="flabel">Date de debut</div><input type="date" id="newdebut" value="'+new Date().toISOString().slice(0,10)+'"></div>';
   h+='</div>';
   h+='<div style="margin-bottom:12px"><div class="flabel">Operation sur le nouveau projet</div>';
   h+='<select id="newop" style="margin-bottom:4px"><option value="">-- Aucune --</option></select>';
@@ -4096,7 +4107,7 @@ window._openFicheDem=function(id){
   var timelineHtml=ph.slice().reverse().map(function(h){
     var dur=dureeEntreMois(h.debut, h.fin||D.months[D.months.length-1]||h.debut);
     return '<div class="tl-item past">'
-      +'<div class="tl-date">'+h.debut+' → '+(h.fin||'Démission')+'</div>'
+      +'<div class="tl-date">'+formatDateLabel(h.debut)+' → '+(h.fin?formatDateLabel(h.fin):'Démission')+'</div>'
       +'<div class="tl-proj">'+h.proj+(h.operation?'<span style="font-size:10px;background:#f0f0f0;color:#555;padding:1px 7px;border-radius:20px;margin-left:6px">'+h.operation+'</span>':'')+'</div>'
       +'<div class="tl-duration">⏱ '+dur+'</div>'
       +'</div>';
@@ -4286,7 +4297,7 @@ window.openAdd=function(){
       <div><div class="flabel">Projet actuel</div><select id="fp" onchange="window._updateOpsSel()">${D.projects.map(p=>`<option>${p}</option>`).join('')}</select></div>
       <div><div class="flabel">Operation</div><select id="fop-sel" style="margin-bottom:4px"><option value="">-- Aucune --</option></select><input type="text" id="fop" placeholder="Ou saisir manuellement..."></div>
       <div><div class="flabel">Date d'entree dans l'entreprise</div><input type="date" id="fd"></div>
-      <div><div class="flabel">Début sur ce projet</div><select id="fdebut">${D.months.map(m=>`<option value="${m}">${m}</option>`).join('')}</select></div>
+      <div><div class="flabel">Début sur ce projet</div><input type="date" id="fdebut" value="${new Date().toISOString().slice(0,10)}"></div>
     </div>
     <div class="frow"><button class="btn" onclick="closeM()">Annuler</button><button class="btn prim" onclick="window._doAdd()">✓ Enregistrer</button></div>`);
 }
