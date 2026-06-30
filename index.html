@@ -1855,8 +1855,10 @@ function badgeRegularite(a){
 // Calcule ancienneté totale en mois depuis dateEntree
 function anciennete(dateEntree, dateFin) {
   if(!dateEntree) return '—';
-  const d = new Date(dateEntree + '-01');
-  const ref = dateFin ? new Date(dateFin + '-01') : new Date();
+  // Compatible avec l'ancien format "YYYY-MM" et le nouveau format complet "YYYY-MM-DD"
+  const normalise = s => s.length===7 ? s+'-01' : s;
+  const d = new Date(normalise(dateEntree));
+  const ref = dateFin ? new Date(normalise(dateFin)) : new Date();
   const mois = (ref.getFullYear()-d.getFullYear())*12 + (ref.getMonth()-d.getMonth());
   if(mois < 1) return 'Nouveau';
   if(mois < 12) return mois + ' mois';
@@ -3708,7 +3710,16 @@ window._doChangerOperation = async function(id){
   if(!a) return;
   var sel=document.getElementById('chg-op-sel');
   var txt=document.getElementById('chg-op-txt');
-  a.operation=(sel&&sel.value)?sel.value:(txt?txt.value.trim():'');
+  var newOp = (sel&&sel.value)?sel.value:(txt?txt.value.trim():'');
+  a.operation = newOp;
+  // Si l'opération saisie est nouvelle (pas déjà dans la liste du projet), l'ajouter automatiquement
+  if(newOp){
+    if(!D.operations) D.operations = {};
+    if(!D.operations[a.proj]) D.operations[a.proj] = [];
+    if(D.operations[a.proj].indexOf(newOp) === -1){
+      D.operations[a.proj].push(newOp);
+    }
+  }
   await saveD();
   closeM();
   renderAgents();
@@ -4251,7 +4262,7 @@ window._openEdit=function(id){
     <div id="fa" class="alert-err"></div>
     <div class="fgrid" style="margin-bottom:4px">
       <div style="grid-column:1/-1"><div class="flabel">Nom complet</div><input type="text" id="fn" value="${a.name}"></div>
-      <div><div class="flabel">Date d'entrée dans l'entreprise</div><input type="month" id="fd" value="${a.dateEntree||''}"></div>
+      <div><div class="flabel">Date d'entrée dans l'entreprise</div><input type="date" id="fd" value="${(a.dateEntree&&a.dateEntree.length===7)?a.dateEntree+'-01':(a.dateEntree||'')}"></div>
     </div>
     <p style="font-size:12px;color:var(--muted);margin-top:4px">Pour changer de projet, utilise le bouton 🔄 dans la fiche agent.</p>
     <div class="frow">
@@ -4274,7 +4285,7 @@ window.openAdd=function(){
       <div style="grid-column:1/-1"><div class="flabel">Nom complet</div><input type="text" id="fn" placeholder="Prénom Nom"></div>
       <div><div class="flabel">Projet actuel</div><select id="fp" onchange="window._updateOpsSel()">${D.projects.map(p=>`<option>${p}</option>`).join('')}</select></div>
       <div><div class="flabel">Operation</div><select id="fop-sel" style="margin-bottom:4px"><option value="">-- Aucune --</option></select><input type="text" id="fop" placeholder="Ou saisir manuellement..."></div>
-      <div><div class="flabel">Date d'entree dans l'entreprise</div><input type="month" id="fd"></div>
+      <div><div class="flabel">Date d'entree dans l'entreprise</div><input type="date" id="fd"></div>
       <div><div class="flabel">Début sur ce projet</div><select id="fdebut">${D.months.map(m=>`<option value="${m}">${m}</option>`).join('')}</select></div>
     </div>
     <div class="frow"><button class="btn" onclick="closeM()">Annuler</button><button class="btn prim" onclick="window._doAdd()">✓ Enregistrer</button></div>`);
@@ -4287,6 +4298,14 @@ window._doAdd=async function(){
   var fopSel=document.getElementById('fop-sel');
   var fopTxt=document.getElementById('fop');
   var fopVal=(fopSel&&fopSel.value)?fopSel.value:(fopTxt?fopTxt.value.trim():'');
+  // Si l'opération saisie est nouvelle, l'ajouter automatiquement à la liste du projet
+  if(fopVal){
+    if(!D.operations) D.operations = {};
+    if(!D.operations[proj]) D.operations[proj] = [];
+    if(D.operations[proj].indexOf(fopVal) === -1){
+      D.operations[proj].push(fopVal);
+    }
+  }
   D.agents.push({id:uid(),name:n,proj,operation:fopVal,active:true,dateEntree:document.getElementById('fd').value,projHistory:[{proj,debut,fin:null}],scores:{}});
   await saveD();closeM();renderAgents();renderOverview();renderProjects();
 }
