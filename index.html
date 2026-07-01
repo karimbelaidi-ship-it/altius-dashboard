@@ -3845,12 +3845,12 @@ window.renderScoreGrid=function(){
     const canAvertF= !_locked && canAvert;
     const _objIndiv = (a.objectifsIndividuels||{})[m] || 0;
     // ── Logique spécifique JAPHY par opération ──────────────────────────────
-    const _isJaphy = (p === 'JAPHY');
-    const _jaOp = _isJaphy ? (a.operation||'').toLowerCase() : '';
-    const _isLead = _jaOp === 'lead';
-    const _isRet  = _jaOp === 'rétention' || _jaOp === 'retention';
-    const _isCare = _jaOp === 'care';
-    const _isPoli = _jaOp === 'policia';
+    const _isJaphy = p.toUpperCase() === 'JAPHY';
+    const _jaOp = _isJaphy ? (a.operation||'').toLowerCase().trim() : '';
+    const _isLead = _jaOp.includes('lead');
+    const _isRet  = _jaOp.includes('ret');
+    const _isCare = _jaOp.includes('care');
+    const _isPoli = _jaOp.includes('polic');
     const _isJaphyOp = _isJaphy && (_isLead||_isRet||_isCare||_isPoli);
 
     // Cellule Performance selon opération
@@ -4169,8 +4169,8 @@ window.saveScores=async function(){
     const _saveActType = (D.activityType||{})[p] || '';
     const _isBpoSave = _saveActType === 'bpo';
     // JAPHY : qualité toujours /20, et champs spéciaux par opération
-    const _isJaphySave = (p === 'JAPHY');
-    const _jaOpSave = _isJaphySave ? (a.operation||'').toLowerCase() : '';
+    const _isJaphySave = p.toUpperCase() === 'JAPHY';
+    const _jaOpSave = _isJaphySave ? (a.operation||'').toLowerCase().trim() : '';
     const _isQual20Save = _isBpoSave || _isJaphySave;
     const qualRawEl = document.getElementById('q-'+a.id);
     const qualRawVal = +(qualRawEl ? qualRawEl.value : 0) || 0;
