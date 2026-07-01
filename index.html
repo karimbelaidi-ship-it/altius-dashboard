@@ -3867,7 +3867,8 @@ window.renderScoreGrid=function(){
     } else if(_isLead){
       _perfCell = '<input type="hidden" id="p-'+a.id+'" value="'+(s.perf||0)+'">'
         +'<div style="display:flex;flex-direction:column;gap:3px">'
-        +'<span style="font-size:10px;color:#2980b9;font-weight:600">📋 Leads convertis ÷ Objectif</span>'
+        +'<span style="font-size:10px;color:#2980b9;font-weight:600">📋 Lead — Leads convertis ÷ Objectif mensuel</span>'
+        +'<span style="font-size:9px;color:var(--muted)">Saisir le nb de leads convertis ce mois + l\'objectif fixé. Ex: 35 leads / obj 40 → 87.5%</span>'
         +'<input type="number" class="score-input" min="0" value="'+(s.realise||'')+'" id="real-'+a.id+'" oninput="window._upJaphyLead(\''+a.id+'\')" placeholder="Nb leads convertis" '+(canPerfF?'':roDisabled)+'>'
         +'<div style="font-size:10px;color:var(--muted);display:flex;align-items:center;gap:4px">'
           +'Obj: <input type="number" min="0" value="'+_objIndiv+'" id="obj-'+a.id+'" oninput="window._upJaphyLead(\''+a.id+'\')" style="width:50px;padding:2px 4px;font-size:10px;border:1px solid var(--border);border-radius:4px" '+(canPerfF?'':roDisabled)+'>'
@@ -3877,15 +3878,17 @@ window.renderScoreGrid=function(){
     } else if(_isRet){
       _perfCell = '<input type="hidden" id="p-'+a.id+'" value="'+(s.perf||0)+'">'
         +'<div style="display:flex;flex-direction:column;gap:3px">'
-        +'<span style="font-size:10px;color:#27ae60;font-weight:600">📞 Taux raffut ÷ 65%</span>'
+        +'<span style="font-size:10px;color:#27ae60;font-weight:600">📞 Rétention — Taux de raffut réalisé ÷ 65%</span>'
+        +'<span style="font-size:9px;color:var(--muted)">Saisir le taux de raffut réalisé ce mois en %. L\'objectif est 65%. Ex: 68% réalisé → 68÷65×100 = 104.6%</span>'
         +'<input type="number" class="score-input" min="0" max="100" step="0.1" value="'+(s.realise||'')+'" id="real-'+a.id+'" oninput="window._upJaphyRet(\''+a.id+'\')" placeholder="Taux raffut % (ex: 68)" '+(canPerfF?'':roDisabled)+'>'
-        +'<div style="font-size:10px;color:var(--muted)">Obj : 65% → <strong id="perf-display-'+a.id+'">'+(s.perf||0)+'%</strong></div>'
+        +'<div style="font-size:10px;color:var(--muted)">Obj fixe : 65% → <strong id="perf-display-'+a.id+'">'+(s.perf||0)+'%</strong></div>'
         +'</div>';
     } else if(_isCare){
       var _careJours = s.joursTravailles||'';
       _perfCell = '<input type="hidden" id="p-'+a.id+'" value="'+(s.perf||0)+'">'
         +'<div style="display:flex;flex-direction:column;gap:3px">'
-        +'<span style="font-size:10px;color:#8e44ad;font-weight:600">📧 Mails ÷ (jours × 100)</span>'
+        +'<span style="font-size:10px;color:#8e44ad;font-weight:600">📧 Care — Mails répondus ÷ (Jours × 100)</span>'
+        +'<span style="font-size:9px;color:var(--muted)">Objectif : 100 mails/jour. Saisir mails répondus + jours travaillés. Ex: 1800 mails / 20j → obj 2000 → 90%</span>'
         +'<input type="number" class="score-input" min="0" value="'+(s.realise||'')+'" id="real-'+a.id+'" oninput="window._upJaphyCare(\''+a.id+'\')" placeholder="Nb mails répondus" '+(canPerfF?'':roDisabled)+'>'
         +'<div style="font-size:10px;color:var(--muted);display:flex;align-items:center;gap:4px">'
           +'Jours travaillés: <input type="number" min="0" max="31" value="'+_careJours+'" id="jours-'+a.id+'" oninput="window._upJaphyCare(\''+a.id+'\')" style="width:36px;padding:2px 4px;font-size:10px;border:1px solid var(--border);border-radius:4px" '+(canPerfF?'':roDisabled)+'>'
@@ -3895,7 +3898,8 @@ window.renderScoreGrid=function(){
     } else if(_isPoli){
       _perfCell = '<input type="hidden" id="p-'+a.id+'" value="'+(s.perf||0)+'">'
         +'<div style="display:flex;flex-direction:column;gap:3px">'
-        +'<span style="font-size:10px;color:#e67e22;font-weight:600">💶 CA récupéré ÷ Objectif €</span>'
+        +'<span style="font-size:10px;color:#e67e22;font-weight:600">💶 Policia — CA récupéré ÷ Objectif mensuel €</span>'
+        +'<span style="font-size:9px;color:var(--muted)">Saisir le CA récupéré (impayés régularisés) et l\'objectif fixé ce mois. Ex: 12 000€ / obj 15 000€ → 80%</span>'
         +'<input type="number" class="score-input" min="0" value="'+(s.realise||'')+'" id="real-'+a.id+'" oninput="window._upJaphyPoli(\''+a.id+'\')" placeholder="CA récupéré €" '+(canPerfF?'':roDisabled)+'>'
         +'<div style="font-size:10px;color:var(--muted);display:flex;align-items:center;gap:4px">'
           +'Obj €: <input type="number" min="0" value="'+_objIndiv+'" id="obj-'+a.id+'" oninput="window._upJaphyPoli(\''+a.id+'\')" style="width:70px;padding:2px 4px;font-size:10px;border:1px solid var(--border);border-radius:4px" '+(canPerfF?'':roDisabled)+'>'
