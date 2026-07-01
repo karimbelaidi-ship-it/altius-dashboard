@@ -3847,7 +3847,7 @@ window.renderScoreGrid=function(){
     // ── Logique spécifique JAPHY par opération (priorité sur BPO/Télévente) ─
     const _jaOp = (a.operation||'').toLowerCase().trim();
     const _isLead = _jaOp.includes('lead');
-    const _isRet  = _jaOp.includes('ret');
+    const _isRet  = _jaOp.includes('ret') || _jaOp.includes('r\u00e9t');
     const _isCare = _jaOp.includes('care');
     const _isPoli = _jaOp.includes('polic');
     const _isJaphy = _isLead || _isRet || _isCare || _isPoli;
