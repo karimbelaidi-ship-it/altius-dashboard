@@ -3863,39 +3863,35 @@ window.renderScoreGrid=function(){
           +'Obj: <input type="number" min="0" value="'+_objIndiv+'" id="obj-'+a.id+'" oninput="window._upPrevSpecial(\''+a.id+'\',\''+p+'\')" style="width:60px;padding:2px 4px;font-size:10px;border:1px solid var(--border);border-radius:4px" '+(canPerfF?'':roDisabled)+'> → <strong id="perf-display-'+a.id+'">'+(s.perf||0)+'%</strong>'
         +'</div></div>';
     } else if(_isLead){
-      // Lead : leads convertis ÷ 40
-      var _leadReal = s.realise||'';
       _perfCell = '<input type="hidden" id="p-'+a.id+'" value="'+(s.perf||0)+'">'
         +'<div style="display:flex;flex-direction:column;gap:3px">'
-        +'<input type="number" class="score-input" min="0" value="'+_leadReal+'" id="real-'+a.id+'" oninput="window._upJaphyLead(\''+a.id+'\')" placeholder="Leads convertis" '+(canPerfF?'':roDisabled)+'>'
+        +'<span style="font-size:10px;color:#2980b9;font-weight:600">📋 Leads convertis ÷ 40</span>'
+        +'<input type="number" class="score-input" min="0" value="'+(s.realise||'')+'" id="real-'+a.id+'" oninput="window._upJaphyLead(\''+a.id+'\')" placeholder="Nb leads convertis" '+(canPerfF?'':roDisabled)+'>'
         +'<div style="font-size:10px;color:var(--muted)">Obj : 40 leads → <strong id="perf-display-'+a.id+'">'+(s.perf||0)+'%</strong></div>'
         +'</div>';
     } else if(_isRet){
-      // Rétention : taux de raffut saisi en % ÷ 65
-      var _retReal = s.realise||'';
       _perfCell = '<input type="hidden" id="p-'+a.id+'" value="'+(s.perf||0)+'">'
         +'<div style="display:flex;flex-direction:column;gap:3px">'
-        +'<input type="number" class="score-input" min="0" max="100" step="0.1" value="'+_retReal+'" id="real-'+a.id+'" oninput="window._upJaphyRet(\''+a.id+'\')" placeholder="Taux raffut %" '+(canPerfF?'':roDisabled)+'>'
+        +'<span style="font-size:10px;color:#27ae60;font-weight:600">📞 Taux raffut ÷ 65%</span>'
+        +'<input type="number" class="score-input" min="0" max="100" step="0.1" value="'+(s.realise||'')+'" id="real-'+a.id+'" oninput="window._upJaphyRet(\''+a.id+'\')" placeholder="Taux raffut % (ex: 68)" '+(canPerfF?'':roDisabled)+'>'
         +'<div style="font-size:10px;color:var(--muted)">Obj : 65% → <strong id="perf-display-'+a.id+'">'+(s.perf||0)+'%</strong></div>'
         +'</div>';
     } else if(_isCare){
-      // Care : mails répondus ÷ (jours × 100)
-      var _careReal = s.realise||'';
       var _careJours = s.joursTravailles||'';
       _perfCell = '<input type="hidden" id="p-'+a.id+'" value="'+(s.perf||0)+'">'
         +'<div style="display:flex;flex-direction:column;gap:3px">'
-        +'<input type="number" class="score-input" min="0" value="'+_careReal+'" id="real-'+a.id+'" oninput="window._upJaphyCare(\''+a.id+'\')" placeholder="Mails répondus" '+(canPerfF?'':roDisabled)+'>'
+        +'<span style="font-size:10px;color:#8e44ad;font-weight:600">📧 Mails ÷ (jours × 100)</span>'
+        +'<input type="number" class="score-input" min="0" value="'+(s.realise||'')+'" id="real-'+a.id+'" oninput="window._upJaphyCare(\''+a.id+'\')" placeholder="Nb mails répondus" '+(canPerfF?'':roDisabled)+'>'
         +'<div style="font-size:10px;color:var(--muted);display:flex;align-items:center;gap:4px">'
-          +'Jours: <input type="number" min="0" max="31" value="'+_careJours+'" id="jours-'+a.id+'" oninput="window._upJaphyCare(\''+a.id+'\')" style="width:44px;padding:2px 4px;font-size:10px;border:1px solid var(--border);border-radius:4px" '+(canPerfF?'':roDisabled)+'>'
-          +' × 100 → <strong id="perf-display-'+a.id+'">'+(s.perf||0)+'%</strong>'
+          +'Jours travaillés: <input type="number" min="0" max="31" value="'+_careJours+'" id="jours-'+a.id+'" oninput="window._upJaphyCare(\''+a.id+'\')" style="width:36px;padding:2px 4px;font-size:10px;border:1px solid var(--border);border-radius:4px" '+(canPerfF?'':roDisabled)+'>'
+          +' → <strong id="perf-display-'+a.id+'">'+(s.perf||0)+'%</strong>'
         +'</div>'
         +'</div>';
     } else if(_isPoli){
-      // Policia : CA récupéré ÷ objectif mensuel (saisi)
-      var _poliReal = s.realise||'';
       _perfCell = '<input type="hidden" id="p-'+a.id+'" value="'+(s.perf||0)+'">'
         +'<div style="display:flex;flex-direction:column;gap:3px">'
-        +'<input type="number" class="score-input" min="0" value="'+_poliReal+'" id="real-'+a.id+'" oninput="window._upJaphyPoli(\''+a.id+'\')" placeholder="CA récupéré €" '+(canPerfF?'':roDisabled)+'>'
+        +'<span style="font-size:10px;color:#e67e22;font-weight:600">💶 CA récupéré ÷ Objectif €</span>'
+        +'<input type="number" class="score-input" min="0" value="'+(s.realise||'')+'" id="real-'+a.id+'" oninput="window._upJaphyPoli(\''+a.id+'\')" placeholder="CA récupéré €" '+(canPerfF?'':roDisabled)+'>'
         +'<div style="font-size:10px;color:var(--muted);display:flex;align-items:center;gap:4px">'
           +'Obj €: <input type="number" min="0" value="'+_objIndiv+'" id="obj-'+a.id+'" oninput="window._upJaphyPoli(\''+a.id+'\')" style="width:70px;padding:2px 4px;font-size:10px;border:1px solid var(--border);border-radius:4px" '+(canPerfF?'':roDisabled)+'>'
           +' → <strong id="perf-display-'+a.id+'">'+(s.perf||0)+'%</strong>'
