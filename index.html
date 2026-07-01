@@ -3867,9 +3867,12 @@ window.renderScoreGrid=function(){
     } else if(_isLead){
       _perfCell = '<input type="hidden" id="p-'+a.id+'" value="'+(s.perf||0)+'">'
         +'<div style="display:flex;flex-direction:column;gap:3px">'
-        +'<span style="font-size:10px;color:#2980b9;font-weight:600">📋 Leads convertis ÷ 40</span>'
+        +'<span style="font-size:10px;color:#2980b9;font-weight:600">📋 Leads convertis ÷ Objectif</span>'
         +'<input type="number" class="score-input" min="0" value="'+(s.realise||'')+'" id="real-'+a.id+'" oninput="window._upJaphyLead(\''+a.id+'\')" placeholder="Nb leads convertis" '+(canPerfF?'':roDisabled)+'>'
-        +'<div style="font-size:10px;color:var(--muted)">Obj : 40 leads → <strong id="perf-display-'+a.id+'">'+(s.perf||0)+'%</strong></div>'
+        +'<div style="font-size:10px;color:var(--muted);display:flex;align-items:center;gap:4px">'
+          +'Obj: <input type="number" min="0" value="'+_objIndiv+'" id="obj-'+a.id+'" oninput="window._upJaphyLead(\''+a.id+'\')" style="width:50px;padding:2px 4px;font-size:10px;border:1px solid var(--border);border-radius:4px" '+(canPerfF?'':roDisabled)+'>'
+          +' leads → <strong id="perf-display-'+a.id+'">'+(s.perf||0)+'%</strong>'
+        +'</div>'
         +'</div>';
     } else if(_isRet){
       _perfCell = '<input type="hidden" id="p-'+a.id+'" value="'+(s.perf||0)+'">'
@@ -3972,7 +3975,8 @@ window._upPrev=function(id){
 
 window._upJaphyLead = function(id){
   var real = +(document.getElementById('real-'+id)||{}).value || 0;
-  var perf = real > 0 ? Math.round((real/40)*1000)/10 : 0;
+  var obj  = +(document.getElementById('obj-'+id)||{}).value || 0;
+  var perf = (real > 0 && obj > 0) ? Math.round((real/obj)*1000)/10 : 0;
   var hid = document.getElementById('p-'+id); if(hid) hid.value = perf;
   var disp = document.getElementById('perf-display-'+id); if(disp) disp.textContent = perf+'%';
   window._upPrev(id);
