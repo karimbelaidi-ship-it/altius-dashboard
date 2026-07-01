@@ -3846,7 +3846,13 @@ window.renderScoreGrid=function(){
       }</td>
       <td>
         <div style="display:flex;align-items:center;gap:4px">
-          <input type="number" class="score-input" min="0" max="100" value="${s.qual||''}" id="q-${a.id}" oninput="window._upPrev('${a.id}')" placeholder="ex: 80" ${canQualF?'':''+roDisabled} style="flex:1">
+          ${_actType==='bpo'
+            ? `<div style="display:flex;flex-direction:column;gap:2px;flex:1">
+                <input type="number" class="score-input" min="0" max="20" value="${s.qualRaw||''}" id="q-${a.id}" oninput="window._upPrevBpoQual('${a.id}')" placeholder="ex: 16" ${canQualF?'':''+roDisabled} style="flex:1">
+                <span style="font-size:10px;color:var(--muted);text-align:center">/20 → <strong id="qual-pct-${a.id}">${s.qual||0}%</strong></span>
+               </div>`
+            : `<input type="number" class="score-input" min="0" max="100" value="${s.qual||''}" id="q-${a.id}" oninput="window._upPrev('${a.id}')" placeholder="ex: 80" ${canQualF?'':''+roDisabled} style="flex:1">`
+          }
           <button onclick="window._openAppelsQualite('${a.id}','${m}')" title="Appels qualité enregistrés" style="background:none;border:1px solid var(--border);border-radius:6px;width:26px;height:26px;cursor:pointer;font-size:12px;flex-shrink:0;position:relative">📞${(a.appelsQualite&&a.appelsQualite[m]&&a.appelsQualite[m].length)?'<span style="position:absolute;top:-4px;right:-4px;background:#F5C800;color:#1a1a18;font-size:9px;font-weight:700;border-radius:50%;width:14px;height:14px;display:flex;align-items:center;justify-content:center">'+a.appelsQualite[m].length+'</span>':''}</button>
         </div>
       </td>
@@ -3876,7 +3882,9 @@ window.renderScoreGrid=function(){
 
 window._upPrev=function(id){
   const perf=+document.getElementById('p-'+id).value||0;
-  const qual=+document.getElementById('q-'+id).value||0;
+  // Pour BPO, le champ q-{id} contient la note /20, on utilise le champ caché qpct-{id} qui contient le % converti
+  const qPctEl = document.getElementById('qpct-'+id);
+  const qual = qPctEl ? (+qPctEl.value||0) : (+document.getElementById('q-'+id).value||0);
   const pres=+document.getElementById('r-'+id).value||100;
   const ebEl=document.getElementById('eb-'+id);
   const erEl=document.getElementById('er-'+id);
@@ -3889,6 +3897,41 @@ window._upPrev=function(id){
 }
 
 // Calcul automatique de la Performance pour les projets Télévente (CA) et BPO (volume RDV/flux)
+// Calcul automatique qualité BPO (/20 → %)
+window._upPrevBpoQual = function(id){
+  const qEl = document.getElementById('q-'+id);
+  const qualRaw = +(qEl ? qEl.value : 0) || 0;
+  const qualPct = Math.round((qualRaw / 20) * 1000) / 10; // /20 → %
+
+  // Mettre à jour l'affichage du % converti
+  const pctEl = document.getElementById('qual-pct-'+id);
+  if(pctEl) pctEl.textContent = qualPct+'%';
+
+  // Recalculer le score final en utilisant le % converti
+  // On ne peut pas appeler _upPrev directement car il lirait q-{id}.value comme % direct
+  // On crée un champ caché pour stocker le % converti
+  let hiddenQ = document.getElementById('qpct-'+id);
+  if(!hiddenQ){
+    hiddenQ = document.createElement('input');
+    hiddenQ.type = 'hidden';
+    hiddenQ.id = 'qpct-'+id;
+    document.body.appendChild(hiddenQ);
+  }
+  hiddenQ.value = qualPct;
+
+  // Recalculer le score final
+  const perf = +document.getElementById('p-'+id).value || 0;
+  const pres = +document.getElementById('r-'+id).value || 100;
+  const ebEl = document.getElementById('eb-'+id);
+  const erEl = document.getElementById('er-'+id);
+  const ecEl = document.getElementById('ec-'+id);
+  const eng = ebEl ? {briefs:ebEl.checked,remontees:erEl.checked,comportement:ecEl.checked} : {briefs:true,remontees:true,comportement:true};
+  const avert = +document.getElementById('av-'+id).value || 0;
+  const s = sc(perf, qualPct, pres, eng, avert);
+  const el = document.getElementById('pv-'+id);
+  if(el){ el.textContent = (perf||qualPct) ? s.toFixed(1)+'%' : '—'; el.style.color = col(s); }
+};
+
 window._upPrevSpecial=function(id, projName){
   const realiseEl = document.getElementById('real-'+id);
   const objEl = document.getElementById('obj-'+id);
@@ -4014,9 +4057,15 @@ window.saveScores=async function(){
     const engVal = (_canEng && ebS) ? {briefs:ebS.checked, remontees:erS.checked, comportement:ecS.checked} : existing.eng;
     const realiseEl = document.getElementById('real-'+a.id);
     const objEl = document.getElementById('obj-'+a.id);
+    const _saveActType = (D.activityType||{})[p] || '';
+    const _isBpoSave = _saveActType === 'bpo';
+    const qualRawEl = document.getElementById('q-'+a.id);
+    const qualRawVal = +(qualRawEl ? qualRawEl.value : 0) || 0;
+    const qualPctVal = _isBpoSave ? Math.round((qualRawVal/20)*1000)/10 : qualRawVal;
     const newScores = {
       perf:  _canPerf ? (+pi.value||0) : existing.perf,
-      qual:  _canQual ? (+document.getElementById('q-'+a.id).value||0) : existing.qual,
+      qual:  _canQual ? qualPctVal : existing.qual,
+      qualRaw: _canQual && _isBpoSave ? qualRawVal : existing.qualRaw,
       pres:  _canPres ? (+document.getElementById('r-'+a.id).value||100) : existing.pres,
       eng:   engVal,
       realise: (_canPerf && realiseEl) ? (+realiseEl.value||0) : existing.realise,
