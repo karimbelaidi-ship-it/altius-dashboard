@@ -3844,7 +3844,7 @@ window.renderScoreGrid=function(){
     const canEngF  = !_locked && canEng;
     const canAvertF= !_locked && canAvert;
     const _objIndiv = (a.objectifsIndividuels||{})[m] || 0;
-    // ── Logique spécifique JAPHY par opération ──────────────────────────────
+    // ── Logique spécifique JAPHY par opération (priorité sur BPO/Télévente) ─
     const _jaOp = (a.operation||'').toLowerCase().trim();
     const _isLead = _jaOp.includes('lead');
     const _isRet  = _jaOp.includes('ret');
@@ -3852,10 +3852,12 @@ window.renderScoreGrid=function(){
     const _isPoli = _jaOp.includes('polic');
     const _isJaphy = _isLead || _isRet || _isCare || _isPoli;
     const _isJaphyOp = _isJaphy;
+    // Si opération JAPHY reconnue, on ignore le type BPO/Télévente du projet
+    const _useSpecialAct = _isSpecialAct && !_isJaphy;
 
     // Cellule Performance selon opération
     var _perfCell = '';
-    if(_isSpecialAct){
+    if(_useSpecialAct){
       _perfCell = '<input type="hidden" id="p-'+a.id+'" value="'+(s.perf||0)+'">'
         +'<div style="display:flex;flex-direction:column;gap:3px">'
         +'<input type="number" class="score-input" min="0" value="'+(s.realise||'')+'" id="real-'+a.id+'" oninput="window._upPrevSpecial(\''+a.id+'\',\''+p+'\')" placeholder="ex: 4500" '+(canPerfF?'':roDisabled)+'>'
