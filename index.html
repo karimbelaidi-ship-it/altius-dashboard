@@ -3842,7 +3842,7 @@ window.renderScoreGrid=function(){
     const canEngF  = !_locked && canEng;
     const canAvertF= !_locked && canAvert;
     const _objIndiv = (a.objectifsIndividuels||{})[m] || 0;
-    return`<tr>
+    _rowsHtml+=`<tr>
       <td style="font-weight:600;white-space:nowrap">${a.name}</td>
       <td>${_isSpecialAct
         ? '<input type="hidden" id="p-'+a.id+'" value="'+(s.perf||0)+'">'
