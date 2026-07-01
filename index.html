@@ -3803,8 +3803,10 @@ window.renderScoreGrid=function(){
     <th>Agent</th>
     <th>${_isSpecialAct
       ? '<div class="tooltip-wrap">'+_realiseLabel+' ('+_realiseUnit+')<span class="help-icon">?</span><div class="tooltip-box">Saisissez le '+(_actType==='televente'?'CA':'volume')+' réalisé par l\'agent ce mois.<br>La Performance % se calcule automatiquement : Réalisé ÷ Objectif individuel.<br><strong>Poids : 40% du score final.</strong></div></div>'
-      : '<div class="tooltip-wrap">Performance %<span class="help-icon">?</span><div class="tooltip-box">% d\'atteinte de l\'objectif commercial.<br>Ex: objectif 50 ventes, réalisé 60 → 120%.<br><strong>Poids : 40% du score final.</strong></div></div>'}</th>
-    <th><div class="tooltip-wrap">Qualité %<span class="help-icon">?</span><div class="tooltip-box">Note de qualité des appels (grille d'écoute).<br>Entre 0% et 100%.<br><strong>Poids : 30% du score final.</strong></div></div></th>
+      : (p==='JAPHY'
+        ? '<div class="tooltip-wrap">Performance<span class="help-icon">?</span><div class="tooltip-box"><strong>Calcul selon l\'opération :</strong><br>📋 <strong>Lead</strong> : Leads convertis ÷ 40 × 100<br>&nbsp;&nbsp;Ex: 35 leads → 87.5%<br><br>📞 <strong>Rétention</strong> : Taux de raffut réalisé ÷ 65% × 100<br>&nbsp;&nbsp;Ex: 68% réalisé → 104.6%<br><br>📧 <strong>Care</strong> : Mails répondus ÷ (Jours travaillés × 100) × 100<br>&nbsp;&nbsp;Ex: 1800 mails / 20j → 90%<br><br>💶 <strong>Policia</strong> : CA récupéré ÷ Objectif mensuel × 100<br>&nbsp;&nbsp;Ex: 12 000€ / 15 000€ → 80%<br><br><strong>Poids : 40% du score final.</strong></div></div>'
+        : '<div class="tooltip-wrap">Performance %<span class="help-icon">?</span><div class="tooltip-box">% d\'atteinte de l\'objectif commercial.<br>Ex: objectif 50 ventes, réalisé 60 → 120%.<br><strong>Poids : 40% du score final.</strong></div></div>')}</th>
+    <th><div class="tooltip-wrap">Qualité /20<span class="help-icon">?</span><div class="tooltip-box">Note de qualité sur 20 (grille d\'écoute).<br>${p==='JAPHY'?'Toutes les opérations JAPHY utilisent une note /20.<br>':''}Convertie automatiquement en % pour le calcul.<br><strong>Poids : 30% du score final.</strong></div></div></th>
     <th><div class="tooltip-wrap">Présence %<span class="help-icon">?</span><div class="tooltip-box">Taux de présence sur le mois.<br>100% = aucune absence. Par défaut : 100%.<br><strong>Poids : 20% du score final.</strong></div></div></th>
     <th><div class="tooltip-wrap">Engagement <span style="font-size:10px;color:var(--muted)">(3 critères)</span><span class="help-icon">?</span><div class="tooltip-box">3 critères objectifs :<br>✅ Présent aux briefs<br>✅ Remontées terrain<br>✅ Comportement équipe<br><strong>Poids : 10% du score final.</strong></div></div></th>
     <th><div class="tooltip-wrap">Avertissement<span class="help-icon">?</span><div class="tooltip-box">Sanction disciplinaire du mois.<br>Verbal : -10% | Écrit : -20%<br>Mise à pied : score = 0.<br><strong>Impact : déduction sur score final.</strong></div></div></th>
@@ -3842,27 +3844,85 @@ window.renderScoreGrid=function(){
     const canEngF  = !_locked && canEng;
     const canAvertF= !_locked && canAvert;
     const _objIndiv = (a.objectifsIndividuels||{})[m] || 0;
+    // ── Logique spécifique JAPHY par opération ──────────────────────────────
+    const _isJaphy = (p === 'JAPHY');
+    const _jaOp = _isJaphy ? (a.operation||'').toLowerCase() : '';
+    const _isLead = _jaOp === 'lead';
+    const _isRet  = _jaOp === 'rétention' || _jaOp === 'retention';
+    const _isCare = _jaOp === 'care';
+    const _isPoli = _jaOp === 'policia';
+    const _isJaphyOp = _isJaphy && (_isLead||_isRet||_isCare||_isPoli);
+
+    // Cellule Performance selon opération
+    var _perfCell = '';
+    if(_isSpecialAct){
+      _perfCell = '<input type="hidden" id="p-'+a.id+'" value="'+(s.perf||0)+'">'
+        +'<div style="display:flex;flex-direction:column;gap:3px">'
+        +'<input type="number" class="score-input" min="0" value="'+(s.realise||'')+'" id="real-'+a.id+'" oninput="window._upPrevSpecial(\''+a.id+'\',\''+p+'\')" placeholder="ex: 4500" '+(canPerfF?'':roDisabled)+'>'
+        +'<div style="font-size:10px;color:var(--muted);display:flex;align-items:center;gap:4px">'
+          +'Obj: <input type="number" min="0" value="'+_objIndiv+'" id="obj-'+a.id+'" oninput="window._upPrevSpecial(\''+a.id+'\',\''+p+'\')" style="width:60px;padding:2px 4px;font-size:10px;border:1px solid var(--border);border-radius:4px" '+(canPerfF?'':roDisabled)+'> → <strong id="perf-display-'+a.id+'">'+(s.perf||0)+'%</strong>'
+        +'</div></div>';
+    } else if(_isLead){
+      // Lead : leads convertis ÷ 40
+      var _leadReal = s.realise||'';
+      _perfCell = '<input type="hidden" id="p-'+a.id+'" value="'+(s.perf||0)+'">'
+        +'<div style="display:flex;flex-direction:column;gap:3px">'
+        +'<input type="number" class="score-input" min="0" value="'+_leadReal+'" id="real-'+a.id+'" oninput="window._upJaphyLead(\''+a.id+'\')" placeholder="Leads convertis" '+(canPerfF?'':roDisabled)+'>'
+        +'<div style="font-size:10px;color:var(--muted)">Obj : 40 leads → <strong id="perf-display-'+a.id+'">'+(s.perf||0)+'%</strong></div>'
+        +'</div>';
+    } else if(_isRet){
+      // Rétention : taux de raffut saisi en % ÷ 65
+      var _retReal = s.realise||'';
+      _perfCell = '<input type="hidden" id="p-'+a.id+'" value="'+(s.perf||0)+'">'
+        +'<div style="display:flex;flex-direction:column;gap:3px">'
+        +'<input type="number" class="score-input" min="0" max="100" step="0.1" value="'+_retReal+'" id="real-'+a.id+'" oninput="window._upJaphyRet(\''+a.id+'\')" placeholder="Taux raffut %" '+(canPerfF?'':roDisabled)+'>'
+        +'<div style="font-size:10px;color:var(--muted)">Obj : 65% → <strong id="perf-display-'+a.id+'">'+(s.perf||0)+'%</strong></div>'
+        +'</div>';
+    } else if(_isCare){
+      // Care : mails répondus ÷ (jours × 100)
+      var _careReal = s.realise||'';
+      var _careJours = s.joursTravailles||'';
+      _perfCell = '<input type="hidden" id="p-'+a.id+'" value="'+(s.perf||0)+'">'
+        +'<div style="display:flex;flex-direction:column;gap:3px">'
+        +'<input type="number" class="score-input" min="0" value="'+_careReal+'" id="real-'+a.id+'" oninput="window._upJaphyCare(\''+a.id+'\')" placeholder="Mails répondus" '+(canPerfF?'':roDisabled)+'>'
+        +'<div style="font-size:10px;color:var(--muted);display:flex;align-items:center;gap:4px">'
+          +'Jours: <input type="number" min="0" max="31" value="'+_careJours+'" id="jours-'+a.id+'" oninput="window._upJaphyCare(\''+a.id+'\')" style="width:44px;padding:2px 4px;font-size:10px;border:1px solid var(--border);border-radius:4px" '+(canPerfF?'':roDisabled)+'>'
+          +' × 100 → <strong id="perf-display-'+a.id+'">'+(s.perf||0)+'%</strong>'
+        +'</div>'
+        +'</div>';
+    } else if(_isPoli){
+      // Policia : CA récupéré ÷ objectif mensuel (saisi)
+      var _poliReal = s.realise||'';
+      _perfCell = '<input type="hidden" id="p-'+a.id+'" value="'+(s.perf||0)+'">'
+        +'<div style="display:flex;flex-direction:column;gap:3px">'
+        +'<input type="number" class="score-input" min="0" value="'+_poliReal+'" id="real-'+a.id+'" oninput="window._upJaphyPoli(\''+a.id+'\')" placeholder="CA récupéré €" '+(canPerfF?'':roDisabled)+'>'
+        +'<div style="font-size:10px;color:var(--muted);display:flex;align-items:center;gap:4px">'
+          +'Obj €: <input type="number" min="0" value="'+_objIndiv+'" id="obj-'+a.id+'" oninput="window._upJaphyPoli(\''+a.id+'\')" style="width:70px;padding:2px 4px;font-size:10px;border:1px solid var(--border);border-radius:4px" '+(canPerfF?'':roDisabled)+'>'
+          +' → <strong id="perf-display-'+a.id+'">'+(s.perf||0)+'%</strong>'
+        +'</div>'
+        +'</div>';
+    } else {
+      _perfCell = '<input type="number" class="score-input" min="0" max="200" value="'+(s.perf||'')+'" id="p-'+a.id+'" oninput="window._upPrev(\''+a.id+'\')" placeholder="ex: 110" '+(canPerfF?'':roDisabled)+'>';
+    }
+
+    // Cellule Qualité : /20 pour JAPHY et BPO, /100 sinon
+    const _isQual20 = _isJaphy || _actType==='bpo';
+    var _qualCell = '';
+    if(_isQual20){
+      _qualCell = '<div style="display:flex;flex-direction:column;gap:2px;flex:1">'
+        +'<input type="number" class="score-input" min="0" max="20" value="'+(s.qualRaw||'')+'" id="q-'+a.id+'" oninput="window._upPrevBpoQual(\''+a.id+'\')" placeholder="ex: 16" '+(canQualF?'':roDisabled)+' style="flex:1">'
+        +'<span style="font-size:10px;color:var(--muted);text-align:center">/20 → <strong id="qual-pct-'+a.id+'">'+(s.qual||0)+'%</strong></span>'
+        +'</div>';
+    } else {
+      _qualCell = '<input type="number" class="score-input" min="0" max="100" value="'+(s.qual||'')+'" id="q-'+a.id+'" oninput="window._upPrev(\''+a.id+'\')" placeholder="ex: 80" '+(canQualF?'':roDisabled)+' style="flex:1">';
+    }
+
     _rowsHtml+=`<tr>
       <td style="font-weight:600;white-space:nowrap">${a.name}</td>
-      <td>${_isSpecialAct
-        ? '<input type="hidden" id="p-'+a.id+'" value="'+(s.perf||0)+'">'
-          +'<div style="display:flex;flex-direction:column;gap:3px">'
-          +'<input type="number" class="score-input" min="0" value="'+(s.realise||'')+'" id="real-'+a.id+'" oninput="window._upPrevSpecial(\''+a.id+'\',\''+p+'\')" placeholder="ex: 4500" '+(canPerfF?'':roDisabled)+'>'
-          +'<div style="font-size:10px;color:var(--muted);display:flex;align-items:center;gap:4px">'
-            +'Obj: <input type="number" min="0" value="'+_objIndiv+'" id="obj-'+a.id+'" oninput="window._upPrevSpecial(\''+a.id+'\',\''+p+'\')" style="width:60px;padding:2px 4px;font-size:10px;border:1px solid var(--border);border-radius:4px" '+(canPerfF?'':roDisabled)+'> → <strong id="perf-display-'+a.id+'">'+(s.perf||0)+'%</strong>'
-          +'</div>'
-        +'</div>'
-        : '<input type="number" class="score-input" min="0" max="200" value="'+(s.perf||'')+'" id="p-'+a.id+'" oninput="window._upPrev(\''+a.id+'\')" placeholder="ex: 110" '+(canPerfF?'':roDisabled)+'>'
-      }</td>
+      <td>${_perfCell}</td>
       <td>
         <div style="display:flex;align-items:center;gap:4px">
-          ${_actType==='bpo'
-            ? `<div style="display:flex;flex-direction:column;gap:2px;flex:1">
-                <input type="number" class="score-input" min="0" max="20" value="${s.qualRaw||''}" id="q-${a.id}" oninput="window._upPrevBpoQual('${a.id}')" placeholder="ex: 16" ${canQualF?'':''+roDisabled} style="flex:1">
-                <span style="font-size:10px;color:var(--muted);text-align:center">/20 → <strong id="qual-pct-${a.id}">${s.qual||0}%</strong></span>
-               </div>`
-            : `<input type="number" class="score-input" min="0" max="100" value="${s.qual||''}" id="q-${a.id}" oninput="window._upPrev('${a.id}')" placeholder="ex: 80" ${canQualF?'':''+roDisabled} style="flex:1">`
-          }
+          ${_qualCell}
           <button onclick="window._openAppelsQualite('${a.id}','${m}')" title="Appels qualité enregistrés" style="background:none;border:1px solid var(--border);border-radius:6px;width:26px;height:26px;cursor:pointer;font-size:12px;flex-shrink:0;position:relative">📞${(a.appelsQualite&&a.appelsQualite[m]&&a.appelsQualite[m].length)?'<span style="position:absolute;top:-4px;right:-4px;background:#F5C800;color:#1a1a18;font-size:9px;font-weight:700;border-radius:50%;width:14px;height:14px;display:flex;align-items:center;justify-content:center">'+a.appelsQualite[m].length+'</span>':''}</button>
         </div>
       </td>
@@ -3910,6 +3970,43 @@ window._upPrev=function(id){
 
 // Calcul automatique de la Performance pour les projets Télévente (CA) et BPO (volume RDV/flux)
 // Calcul automatique qualité BPO (/20 → %)
+// ── FONCTIONS DE CALCUL JAPHY PAR OPÉRATION ─────────────────────────────────
+
+window._upJaphyLead = function(id){
+  var real = +(document.getElementById('real-'+id)||{}).value || 0;
+  var perf = real > 0 ? Math.round((real/40)*1000)/10 : 0;
+  var hid = document.getElementById('p-'+id); if(hid) hid.value = perf;
+  var disp = document.getElementById('perf-display-'+id); if(disp) disp.textContent = perf+'%';
+  window._upPrev(id);
+};
+
+window._upJaphyRet = function(id){
+  var taux = +(document.getElementById('real-'+id)||{}).value || 0;
+  var perf = taux > 0 ? Math.round((taux/65)*1000)/10 : 0;
+  var hid = document.getElementById('p-'+id); if(hid) hid.value = perf;
+  var disp = document.getElementById('perf-display-'+id); if(disp) disp.textContent = perf+'%';
+  window._upPrev(id);
+};
+
+window._upJaphyCare = function(id){
+  var mails = +(document.getElementById('real-'+id)||{}).value || 0;
+  var jours = +(document.getElementById('jours-'+id)||{}).value || 0;
+  var obj = jours * 100;
+  var perf = (obj > 0 && mails > 0) ? Math.round((mails/obj)*1000)/10 : 0;
+  var hid = document.getElementById('p-'+id); if(hid) hid.value = perf;
+  var disp = document.getElementById('perf-display-'+id); if(disp) disp.textContent = perf+'%';
+  window._upPrev(id);
+};
+
+window._upJaphyPoli = function(id){
+  var ca = +(document.getElementById('real-'+id)||{}).value || 0;
+  var obj = +(document.getElementById('obj-'+id)||{}).value || 0;
+  var perf = (obj > 0 && ca > 0) ? Math.round((ca/obj)*1000)/10 : 0;
+  var hid = document.getElementById('p-'+id); if(hid) hid.value = perf;
+  var disp = document.getElementById('perf-display-'+id); if(disp) disp.textContent = perf+'%';
+  window._upPrev(id);
+};
+
 window._upPrevBpoQual = function(id){
   const qEl = document.getElementById('q-'+id);
   const qualRaw = +(qEl ? qEl.value : 0) || 0;
@@ -4071,16 +4168,30 @@ window.saveScores=async function(){
     const objEl = document.getElementById('obj-'+a.id);
     const _saveActType = (D.activityType||{})[p] || '';
     const _isBpoSave = _saveActType === 'bpo';
+    // JAPHY : qualité toujours /20, et champs spéciaux par opération
+    const _isJaphySave = (p === 'JAPHY');
+    const _jaOpSave = _isJaphySave ? (a.operation||'').toLowerCase() : '';
+    const _isQual20Save = _isBpoSave || _isJaphySave;
     const qualRawEl = document.getElementById('q-'+a.id);
     const qualRawVal = +(qualRawEl ? qualRawEl.value : 0) || 0;
-    const qualPctVal = _isBpoSave ? Math.round((qualRawVal/20)*1000)/10 : qualRawVal;
+    const qualPctVal = _isQual20Save ? Math.round((qualRawVal/20)*1000)/10 : qualRawVal;
+    // Jours travaillés (Care)
+    const joursEl = document.getElementById('jours-'+a.id);
+    const joursTravailles = joursEl ? (+joursEl.value||0) : existing.joursTravailles;
+    // Objectif individuel (Policia + BPO + Télévente)
+    const objIndivVal = objEl ? (+objEl.value||0) : existing.objectifsIndividuels?.[m];
+    if(objEl && objIndivVal){
+      if(!a.objectifsIndividuels) a.objectifsIndividuels = {};
+      a.objectifsIndividuels[m] = objIndivVal;
+    }
     const newScores = {
       perf:  _canPerf ? (+pi.value||0) : existing.perf,
       qual:  _canQual ? qualPctVal : existing.qual,
-      qualRaw: _canQual && _isBpoSave ? qualRawVal : existing.qualRaw,
+      qualRaw: _canQual && _isQual20Save ? qualRawVal : existing.qualRaw,
       pres:  _canPres ? (+document.getElementById('r-'+a.id).value||100) : existing.pres,
       eng:   engVal,
       realise: (_canPerf && realiseEl) ? (+realiseEl.value||0) : existing.realise,
+      joursTravailles: (_isJaphySave && _jaOpSave==='care') ? joursTravailles : existing.joursTravailles,
       avert: _canAvert ? (+document.getElementById('av-'+a.id).value||0) : existing.avert,
       statut: existing.statut,
       congeDates: existing.congeDates,
