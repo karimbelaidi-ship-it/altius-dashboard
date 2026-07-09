@@ -1761,7 +1761,7 @@ function engScore(eng){
 }
 function sc(perf,qual,pres,eng,avert){
   if(!perf&&!qual)return 0;
-  const r=(perf/100*.4)+(qual/100*.3)+(pres/100*.2)+engScore(eng);
+  const r=(perf/100*.4)+(qual/100*.4)+(pres/100*.2);
   const m=avert>=3?0:1-avert*.1;
   return Math.round(r*m*1000)/10;
 }
@@ -3851,11 +3851,10 @@ window.renderScoreGrid=function(){
       : (p==='JAPHY'
         ? '<div class="tooltip-wrap">Performance<span class="help-icon">?</span><div class="tooltip-box"><strong>Calcul selon l\'opération :</strong><br>📋 <strong>Lead</strong> : Leads convertis ÷ 40 × 100<br>&nbsp;&nbsp;Ex: 35 leads → 87.5%<br><br>📞 <strong>Rétention</strong> : Taux de raffut réalisé ÷ 65% × 100<br>&nbsp;&nbsp;Ex: 68% réalisé → 104.6%<br><br>📧 <strong>Care</strong> : Mails répondus ÷ (Jours travaillés × 100) × 100<br>&nbsp;&nbsp;Ex: 1800 mails / 20j → 90%<br><br>💶 <strong>Policia</strong> : CA récupéré ÷ Objectif mensuel × 100<br>&nbsp;&nbsp;Ex: 12 000€ / 15 000€ → 80%<br><br><strong>Poids : 40% du score final.</strong></div></div>'
         : '<div class="tooltip-wrap">Performance %<span class="help-icon">?</span><div class="tooltip-box">% d\'atteinte de l\'objectif commercial.<br>Ex: objectif 50 ventes, réalisé 60 → 120%.<br><strong>Poids : 40% du score final.</strong></div></div>')}</th>
-    <th><div class="tooltip-wrap">Qualité /20<span class="help-icon">?</span><div class="tooltip-box">Note de qualité sur 20 (grille d\'écoute).<br>${p==='JAPHY'?'Toutes les opérations JAPHY utilisent une note /20.<br>':''}Convertie automatiquement en % pour le calcul.<br><strong>Poids : 30% du score final.</strong></div></div></th>
+    <th><div class="tooltip-wrap">Qualité /20<span class="help-icon">?</span><div class="tooltip-box">Note de qualité sur 20 (grille d\'écoute).<br>${p==='JAPHY'?'Toutes les opérations JAPHY utilisent une note /20.<br>':''}Convertie automatiquement en % pour le calcul.<br><strong>Poids : 40% du score final.</strong></div></div></th>
     <th><div class="tooltip-wrap">Présence %<span class="help-icon">?</span><div class="tooltip-box">Taux de présence sur le mois.<br>100% = aucune absence. Par défaut : 100%.<br><strong>Poids : 20% du score final.</strong></div></div></th>
-    <th><div class="tooltip-wrap">Engagement <span style="font-size:10px;color:var(--muted)">(3 critères)</span><span class="help-icon">?</span><div class="tooltip-box">3 critères objectifs :<br>✅ Présent aux briefs<br>✅ Remontées terrain<br>✅ Comportement équipe<br><strong>Poids : 10% du score final.</strong></div></div></th>
     <th><div class="tooltip-wrap">Avertissement<span class="help-icon">?</span><div class="tooltip-box">Sanction disciplinaire du mois.<br>Verbal : -10% | Écrit : -20%<br>Mise à pied : score = 0.<br><strong>Impact : déduction sur score final.</strong></div></div></th>
-    <th><div class="tooltip-wrap">Score calculé<span class="help-icon">?</span><div class="tooltip-box">Score final = Perf×40% + Qualité×30% + Présence×20% + Engagement×10% − Avertissements.<br><strong>Se met à jour en temps réel.</strong></div></div></th>
+    <th><div class="tooltip-wrap">Score calculé<span class="help-icon">?</span><div class="tooltip-box">Score final = Perf×40% + Qualité×40% + Présence×20% − Avertissements.<br><strong>Se met à jour en temps réel.</strong></div></div></th>
     <th><div class="tooltip-wrap">Statut<span class="help-icon">?</span><div class="tooltip-box">Marquer un agent en congé pour ce mois (mois complet ou dates précises).<br><strong>Un agent en congé est exclu du calcul de moyenne</strong>, comme un mois sans donnée.</div></div></th>
   </tr></thead><tbody id="sgrid-body"></tbody></table>`;
 
@@ -3980,19 +3979,6 @@ window.renderScoreGrid=function(){
         </div>
       </td>
       <td><input type="number" class="score-input" min="0" max="100" value="${s.pres||100}" id="r-${a.id}" oninput="window._upPrev('${a.id}')" ${canPresF?'':''+roDisabled}></td>
-      <td>
-        <div style="display:flex;flex-direction:column;gap:4px;min-width:160px">
-          <label style="display:flex;align-items:center;gap:6px;font-size:12px;${canEngF?'cursor:pointer':'cursor:not-allowed;opacity:.6'}">
-            <input type="checkbox" id="eb-${a.id}" ${eng.briefs?'checked':''} onchange="window._upPrev('${a.id}')" ${canEngF?'':chkDisabled}> Présent aux briefs
-          </label>
-          <label style="display:flex;align-items:center;gap:6px;font-size:12px;${canEngF?'cursor:pointer':'cursor:not-allowed;opacity:.6'}">
-            <input type="checkbox" id="er-${a.id}" ${eng.remontees?'checked':''} onchange="window._upPrev('${a.id}')" ${canEngF?'':chkDisabled}> Remontées terrain
-          </label>
-          <label style="display:flex;align-items:center;gap:6px;font-size:12px;${canEngF?'cursor:pointer':'cursor:not-allowed;opacity:.6'}">
-            <input type="checkbox" id="ec-${a.id}" ${eng.comportement?'checked':''} onchange="window._upPrev('${a.id}')" ${canEngF?'':chkDisabled}> Comportement équipe
-          </label>
-        </div>
-      </td>
       <td><select id="av-${a.id}" class="avert-select" onchange="window._upPrev('${a.id}')" ${canAvertF?'':'disabled '+roDisabled}>${[['0','Aucun'],['1','Verbal'],['2','Ecrit'],['3','Mise a pied']].map(([v,l])=>`<option value="${v}"${+v==+s.avert?' selected':''}>${l}</option>`).join('')}</select></td>
       <td><span id="pv-${a.id}" style="font-weight:700;color:${col(parseFloat(preview)||0)}">${preview}</span></td>
       <td>${isConge
