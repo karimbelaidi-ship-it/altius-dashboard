@@ -1313,16 +1313,14 @@
         </div>
         <div id="scoring-detail-panel" style="display:none;background:var(--light);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:14px;font-size:12.5px;line-height:1.6;color:var(--muted)">
           <strong style="color:var(--text)">1. Score de base (sur 100%)</strong><br>
-          Performance × 40% + Qualité × 30% + Présence × 20% + Engagement × 10%
+          Performance × 40% + Qualité × 40% + Présence × 20%
           <br><br>
           <strong style="color:var(--text)">📋 Performance selon le type de projet :</strong><br>
           <strong>Standard</strong> — saisie manuelle directe.<br>
           <strong>Télévente</strong> — calculée auto : CA réalisé ÷ Objectif individuel × 100.<br>
           <strong>BPO</strong> — calculée auto : Volume réalisé ÷ Objectif individuel × 100.
           <br><br>
-          <strong style="color:var(--text)">2. Engagement</strong> — 3 critères cochés (briefs, remontées, comportement) : 3/3 = 10%, 2/3 = 7%, 1/3 = 3%, 0/3 = 0%.
-          <br><br>
-          <strong style="color:var(--text)">3. Pénalité avertissement</strong> — chaque avertissement retire 10% du score total. À partir du 3ème avertissement, le score tombe à 0%.
+          <strong style="color:var(--text)">2. Pénalité avertissement</strong> — chaque avertissement retire 10% du score total. À partir du 3ème avertissement, le score tombe à 0%.
           <br><br>
           <strong style="color:var(--text)">4. Rangs attribués</strong><br>
           🏆 Rang S — top 5 du mois ET score ≥ 95% &nbsp;·&nbsp;
@@ -8951,7 +8949,7 @@ setInterval(function(){
         <div class="aide-section-title">📊 Scoring</div>
         <div class="tip-card purple">
           <div class="tip-icon">🧮</div>
-          <div><div class="tip-title">Formule de calcul du score final</div><div class="tip-desc"><strong>Score = Perf×40% + Qualité×30% + Présence×20% + Engagement×10%</strong><br>Chaque avertissement déduit des points. Rang S = top 5 du mois et ≥95%, A ≥ 90%, B ≥ 75%, C ≥ 60%, D &lt; 60%.</div></div>
+          <div><div class="tip-title">Formule de calcul du score final</div><div class="tip-desc"><strong>Score = Perf×40% + Qualité×40% + Présence×20%</strong><br>Chaque avertissement déduit des points. Rang S = top 5 du mois et ≥95%, A ≥ 90%, B ≥ 75%, C ≥ 60%, D &lt; 60%.</div></div>
         </div>
         <div class="tip-card yellow">
           <div class="tip-icon">🏆</div>
@@ -8983,23 +8981,21 @@ setInterval(function(){
         </div>
         <div class="faq-item">
           <div class="faq-q" onclick="window.toggleFaq(this)">Comment saisir les scores du mois ? <span class="faq-arr">›</span></div>
-          <div class="faq-a">Allez dans <strong>Administration → Mois & Scores</strong>. Sélectionnez le mois et le projet. Remplissez les colonnes pour chaque agent : Performance (objectif réalisé en %), Qualité (%), Présence (%) et cochez les critères d'Engagement. Cliquez sur <strong>Enregistrer</strong>.</div>
+          <div class="faq-a">Allez dans <strong>Administration → Mois & Scores</strong>. Sélectionnez le mois et le projet. Remplissez les colonnes pour chaque agent : Performance, Qualité (/20 pour JAPHY et BPO, % pour les autres) et Présence. Cliquez sur <strong>Enregistrer</strong>.</div>
         </div>
         <div class="faq-item">
           <div class="faq-q" onclick="window.toggleFaq(this)">Qui peut modifier quels champs du scoring ? <span class="faq-arr">›</span></div>
-          <div class="faq-a"><strong>Admin / Respo :</strong> tous les champs.<br><strong>Manager :</strong> Performance, Présence, Engagement et Avertissements.<br><strong>Qualticien :</strong> Qualité uniquement.<br><strong>Chef de projet :</strong> lecture seule sur le scoring.</div>
+          <div class="faq-a"><strong>Admin / Respo :</strong> tous les champs.<br><strong>Manager :</strong> Performance, Présence et Avertissements.<br><strong>Qualticien :</strong> Qualité uniquement.<br><strong>Chef de projet :</strong> lecture seule sur le scoring.</div>
         </div>
         <div class="faq-item">
           <div class="faq-q" onclick="window.toggleFaq(this)">Comment fonctionne le calcul des rangs ? <span class="faq-arr">›</span></div>
           <div class="faq-a">
             <strong>1. Score de base (sur 100%)</strong><br>
-            Performance × 40% + Qualité × 30% + Présence × 20% + Engagement × 10%
+            Performance × 40% + Qualité × 40% + Présence × 20%
             <br><br>
-            <strong>2. Engagement</strong> — 3 critères cochés (briefs, remontées, comportement) : 3/3 = 10%, 2/3 = 7%, 1/3 = 3%, 0/3 = 0%.
+            <strong>2. Pénalité avertissement</strong> — chaque avertissement retire 10% du score total (avert. 1 = -10%, avert. 2 = -20%). À partir du 3ème avertissement, le score tombe à 0%.
             <br><br>
-            <strong>3. Pénalité avertissement</strong> — chaque avertissement retire 10% du score total (avert. 1 = -10%, avert. 2 = -20%). À partir du 3ème avertissement, le score tombe à 0%.
-            <br><br>
-            <strong>4. Rangs attribués</strong><br>
+            <strong>3. Rangs attribués</strong><br>
             🏆 <strong>Rang S</strong> — top 5 du mois ET score ≥ 95%<br>
             🥇 <strong>Rang A</strong> — score ≥ 90%<br>
             ⭐ <strong>Rang B</strong> — score ≥ 75%<br>
