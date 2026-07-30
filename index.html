@@ -1757,9 +1757,12 @@ function engScore(eng){
   // Compatibilité ancienne notation /5
   return (eng/5)*0.10;
 }
-function sc(perf,qual,pres,eng,avert){
-  if(!perf&&!qual)return 0;
-  const r=(perf/100*.4)+(qual/100*.4)+(pres/100*.2);
+function sc(perf,qual,pres,eng,avert,confo){
+  if(!perf&&!qual&&!confo)return 0;
+  // Perf×50% + Conformité×10% + Présence×30% + Qualité×10%
+  // Conformité et Qualité saisies /20, converties en % pour le calcul
+  const confoP = confo ? (confo/20*100) : 0;
+  const r=(perf/100*.5)+(confoP/100*.1)+(pres/100*.3)+(qual/100*.1);
   const m=avert>=3?0:1-avert*.1;
   return Math.round(r*m*1000)/10;
 }
@@ -3849,7 +3852,8 @@ window.renderScoreGrid=function(){
       : (p==='JAPHY'
         ? '<div class="tooltip-wrap">Performance<span class="help-icon">?</span><div class="tooltip-box"><strong>Calcul selon l\'opération :</strong><br>📋 <strong>Lead</strong> : Leads convertis ÷ 40 × 100<br>&nbsp;&nbsp;Ex: 35 leads → 87.5%<br><br>📞 <strong>Rétention</strong> : Taux de raffut réalisé ÷ 65% × 100<br>&nbsp;&nbsp;Ex: 68% réalisé → 104.6%<br><br>📧 <strong>Care</strong> : Mails répondus ÷ (Jours travaillés × 100) × 100<br>&nbsp;&nbsp;Ex: 1800 mails / 20j → 90%<br><br>💶 <strong>Policia</strong> : CA récupéré ÷ Objectif mensuel × 100<br>&nbsp;&nbsp;Ex: 12 000€ / 15 000€ → 80%<br><br><strong>Poids : 40% du score final.</strong></div></div>'
         : '<div class="tooltip-wrap">Performance %<span class="help-icon">?</span><div class="tooltip-box">% d\'atteinte de l\'objectif commercial.<br>Ex: objectif 50 ventes, réalisé 60 → 120%.<br><strong>Poids : 40% du score final.</strong></div></div>')}</th>
-    <th><div class="tooltip-wrap">Qualité /20<span class="help-icon">?</span><div class="tooltip-box">Note de qualité sur 20 (grille d\'écoute).<br>${p==='JAPHY'?'Toutes les opérations JAPHY utilisent une note /20.<br>':''}Convertie automatiquement en % pour le calcul.<br><strong>Poids : 40% du score final.</strong></div></div></th>
+    <th><div class="tooltip-wrap">Conformité /20<span class="help-icon">?</span><div class="tooltip-box">Note de conformité de l'appel sur 20 (grille de conformité).<br>Saisie manuelle — convertie en % pour le calcul.<br><strong>Poids : 10% du score final.</strong></div></div></th>
+    <th><div class="tooltip-wrap">Qualité /20<span class="help-icon">?</span><div class="tooltip-box">Note de qualité sur 20 (grille d\'écoute).<br>Convertie automatiquement en % pour le calcul.<br><strong>Nice to have — Poids : 10% du score final.</strong></div></div></th>
     <th><div class="tooltip-wrap">Présence %<span class="help-icon">?</span><div class="tooltip-box">Taux de présence sur le mois.<br>100% = aucune absence. Par défaut : 100%.<br><strong>Poids : 20% du score final.</strong></div></div></th>
     <th><div class="tooltip-wrap">Avertissement<span class="help-icon">?</span><div class="tooltip-box">Sanction disciplinaire du mois.<br>Verbal : -10% | Écrit : -20%<br>Mise à pied : score = 0.<br><strong>Impact : déduction sur score final.</strong></div></div></th>
     <th><div class="tooltip-wrap">Score calculé<span class="help-icon">?</span><div class="tooltip-box">Score final = Perf×40% + Qualité×40% + Présence×20% − Avertissements.<br><strong>Se met à jour en temps réel.</strong></div></div></th>
@@ -3964,12 +3968,19 @@ window.renderScoreGrid=function(){
         +'<span style="font-size:10px;color:var(--muted);text-align:center">/20 → <strong id="qual-pct-'+a.id+'">'+(s.qual||0)+'%</strong></span>'
         +'</div>';
     } else {
-      _qualCell = '<input type="number" class="score-input" min="0" max="100" value="'+(s.qual||'')+'" id="q-'+a.id+'" oninput="window._upPrev(\''+a.id+'\')" placeholder="ex: 80" '+(canQualF?'':roDisabled)+' style="flex:1">';
+      _qualCell = '<input type="number" class="score-input" min="0" max="20" value="'+(s.qualRaw||s.qual||'')+'" id="q-'+a.id+'" oninput="window._upPrev(\''+a.id+'\')" placeholder="ex: 16" '+(canQualF?'':roDisabled)+' style="flex:1">';
     }
+
+    // Cellule Conformité /20 (toujours saisie manuelle sur 20)
+    const _confoCell = '<div style="display:flex;flex-direction:column;gap:2px;flex:1">'
+      +'<input type="number" class="score-input" min="0" max="20" value="'+(s.confo||'')+'" id="cf-'+a.id+'" oninput="window._upPrev(\''+a.id+'\')" placeholder="ex: 18" '+(canQualF?'':roDisabled)+' style="flex:1">'
+      +'<span style="font-size:10px;color:var(--muted);text-align:center">/20 → <strong>'+(s.confo ? Math.round(s.confo/20*1000)/10 : 0)+'%</strong></span>'
+      +'</div>';
 
     _rowsHtml+=`<tr>
       <td style="font-weight:600;white-space:nowrap">${a.name}</td>
       <td>${_perfCell}</td>
+      <td><div style="display:flex;align-items:center;gap:4px">${_confoCell}</div></td>
       <td>
         <div style="display:flex;align-items:center;gap:4px">
           ${_qualCell}
@@ -3991,18 +4002,16 @@ window.renderScoreGrid=function(){
 
 window._upPrev=function(id){
   const perf=+document.getElementById('p-'+id).value||0;
-  // Pour BPO, le champ q-{id} contient la note /20, on utilise le champ caché qpct-{id} qui contient le % converti
   const qPctEl = document.getElementById('qpct-'+id);
   const qual = qPctEl ? (+qPctEl.value||0) : (+document.getElementById('q-'+id).value||0);
   const pres=+document.getElementById('r-'+id).value||100;
-  const ebEl=document.getElementById('eb-'+id);
-  const erEl=document.getElementById('er-'+id);
-  const ecEl=document.getElementById('ec-'+id);
-  const eng = ebEl ? {briefs:ebEl.checked, remontees:erEl.checked, comportement:ecEl.checked} : {briefs:true,remontees:true,comportement:true};
   const avert=+document.getElementById('av-'+id).value||0;
-  const s=sc(perf,qual,pres,eng,avert);
+  // Conformité /20
+  const confoEl = document.getElementById('cf-'+id);
+  const confo = confoEl ? (+confoEl.value||0) : 0;
+  const s=sc(perf,qual,pres,null,avert,confo);
   const el=document.getElementById('pv-'+id);
-  if(el){el.textContent=perf||qual?s.toFixed(1)+'%':'—';el.style.color=col(s);}
+  if(el){el.textContent=(perf||qual||confo)?s.toFixed(1)+'%':'—';el.style.color=col(s);}
 }
 
 // Calcul automatique de la Performance pour les projets Télévente (CA) et BPO (volume RDV/flux)
@@ -4223,10 +4232,13 @@ window.saveScores=async function(){
       if(!a.objectifsIndividuels) a.objectifsIndividuels = {};
       a.objectifsIndividuels[m] = objIndivVal;
     }
+    const confoEl = document.getElementById('cf-'+a.id);
+    const confoVal = confoEl ? (+confoEl.value||0) : existing.confo;
     const newScores = {
       perf:  _canPerf ? (+pi.value||0) : existing.perf,
       qual:  _canQual ? qualPctVal : existing.qual,
       qualRaw: _canQual && _isQual20Save ? qualRawVal : existing.qualRaw,
+      confo: _canQual ? confoVal : existing.confo,
       pres:  _canPres ? (+document.getElementById('r-'+a.id).value||100) : existing.pres,
       eng:   engVal,
       realise: (_canPerf && realiseEl) ? (+realiseEl.value||0) : existing.realise,
