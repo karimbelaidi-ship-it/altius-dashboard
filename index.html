@@ -1719,30 +1719,45 @@ const MLIST=['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov'
 // ═══════════════════════════════════════
 
 // Rang statique — nomenclature A/B/C/D (seuils fixes)
-function rankStatic(s){return s>=90?'A':s>=75?'B':s>=60?'C':'D';}
+function rankStatic(s){return s>=85?'A':s>=75?'B':'C';}
 
-// Rang final statique (S est distinct, réservé au top 5 dynamique avec score >=95% — calculé dans rankDynamic)
-function rank(s){return s>=90?'A':s>=75?'B':s>=60?'C':'D';}
+// Rang final statique
+function rank(s){return s>=85?'A':s>=75?'B':'C';}
 
-// Rang dynamique : top 5 agents ET score >=95% = S, sinon rang fixe selon score
+// Vérifie si un agent a dépassé 100% pendant 6 mois consécutifs
+function has6MoisConsecutifs100(agentId){
+  var a = D.agents.find(function(x){return x.id===agentId;});
+  if(!a) return false;
+  var consec = 0;
+  for(var i=0; i<D.months.length; i++){
+    var s = a.scores[D.months[i]];
+    if(s && s.statut!=='conge' && (s.perf||s.qual||s.confo)){
+      var scoreM = sc(s.perf||0, s.qual||0, s.pres||100, null, s.avert||0, s.confo||0);
+      if(scoreM > 100){ consec++; if(consec>=6) return true; }
+      else consec = 0;
+    }
+  }
+  return false;
+}
+
+// Rang dynamique selon nouvelles règles
 function rankDynamic(agentId, scoreVal){
   if(!D) return rank(scoreVal);
-  if(scoreVal < 95) return rank(scoreVal);
-  var active = D.agents.filter(function(a){return a.active;});
-  var allScores = active.map(function(a){
-    var ls = lastScore(a);
-    return {id: a.id, score: ls ? ls.score : 0};
-  }).filter(function(x){return x.score > 0;});
-  allScores.sort(function(a,b){return b.score - a.score;});
-  var top5ids = allScores.slice(0,5).map(function(x){return x.id;});
-  if(top5ids.indexOf(agentId) !== -1) return 'S';
-  return rank(scoreVal);
+  var over100_6m = has6MoisConsecutifs100(agentId);
+  // Rang S : score actuel > 100% ET 6 mois consécutifs > 100%
+  if(scoreVal > 100 && over100_6m) return 'S';
+  // Rang A : score ≥ 85% ET 6 mois consécutifs > 100%
+  if(scoreVal >= 85 && over100_6m) return 'A';
+  // Rang B : ≥ 75%
+  if(scoreVal >= 75) return 'B';
+  // Rang C : tout le reste
+  return 'C';
 }
 
 var AVERT_LABELS={0:'Aucun',1:'Verbal',2:'Écrit',3:'Mise à pied'};
 function avertLabel(v){return AVERT_LABELS[+v]||'Aucun';}
-function col(s){return s>=90?'#1D9E75':s>=75?'#378ADD':s>=60?'#7F77DD':'#E24B4A';}
-function colRank(r){return r==='S'||r==='A'?'#1D9E75':r==='B'?'#378ADD':r==='C'?'#7F77DD':'#E24B4A';}
+function col(s){return s>=85?'#1D9E75':s>=75?'#378ADD':'#7F77DD';}
+function colRank(r){return r==='S'||r==='A'?'#1D9E75':r==='B'?'#378ADD':'#7F77DD';}
 function avc(n){let h=0;for(let c of n)h=(h*31+c.charCodeAt(0))%AVC.length;return AVC[h];}
 function ini(n){const p=n.trim().split(' ');return(p[0][0]+(p[1]?p[1][0]:'')).toUpperCase();}
 function uid(){return'id'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
