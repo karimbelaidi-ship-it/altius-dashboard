@@ -3705,7 +3705,7 @@ window._openAssignerTL = function(id){
   var a = D.agents.find(function(x){return x.id===id;});
   if(!a) return;
   var tls = D.teamleaders || [];
-  if(!tls.length){ showM('<div class="mhdr"><h3>Assigner un Team Leader</h3><button class="xbtn" onclick="closeM()">x</button></div><p style="padding:16px">Aucun Team Leader créé.</p>'); return; }
+  if(!tls.length){ showModal('<div class="mhdr"><h3>Assigner un Team Leader</h3><button class="xbtn" onclick="closeM()">x</button></div><p style="padding:16px">Aucun Team Leader créé.</p>'); return; }
   var tlActuel = tls.find(function(t){ return (t.agentsIndividuels||[]).indexOf(a.id) !== -1; });
   var opts = '<option value="">— Aucun TL individuel —</option>';
   tls.forEach(function(t){
@@ -3720,7 +3720,7 @@ window._openAssignerTL = function(id){
     +'<p style="font-size:12px;color:var(--muted);margin-top:10px">Un agent assigné individuellement reste visible par ce TL même s\'il est sur une opération différente ou qu\'il en change. Sélectionner "Aucun" retire l\'assignation.</p>'
     +'</div>'
     +'<div class="frow"><button class="btn" onclick="closeM()">Annuler</button><button class="btn yellow" onclick="window._doAssignerTL(\''+id+'\')">💾 Enregistrer</button></div>';
-  showM(html);
+  showModal(html);
 };
 
 window._doAssignerTL = async function(agentId){
