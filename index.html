@@ -3367,7 +3367,7 @@ window._openFiche = function(id){
     <div class="fiche-av" style="background:${bg};color:${fg};width:46px;height:46px;font-size:16px">${ini(a.name)}</div>
     <div>
       <div class="fiche-name" style="font-size:16px">${a.name}</div>
-      <div class="fiche-sub" style="margin-top:3px">${a.proj}${a.operation?' · '+a.operation:''} · <span class="pill s${r}">${RL[r]}</span></div>
+      <div class="fiche-sub" style="margin-top:3px">${a.proj}${a.operation?' · '+a.operation:''} · <span class="pill s${r}">${RL[r]}</span>${(function(){ var tlAssigne=(D.teamleaders||[]).find(function(t){return (t.agentsIndividuels||[]).indexOf(a.id)!==-1;}); return tlAssigne?'<span style="font-size:10px;background:rgba(13,27,62,.08);color:#0D1B3E;padding:2px 8px;border-radius:20px;margin-left:6px">👥 TL: '+tlAssigne.name+'</span>':''; })()}</div>
     </div>
     <button class="drawer-close" onclick="window.closeDrawer()" title="Fermer">✕</button>`;
 
@@ -3465,9 +3465,12 @@ window._openFiche = function(id){
     </div>`;
 
   // Footer
+  const _roleDrawer = CURRENT_USER ? CURRENT_USER.role : 'admin';
+  const _canAssignTL = ['admin','respo','chef'].includes(_roleDrawer);
   document.getElementById('drawer-footer').innerHTML=`
     <button class="btn green" onclick="window._openChangerProjet('${a.id}')">Changer projet</button>
     <button class="btn" onclick="window._openChangerOperation('${a.id}')">Changer opération</button>
+    ${_canAssignTL ? `<button class="btn" onclick="window._openAssignerTL('${a.id}')">👥 Assigner TL</button>` : ''}
     <button class="btn" onclick="window._openEdit('${a.id}')">✏️ Modifier</button>`;
 
   // Open drawer
@@ -3695,6 +3698,44 @@ window._renderComparateur = function(){
   }).join('');
   var tb = document.getElementById('cmp-table-body');
   if(tb) tb.innerHTML = rows;
+};
+
+// ── ASSIGNER UN TL À UN AGENT INDIVIDUELLEMENT ───────────────────────────────
+window._openAssignerTL = function(id){
+  var a = D.agents.find(function(x){return x.id===id;});
+  if(!a) return;
+  var tls = D.teamleaders || [];
+  if(!tls.length){ showM('<div class="mhdr"><h3>Assigner un Team Leader</h3><button class="xbtn" onclick="closeM()">x</button></div><p style="padding:16px">Aucun Team Leader créé.</p>'); return; }
+  var tlActuel = tls.find(function(t){ return (t.agentsIndividuels||[]).indexOf(a.id) !== -1; });
+  var opts = '<option value="">— Aucun TL individuel —</option>';
+  tls.forEach(function(t){
+    var isSel = (tlActuel && tlActuel.id === t.id) ? 'selected' : '';
+    var projLabel = (t.projets||[]).map(function(p){ return typeof p==='string'?p:(p.proj+(p.op?' / '+p.op:'')); }).join(', ');
+    opts += '<option value="'+t.id+'" '+isSel+'>'+t.name+(projLabel?' ('+projLabel+')':'')+'</option>';
+  });
+  var html = '<div class="mhdr"><h3>👥 Assigner un TL — '+a.name+'</h3><button class="xbtn" onclick="closeM()">x</button></div>'
+    +'<div style="padding:0 0 16px">'
+    +'<div class="flabel" style="margin-bottom:8px">Assigner individuellement à :</div>'
+    +'<select id="tl-assign-sel" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit">'+opts+'</select>'
+    +'<p style="font-size:12px;color:var(--muted);margin-top:10px">Un agent assigné individuellement reste visible par ce TL même s\'il est sur une opération différente ou qu\'il en change. Sélectionner "Aucun" retire l\'assignation.</p>'
+    +'</div>'
+    +'<div class="frow"><button class="btn" onclick="closeM()">Annuler</button><button class="btn yellow" onclick="window._doAssignerTL(\''+id+'\')">💾 Enregistrer</button></div>';
+  showM(html);
+};
+
+window._doAssignerTL = async function(agentId){
+  var sel = document.getElementById('tl-assign-sel');
+  var newTlId = sel ? sel.value : '';
+  (D.teamleaders||[]).forEach(function(t){
+    if(t.agentsIndividuels) t.agentsIndividuels = t.agentsIndividuels.filter(function(id){ return id !== agentId; });
+  });
+  if(newTlId){
+    var tl = (D.teamleaders||[]).find(function(t){ return t.id === newTlId; });
+    if(tl){ if(!tl.agentsIndividuels) tl.agentsIndividuels = []; tl.agentsIndividuels.push(agentId); }
+  }
+  await saveD();
+  closeM();
+  renderAgents();
 };
 
 window._openChangerProjet = function(id){ window.closeDrawer();
@@ -5817,16 +5858,18 @@ function renderTeamleaders(){
 
 function getTeamLeaderAgents(sup){
   var projets = sup.projets || [];
+  var agentsIndiv = sup.agentsIndividuels || [];
   return D.agents.filter(function(a){
     if(!a.active) return false;
+    // Agents assignés individuellement
+    if(agentsIndiv.indexOf(a.id) !== -1) return true;
+    // Agents par projet/opération
     for(var i=0; i<projets.length; i++){
       var pEntry = projets[i];
-      // pEntry can be {proj, op} or just a string (old format)
       if(typeof pEntry === 'string'){
         if(a.proj === pEntry) return true;
       } else {
         if(a.proj === pEntry.proj){
-          // If operation specified, filter by it
           if(pEntry.op && pEntry.op !== ''){
             if(a.operation === pEntry.op) return true;
           } else {
