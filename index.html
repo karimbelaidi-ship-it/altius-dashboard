@@ -5857,25 +5857,12 @@ function renderTeamleaders(){
 }
 
 function getTeamLeaderAgents(sup){
-  var projets = sup.projets || [];
   var agentsIndiv = sup.agentsIndividuels || [];
   return D.agents.filter(function(a){
     if(!a.active) return false;
-    // Agents assignés individuellement
-    if(agentsIndiv.indexOf(a.id) !== -1) return true;
-    // Agents par projet/opération
-    for(var i=0; i<projets.length; i++){
-      var pEntry = projets[i];
-      if(typeof pEntry === 'string'){
-        if(a.proj === pEntry) return true;
-      } else {
-        if(a.proj === pEntry.proj){
-          if(pEntry.op && pEntry.op !== ''){
-            if(a.operation === pEntry.op) return true;
-          } else {
-            return true;
-          }
-        }
+    return agentsIndiv.indexOf(a.id) !== -1;
+  });
+}
       }
     }
     return false;
