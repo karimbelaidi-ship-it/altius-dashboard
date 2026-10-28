@@ -1076,6 +1076,39 @@
     .export-toggle input[type=checkbox] { width: auto; cursor: pointer; }
     .export-select-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
     .export-period-row { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 6px; }
+
+    /* ── ORGANIGRAMME ──────────────────────────────────────────────── */
+    .org-tree ul{display:flex;justify-content:center;margin:0;padding:24px 0 0;position:relative}
+    .org-tree li{list-style:none;position:relative;padding:24px 8px 0;display:flex;flex-direction:column;align-items:center}
+    .org-tree li::before,.org-tree li::after{content:"";position:absolute;top:0;right:50%;width:50%;height:24px;border-top:2px solid var(--border)}
+    .org-tree li::after{right:auto;left:50%;border-left:2px solid var(--border)}
+    .org-tree li:only-child::before,.org-tree li:only-child::after{display:none}
+    .org-tree li:only-child{padding-top:0}
+    .org-tree li:first-child::before,.org-tree li:last-child::after{border:0}
+    .org-tree li:last-child::before{border-right:2px solid var(--border);border-radius:0 10px 0 0}
+    .org-tree li:first-child::after{border-radius:10px 0 0 0}
+    .org-tree ul ul::before{content:"";position:absolute;top:0;left:50%;height:24px;border-left:2px solid var(--border)}
+    .org-tree>ul{padding-top:0}
+    .org-tree>ul>li{padding-top:0}
+    .org-tree>ul>li::before,.org-tree>ul>li::after{display:none}
+    .org-tree li.org-closed>ul{display:none}
+    .org-card{display:flex;align-items:center;gap:10px;width:220px;padding:10px 12px;text-align:left;background:var(--surface);border:1px solid var(--border);border-left:5px solid var(--org-c);border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.08);transition:transform .15s,box-shadow .15s;cursor:pointer}
+    .org-card:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(0,0,0,.14)}
+    .org-card.org-hit{background:rgba(212,160,23,.12)}
+    .org-av{flex:none;width:38px;height:38px;border-radius:50%;background:var(--org-c);color:#fff;display:grid;place-items:center;font-weight:800;font-size:.85rem}
+    .org-txt{min-width:0;flex:1}
+    .org-nm{font-weight:800;font-size:.88rem;line-height:1.2;overflow-wrap:anywhere;color:var(--text)}
+    .org-rl{font-size:.74rem;color:var(--muted);line-height:1.25;margin-top:2px}
+    .org-cnt{flex:none;min-width:24px;padding:2px 6px;border-radius:99px;background:var(--bg);font-size:.72rem;font-weight:800;text-align:center;border:1px solid var(--border);color:var(--text)}
+    .org-d0{--org-c:#0D1B3E}.org-d1{--org-c:#D4A017}.org-d2{--org-c:#28A745}.org-d3{--org-c:#378ADD}
+    /* Edit row */
+    .org-er{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:5px 0;padding:8px;border:1px solid var(--border);border-left:4px solid var(--org-c);border-radius:10px;background:var(--bg)}
+    .org-er input{font:inherit;font-size:.88rem;padding:7px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);flex:1 1 140px;min-width:0}
+    .org-er .org-esm{padding:5px 9px;border:1px solid var(--border);border-radius:8px;background:var(--surface);font-size:.8rem;font-family:inherit;cursor:pointer}
+    .org-er .org-esm:hover{border-color:var(--yellow)}
+    .org-er .org-add{color:#0D1B3E;font-weight:700}
+    .org-er .org-del{color:#DC3545;font-weight:700}
+    .org-kids{margin-left:18px;padding-left:10px;border-left:2px dashed var(--border)}
   </style>
 </head>
 <body>
@@ -1121,6 +1154,7 @@
   <button class="nb" data-page="agents" onclick="goPage('agents',this)">👥 Agents</button>
   <button class="nb" data-page="projets" onclick="goPage('projets',this)">🏢 Projets</button>
   <button class="nb" data-page="cal-dl" onclick="goPage('cal-dl',this)">⏰ Calendrier &amp; Deadlines</button>
+  <button class="nb" data-page="organigramme" onclick="goPage('organigramme',this)">🏗️ Organigramme</button>
   <div class="nb-dropdown" id="admin-dropdown-wrap">
     <button class="nb" id="admin-nav-btn" onclick="window.toggleAdminMenu(event)">⚙️ Administration ▾</button>
     <div class="nb-dropdown-menu" id="admin-nav-menu" style="display:none">
@@ -1559,6 +1593,39 @@
     <div id="dl-done-section"></div>
   </div>
 
+
+  <!-- ── PAGE ORGANIGRAMME ──────────────────────────────────────────── -->
+  <div class="pg" id="pg-organigramme" style="padding:0;overflow:hidden;height:calc(100vh - 120px)">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px 12px;border-bottom:1px solid var(--border);background:var(--surface)">
+      <div class="stitle" style="margin:0">🏗️ Organigramme Altius Contact</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="search" id="org-search" placeholder="Rechercher..." style="padding:7px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;background:var(--bg);color:var(--text);width:200px">
+        <button onclick="window._orgExpandAll()" style="padding:7px 12px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;background:var(--surface);color:var(--text)">Tout déplier</button>
+        <button onclick="window._orgCollapseAll()" style="padding:7px 12px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;background:var(--surface);color:var(--text)">Tout replier</button>
+        <button onclick="window._orgZoom(-0.1)" style="padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;background:var(--surface);color:var(--text)">−</button>
+        <button onclick="window._orgZoom(+0.1)" style="padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;background:var(--surface);color:var(--text)">+</button>
+        <button onclick="window._orgOpenEdit()" style="padding:7px 12px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;background:var(--yellow);color:#1a1a18">✏️ Modifier</button>
+      </div>
+    </div>
+    <div id="org-stage" style="overflow:auto;height:calc(100% - 60px);padding:32px 24px 64px">
+      <div id="org-tree" class="org-tree"></div>
+    </div>
+  </div>
+
+  <!-- Modal édition organigramme -->
+  <div id="org-edit-modal" style="display:none;position:fixed;inset:0;z-index:9000;background:rgba(10,15,30,.5);align-items:center;justify-content:center">
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;width:min(680px,94vw);max-height:85vh;display:flex;flex-direction:column;padding:20px">
+      <div class="mhdr"><h3>✏️ Modifier l'organigramme</h3><button class="xbtn" onclick="window._orgCloseEdit()">x</button></div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:12px">Renseignez le nom et le poste. Utilisez "＋ Collaborateur" pour ajouter un subordonné direct.</p>
+      <div id="org-edit-body" style="overflow-y:auto;flex:1;padding-right:4px"></div>
+      <div id="org-edit-err" style="color:#DC3545;font-size:12px;min-height:1em;margin-top:6px"></div>
+      <div class="frow" style="margin-top:12px">
+        <button class="btn" onclick="window._orgResetData()">Réinitialiser</button>
+        <button class="btn" onclick="window._orgCloseEdit()">Annuler</button>
+        <button class="btn yellow" onclick="window._orgSaveEdit()">💾 Enregistrer</button>
+      </div>
+    </div>
+  </div>
 
   <div class="pg" id="pg-cal-dl">
     <div style="display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:20px">
@@ -6030,12 +6097,12 @@ function applyUserRole(){
 
   // Define tab access per role
   var tabAccess = {
-    admin:    ['overview','agents','mois','projets','archives','teamleaders','comptes','cal-dl','historique','comparateur','plans-action'],
-    respo:    ['overview','chef','agents','mois','projets','archives','teamleaders','cal-dl','historique','comparateur','plans-action'],
-    chef:     ['chef','agents','mois','projets','cal-dl','historique'],
-    teamlead: ['chef','agents','cal-dl','historique'],
-    qualite:  ['chef','agents','cal-dl','historique'],
-    ceo:      ['ceo','overview','chef','agents','mois','projets','archives','teamleaders','comptes','cal-dl','historique','comparateur','plans-action']
+    admin:    ['overview','agents','mois','projets','archives','teamleaders','comptes','cal-dl','historique','comparateur','plans-action','organigramme'],
+    respo:    ['overview','chef','agents','mois','projets','archives','teamleaders','cal-dl','historique','comparateur','plans-action','organigramme'],
+    chef:     ['chef','agents','mois','projets','cal-dl','historique','organigramme'],
+    teamlead: ['chef','agents','cal-dl','historique','organigramme'],
+    qualite:  ['chef','agents','cal-dl','historique','organigramme'],
+    ceo:      ['ceo','overview','chef','agents','mois','projets','archives','teamleaders','comptes','cal-dl','historique','comparateur','plans-action','organigramme']
   };
   var allowed = tabAccess[role] || ['overview'];
 
@@ -6088,6 +6155,206 @@ function applyUserRole(){
   // Appliquer le verrou lecture seule sur la page actuellement affichée (cas où goPage n'est pas appelé)
   if(window._isReadOnlyRole && window._applyReadOnlyLock) setTimeout(window._applyReadOnlyLock, 80);
 }
+
+// ══ ORGANIGRAMME ══════════════════════════════════════════════════════════════
+(function(){
+  var ORG_KEY = 'altius-organigramme';
+  var ORG_DEFAULT = {n:'Altius Contact',r:'Direction Générale',c:[
+    {n:'Direction Opérations',r:'Responsable Opérations',c:[
+      {n:'Production',r:'Responsable de Production'},
+      {n:'Qualité & Formation',r:'Responsable Qualité'}
+    ]},
+    {n:'Direction RH',r:'Responsable Ressources Humaines',c:[
+      {n:'Recrutement',r:'Chargé(e) de Recrutement'},
+      {n:'Paie & Admin',r:'Gestionnaire Paie'}
+    ]},
+    {n:'Direction Commerciale',r:'Responsable Commercial',c:[
+      {n:'Comptes Clés',r:'Responsable Comptes Clés'}
+    ]}
+  ]};
+
+  var orgData, orgNodes=[], orgZoom=1, orgWork=null, orgFocus=null;
+
+  function orgLoad(){
+    try{ var s=localStorage.getItem(ORG_KEY); orgData=s?JSON.parse(s):ORG_DEFAULT; }
+    catch(e){ orgData=ORG_DEFAULT; }
+  }
+
+  function orgSave(){ try{ localStorage.setItem(ORG_KEY,JSON.stringify(orgData)); }catch(e){} }
+
+  function orgInitials(n){ return n.split(/\s+/).slice(0,2).map(function(w){return w[0]||'';}).join('').toUpperCase(); }
+
+  function orgTotal(n){ return (n.c||[]).reduce(function(a,x){return a+1+orgTotal(x);},0); }
+
+  function orgBuild(n,depth,parent){
+    var li=document.createElement('li');
+    var kids=n.c||[];
+    var rec={n:n,li:li,parent:parent,card:null};
+    orgNodes.push(rec);
+    var b=document.createElement('button');
+    b.className='org-card org-d'+Math.min(depth,3);
+    b.innerHTML='<span class="org-av"></span><span class="org-txt"><div class="org-nm"></div><div class="org-rl"></div></span>';
+    b.querySelector('.org-av').textContent=orgInitials(n.n);
+    b.querySelector('.org-nm').textContent=n.n;
+    b.querySelector('.org-rl').textContent=n.r||'';
+    rec.card=b;
+    if(kids.length){
+      var c=document.createElement('span');
+      c.className='org-cnt';
+      c.textContent=kids.length;
+      b.appendChild(c);
+      li.classList.add('org-closed');
+      b.setAttribute('aria-expanded','false');
+      b.onclick=function(){ orgToggle(rec); };
+    }
+    li.appendChild(b);
+    if(kids.length){
+      var ul=document.createElement('ul');
+      kids.forEach(function(k){ ul.appendChild(orgBuild(k,depth+1,rec)); });
+      li.appendChild(ul);
+    }
+    return li;
+  }
+
+  function orgSetOpen(rec,open){
+    if(!(rec.n.c||[]).length) return;
+    rec.li.classList.toggle('org-closed',!open);
+    rec.card.setAttribute('aria-expanded',open?'true':'false');
+  }
+
+  function orgToggle(rec){ orgSetOpen(rec, rec.li.classList.contains('org-closed')); }
+
+  function orgRender(){
+    orgNodes=[];
+    var tree=document.getElementById('org-tree');
+    if(!tree) return;
+    tree.innerHTML='';
+    tree.style.zoom=orgZoom;
+    var ul=document.createElement('ul');
+    ul.appendChild(orgBuild(orgData,0,null));
+    tree.appendChild(ul);
+    if(orgNodes[0]) orgSetOpen(orgNodes[0],true);
+  }
+
+  window._orgExpandAll  = function(){ orgNodes.forEach(function(r){orgSetOpen(r,true);}); };
+  window._orgCollapseAll= function(){ orgNodes.forEach(function(r){orgSetOpen(r,false);}); if(orgNodes[0])orgSetOpen(orgNodes[0],false); };
+  window._orgZoom       = function(d){ orgZoom=Math.max(.4,Math.min(1.6,orgZoom+d)); var t=document.getElementById('org-tree'); if(t)t.style.zoom=orgZoom; };
+
+  // Recherche
+  document.addEventListener('input', function(e){
+    if(e.target.id!=='org-search') return;
+    var v=e.target.value.trim().toLowerCase();
+    orgNodes.forEach(function(r){r.card.classList.remove('org-hit');});
+    if(!v) return;
+    var hits=orgNodes.filter(function(r){ return (r.n.n+' '+(r.n.r||'')).toLowerCase().includes(v); });
+    hits.forEach(function(r){
+      r.card.classList.add('org-hit');
+      for(var p=r.parent;p;p=p.parent) orgSetOpen(p,true);
+    });
+    if(hits[0]) hits[0].card.scrollIntoView({block:'center',inline:'center',behavior:'smooth'});
+  });
+
+  // ── ÉDITEUR ──────────────────────────────────────────────────────────────
+  function orgClone(o){ return JSON.parse(JSON.stringify(o)); }
+
+  function orgEditRow(n,depth,list){
+    var wrap=document.createElement('div');
+    var row=document.createElement('div');
+    row.className='org-er org-d'+Math.min(depth,3);
+
+    var mkInput=function(ph,key,label){
+      var i=document.createElement('input');
+      i.type='text'; i.placeholder=ph; i.value=n[key]||''; i.setAttribute('aria-label',label);
+      i.oninput=function(){ n[key]=i.value; };
+      return i;
+    };
+    var nm=mkInput('Nom et prénom','n','Nom');
+    var rl=mkInput('Poste / Rôle','r','Poste');
+    row.appendChild(nm); row.appendChild(rl);
+    if(orgFocus===n){ setTimeout(function(){nm.focus();},0); orgFocus=null; }
+
+    var mkBtn=function(txt,cls,fn){
+      var b=document.createElement('button');
+      b.type='button'; b.className='org-esm org-'+cls; b.textContent=txt; b.onclick=fn;
+      row.appendChild(b); return b;
+    };
+    mkBtn('＋','add',function(){
+      (n.c=n.c||[]).push({n:'',r:''});
+      orgFocus=n.c[n.c.length-1];
+      orgRenderEditor();
+    });
+    if(list){
+      var idx=list.indexOf(n);
+      if(idx>0) mkBtn('↑','esm',function(){ list.splice(idx,1);list.splice(idx-1,0,n);orgRenderEditor(); });
+      if(idx<list.length-1) mkBtn('↓','esm',function(){ list.splice(idx,1);list.splice(idx+1,0,n);orgRenderEditor(); });
+      mkBtn('✕','del',function(){
+        if((n.c||[]).length && !confirm('Supprimer aussi ses '+orgTotal(n)+' collaborateur(s) ?')) return;
+        list.splice(idx,1); orgRenderEditor();
+      });
+    }
+    wrap.appendChild(row);
+    if((n.c||[]).length){
+      var kids=document.createElement('div'); kids.className='org-kids';
+      n.c.forEach(function(x){ kids.appendChild(orgEditRow(x,depth+1,n.c)); });
+      wrap.appendChild(kids);
+    }
+    return wrap;
+  }
+
+  function orgRenderEditor(){
+    var ed=document.getElementById('org-edit-body');
+    if(!ed) return;
+    var top=ed.scrollTop;
+    ed.innerHTML='';
+    ed.appendChild(orgEditRow(orgWork,0,null));
+    ed.scrollTop=top;
+  }
+
+  window._orgOpenEdit=function(){
+    var _role=window.CURRENT_USER?window.CURRENT_USER.role:'guest';
+    if(!['admin','respo'].includes(_role)){ alert('Seuls les Admin et Responsables peuvent modifier l\'organigramme.'); return; }
+    orgWork=orgClone(orgData);
+    document.getElementById('org-edit-err').textContent='';
+    orgRenderEditor();
+    document.getElementById('org-edit-modal').style.display='flex';
+  };
+
+  window._orgCloseEdit=function(){ document.getElementById('org-edit-modal').style.display='none'; };
+
+  window._orgResetData=function(){
+    if(!confirm('Réinitialiser l\'organigramme par défaut ?')) return;
+    orgWork=orgClone(ORG_DEFAULT);
+    orgRenderEditor();
+  };
+
+  window._orgSaveEdit=function(){
+    // Vérifier qu'aucun nom n'est vide
+    function hasEmpty(n){ if(!n.n||!n.n.trim()) return true; return (n.c||[]).some(hasEmpty); }
+    if(hasEmpty(orgWork)){
+      document.getElementById('org-edit-err').textContent='Chaque personne doit avoir un nom.';
+      return;
+    }
+    orgData=orgWork;
+    orgSave();
+    window._orgCloseEdit();
+    orgRender();
+  };
+
+  // Init quand la page organigramme est affichée
+  var _orgInited=false;
+  var _origGoPage=window.goPage;
+  window.goPage=function(page, btn){
+    if(_origGoPage) _origGoPage(page, btn);
+    if(page==='organigramme' && !_orgInited){
+      _orgInited=true;
+      orgLoad();
+      orgRender();
+    }
+  };
+  // Init immédiate si déjà sur la page
+  if(document.getElementById('pg-organigramme') && !document.getElementById('pg-organigramme').style.display){ orgLoad(); orgRender(); }
+})();
+// ══ FIN ORGANIGRAMME ══════════════════════════════════════════════════════════
 
 window.doLogin = function(){
   var username = document.getElementById('loginUser').value.trim();
