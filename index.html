@@ -1130,7 +1130,13 @@
       <div class="logo-sub" id="subtitle">Connexion...</div>
     </div>
   </div>
-  <div style="display:flex;align-items:center;gap:10px"><button onclick="showOnboarding()" style="background:rgba(245,200,0,.1);border:1px solid rgba(245,200,0,.3);border-radius:8px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;color:#a08200;font-family:inherit;">❓ Aide</button><div style="position:relative">
+  <div style="display:flex;align-items:center;gap:10px">
+    <!-- Sélecteur d'espace -->
+    <div id="espace-switcher" style="display:none;background:rgba(255,255,255,.08);border-radius:10px;padding:3px;display:flex;gap:2px">
+      <button id="btn-espace-prod" onclick="window._switchEspace('prod')" style="padding:6px 14px;border-radius:8px;border:none;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;background:#F5C800;color:#1a1a18;transition:all .2s">🏭 Production</button>
+      <button id="btn-espace-rh" onclick="window._switchEspace('rh')" style="padding:6px 14px;border-radius:8px;border:none;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;background:transparent;color:rgba(255,255,255,.7);transition:all .2s">👥 RH</button>
+    </div>
+    <button onclick="showOnboarding()" style="background:rgba(245,200,0,.1);border:1px solid rgba(245,200,0,.3);border-radius:8px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;color:#a08200;font-family:inherit;">❓ Aide</button><div style="position:relative">
     <button onclick="window._toggleExportMenu(event)" style="background:var(--yellow);color:#1a1a18;border:none;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:5px;">📤 Exporter <span style="font-size:10px">▾</span></button>
     <div id="export-format-menu" style="display:none;position:absolute;top:calc(100% + 6px);left:0;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 12px 32px rgba(0,0,0,.18);overflow:hidden;z-index:50;min-width:160px">
       <button onclick="window._toggleExportMenu();window.openExportModal('pdf')" style="display:flex;align-items:center;gap:8px;width:100%;padding:10px 14px;border:none;background:none;cursor:pointer;font-family:inherit;font-size:13px;color:var(--text);text-align:left">📄 Export PDF</button>
@@ -1169,6 +1175,16 @@
   </div>
 </div>
 
+
+<!-- Navbar RH -->
+<div class="nav" id="rh-nav" style="display:none">
+  <button class="nb on" data-page="rh-home" onclick="goPageRH('rh-home',this)">🏠 Accueil RH</button>
+  <button class="nb" data-page="rh-fiches" onclick="goPageRH('rh-fiches',this)">📋 Fiches Employés</button>
+  <button class="nb" data-page="rh-conges" onclick="goPageRH('rh-conges',this)">🌴 Congés & Absences</button>
+  <button class="nb" data-page="rh-essai" onclick="goPageRH('rh-essai',this)">⏱️ Périodes d'essai</button>
+  <button class="nb" data-page="rh-turnover" onclick="goPageRH('rh-turnover',this)">📉 Turnover</button>
+  <button class="nb" data-page="organigramme" onclick="goPageRH('organigramme',this)">🏗️ Organigramme</button>
+</div>
 
 <div class="breadcrumb" id="breadcrumb">
   <span class="bc-home" onclick="goPage('overview', document.querySelector('.nb[data-page=overview]'))">📋 Tableau de bord</span>
@@ -1593,6 +1609,80 @@
     <div id="dl-done-section"></div>
   </div>
 
+
+  <!-- ── PAGES RH ──────────────────────────────────────────────────── -->
+
+  <!-- Accueil RH -->
+  <div class="pg" id="pg-rh-home">
+    <div class="stitle">👥 Espace Ressources Humaines</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;margin-top:24px">
+      <div onclick="goPageRH('rh-fiches',document.querySelector('.nb[data-page=rh-fiches]'))" style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;cursor:pointer;transition:all .2s;border-top:4px solid #0D1B3E" onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='0 8px 24px rgba(0,0,0,.12)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+        <div style="font-size:32px;margin-bottom:12px">📋</div>
+        <div style="font-weight:800;font-size:16px;color:var(--text);margin-bottom:6px">Fiches Employés</div>
+        <div style="font-size:13px;color:var(--muted)">Informations contractuelles, ancienneté, historique de poste</div>
+      </div>
+      <div onclick="goPageRH('rh-conges',document.querySelector('.nb[data-page=rh-conges]'))" style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;cursor:pointer;transition:all .2s;border-top:4px solid #28A745" onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='0 8px 24px rgba(0,0,0,.12)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+        <div style="font-size:32px;margin-bottom:12px">🌴</div>
+        <div style="font-weight:800;font-size:16px;color:var(--text);margin-bottom:6px">Congés & Absences</div>
+        <div style="font-size:13px;color:var(--muted)">Suivi des congés, absences justifiées et injustifiées par agent</div>
+      </div>
+      <div onclick="goPageRH('rh-essai',document.querySelector('.nb[data-page=rh-essai]'))" style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;cursor:pointer;transition:all .2s;border-top:4px solid #D4A017" onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='0 8px 24px rgba(0,0,0,.12)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+        <div style="font-size:32px;margin-bottom:12px">⏱️</div>
+        <div style="font-weight:800;font-size:16px;color:var(--text);margin-bottom:6px">Périodes d'essai</div>
+        <div style="font-size:13px;color:var(--muted)">Suivi J30/J60/J90 avec alertes automatiques pour chaque nouvel agent</div>
+      </div>
+      <div onclick="goPageRH('rh-turnover',document.querySelector('.nb[data-page=rh-turnover]'))" style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;cursor:pointer;transition:all .2s;border-top:4px solid #DC3545" onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='0 8px 24px rgba(0,0,0,.12)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+        <div style="font-size:32px;margin-bottom:12px">📉</div>
+        <div style="font-weight:800;font-size:16px;color:var(--text);margin-bottom:6px">Turnover</div>
+        <div style="font-size:13px;color:var(--muted)">Suivi des démissions, motifs de départ, taux de turnover par projet</div>
+      </div>
+      <div onclick="goPageRH('organigramme',document.querySelector('.nb[data-page=organigramme]'))" style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;cursor:pointer;transition:all .2s;border-top:4px solid #378ADD" onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='0 8px 24px rgba(0,0,0,.12)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+        <div style="font-size:32px;margin-bottom:12px">🏗️</div>
+        <div style="font-weight:800;font-size:16px;color:var(--text);margin-bottom:6px">Organigramme</div>
+        <div style="font-size:13px;color:var(--muted)">Structure hiérarchique interactive d'Altius Contact</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Fiches Employés -->
+  <div class="pg" id="pg-rh-fiches">
+    <div class="stitle">📋 Fiches Employés</div>
+    <div style="margin-top:24px;padding:40px;text-align:center;background:var(--surface);border:1px solid var(--border);border-radius:16px;color:var(--muted)">
+      <div style="font-size:48px;margin-bottom:16px">🚧</div>
+      <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:8px">En cours de développement</div>
+      <div style="font-size:13px">Les fiches employés complètes (contrat, salaire, ancienneté, historique) seront disponibles prochainement.</div>
+    </div>
+  </div>
+
+  <!-- Congés & Absences -->
+  <div class="pg" id="pg-rh-conges">
+    <div class="stitle">🌴 Congés & Absences</div>
+    <div style="margin-top:24px;padding:40px;text-align:center;background:var(--surface);border:1px solid var(--border);border-radius:16px;color:var(--muted)">
+      <div style="font-size:48px;margin-bottom:16px">🚧</div>
+      <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:8px">En cours de développement</div>
+      <div style="font-size:13px">Le suivi des congés et absences par agent et par projet sera disponible prochainement.</div>
+    </div>
+  </div>
+
+  <!-- Périodes d'essai -->
+  <div class="pg" id="pg-rh-essai">
+    <div class="stitle">⏱️ Périodes d'essai</div>
+    <div style="margin-top:24px;padding:40px;text-align:center;background:var(--surface);border:1px solid var(--border);border-radius:16px;color:var(--muted)">
+      <div style="font-size:48px;margin-bottom:16px">🚧</div>
+      <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:8px">En cours de développement</div>
+      <div style="font-size:13px">Le suivi J30/J60/J90 avec alertes automatiques sera disponible prochainement.</div>
+    </div>
+  </div>
+
+  <!-- Turnover -->
+  <div class="pg" id="pg-rh-turnover">
+    <div class="stitle">📉 Turnover</div>
+    <div style="margin-top:24px;padding:40px;text-align:center;background:var(--surface);border:1px solid var(--border);border-radius:16px;color:var(--muted)">
+      <div style="font-size:48px;margin-bottom:16px">🚧</div>
+      <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:8px">En cours de développement</div>
+      <div style="font-size:13px">Le suivi des démissions, motifs de départ et taux de turnover sera disponible prochainement.</div>
+    </div>
+  </div>
 
   <!-- ── PAGE ORGANIGRAMME ──────────────────────────────────────────── -->
   <div class="pg" id="pg-organigramme" style="padding:0;overflow:hidden;height:calc(100vh - 120px)">
@@ -6083,6 +6173,7 @@ function checkLogin(){
         window.CURRENT_USER = acc;
         document.getElementById('loginOverlay').style.display = 'none';
         document.getElementById('main-nav').style.display = '';
+        window._showEspaceSwitcher();
         applyUserRole();
         if(typeof showMobileNav === 'function') showMobileNav();
         return;
@@ -6155,6 +6246,55 @@ function applyUserRole(){
   // Appliquer le verrou lecture seule sur la page actuellement affichée (cas où goPage n'est pas appelé)
   if(window._isReadOnlyRole && window._applyReadOnlyLock) setTimeout(window._applyReadOnlyLock, 80);
 }
+
+// ══ ESPACE PRODUCTION / RH ════════════════════════════════════════════════════
+var _currentEspace = 'prod';
+
+window._switchEspace = function(espace){
+  _currentEspace = espace;
+  var mainNav = document.getElementById('main-nav');
+  var rhNav   = document.getElementById('rh-nav');
+  var btnProd = document.getElementById('btn-espace-prod');
+  var btnRH   = document.getElementById('btn-espace-rh');
+
+  if(espace === 'prod'){
+    if(mainNav) mainNav.style.display = '';
+    if(rhNav)   rhNav.style.display   = 'none';
+    if(btnProd){ btnProd.style.background='#F5C800'; btnProd.style.color='#1a1a18'; }
+    if(btnRH){   btnRH.style.background='transparent'; btnRH.style.color='rgba(255,255,255,.7)'; }
+    goPage('overview', document.querySelector('.nb[data-page="overview"]'));
+  } else {
+    if(mainNav) mainNav.style.display = 'none';
+    if(rhNav)   rhNav.style.display   = '';
+    if(btnRH){   btnRH.style.background='#F5C800'; btnRH.style.color='#1a1a18'; }
+    if(btnProd){ btnProd.style.background='transparent'; btnProd.style.color='rgba(255,255,255,.7)'; }
+    goPageRH('rh-home', document.querySelector('#rh-nav .nb[data-page="rh-home"]'));
+  }
+};
+
+window.goPageRH = function(id, btn){
+  // Masquer toutes les pages
+  document.querySelectorAll('.main .pg').forEach(function(p){ p.classList.remove('on'); });
+  // Afficher la bonne page
+  var pg = document.getElementById('pg-'+id);
+  if(pg) pg.classList.add('on');
+  // Mettre à jour la nav RH
+  document.querySelectorAll('#rh-nav .nb').forEach(function(b){ b.classList.remove('on'); });
+  if(btn) btn.classList.add('on');
+  // Init organigramme si besoin
+  if(id === 'organigramme'){
+    var ev = new CustomEvent('org-init');
+    document.dispatchEvent(ev);
+  }
+};
+
+// Afficher le switcher une fois connecté
+var _origSetupNav = window._setupNav;
+window._showEspaceSwitcher = function(){
+  var sw = document.getElementById('espace-switcher');
+  if(sw) sw.style.display = 'flex';
+};
+// ══ FIN ESPACE ═════════════════════════════════════════════════════════════════
 
 // ══ ORGANIGRAMME ══════════════════════════════════════════════════════════════
 (function(){
