@@ -1686,11 +1686,28 @@
   <!-- Turnover -->
   <div class="pg" id="pg-rh-turnover">
     <div class="stitle">📉 Turnover</div>
-    <div style="margin-top:24px;padding:40px;text-align:center;background:var(--surface);border:1px solid var(--border);border-radius:16px;color:var(--muted)">
-      <div style="font-size:48px;margin-bottom:16px">🚧</div>
-      <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:8px">En cours de développement</div>
-      <div style="font-size:13px">Le suivi des démissions, motifs de départ et taux de turnover sera disponible prochainement.</div>
+    <p style="font-size:13px;color:var(--muted);margin:6px 0 16px">Suivi des départs, de leurs motifs et du taux de turnover. Les données viennent des démissions enregistrées sur les fiches agents.</p>
+    <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:16px">
+      <select id="turn-period" onchange="window._turnRender()" style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:var(--surface);color:var(--text)">
+        <option value="last12">12 derniers mois</option>
+        <option value="last6">6 derniers mois</option>
+        <option value="ytd">Année en cours</option>
+        <option value="prev">Année précédente</option>
+      </select>
+      <select id="turn-proj" onchange="window._turnRender()" style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:var(--surface);color:var(--text)"><option value="">Tous les projets</option></select>
     </div>
+    <div id="turn-kpis" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:16px"></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;margin-bottom:16px">
+      <div id="turn-monthly" style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px"></div>
+      <div id="turn-motifs" style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px"></div>
+      <div id="turn-anc" style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px"></div>
+      <div id="turn-projs" style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px"></div>
+    </div>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px">
+      <div style="font-weight:800;font-size:14px;color:var(--text);margin-bottom:10px">Détail des départs</div>
+      <div id="turn-list" style="overflow-x:auto"></div>
+    </div>
+    <p style="font-size:11px;color:var(--muted);margin-top:12px;line-height:1.5">Taux de turnover = départs ÷ effectif moyen de la période. L'effectif est reconstitué à partir des dates d'entrée et de départ saisies (précision au mois). Les agents désactivés par la suppression d'un projet ne sont pas comptés. Les départs saisis avant l'ajout des motifs apparaissent « Non renseigné » : utilise le bouton ✏️ pour les compléter.</p>
   </div>
 
   <!-- ── PAGE ORGANIGRAMME ──────────────────────────────────────────── -->
@@ -4778,6 +4795,7 @@ window._confirmDem=function(id){
     +'<div class="flabel">Date de démission</div>'
     +'<input type="month" id="dem-date" value="'+defaultDate+'" style="max-width:200px">'
     +'</div>'
+    +(window._depFieldsHtml?window._depFieldsHtml({}):'')
     +'<div class="frow"><button class="btn" onclick="closeM()">Annuler</button><button class="btn red" data-id="'+id+'" onclick="window._doDem(this.dataset.id)">👤➖ Confirmer la démission</button></div>');
 }
 window._doDem=async function(id){
@@ -4786,6 +4804,10 @@ window._doDem=async function(id){
     a.active=false;
     var dd=document.getElementById('dem-date');
     a.dateDemission=dd?dd.value:'';
+    var _dt=document.getElementById('dem-type'), _dm=document.getElementById('dem-motif'), _dc=document.getElementById('dem-com');
+    a.departType=_dt?_dt.value:'';
+    a.departMotif=_dm?_dm.value:'';
+    a.departCom=_dc?_dc.value.trim():'';
     if(!D.notifications) D.notifications = [];
     D.notifications.push({
       id: 'n'+Date.now()+Math.random(),
@@ -6305,6 +6327,153 @@ window._showEspaceSwitcher = function(){
   if(sw) sw.style.display = 'flex';
 };
 // ══ FIN ESPACE ═════════════════════════════════════════════════════════════════
+
+// ══ TURNOVER (RH) ═════════════════════════════════════════════════════════════
+(function(){
+  var TYPES=["Démission","Fin de période d'essai","Abandon de poste","Licenciement","Fin de contrat","Autre"];
+  var MOTIFS=["Rémunération","Conditions de travail (horaires, rythme, pression)","Management / ambiance","Objectifs jugés trop élevés","Manque de perspectives d'évolution","Autre opportunité professionnelle","Raisons personnelles / familiales","Études","Santé","Déménagement","Autre"];
+  var MN=['janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'];
+  function esc(x){return String(x==null?'':x).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+  function canEdit(){var r=window.CURRENT_USER?window.CURRENT_USER.role:'';return ['admin','respo','chef'].indexOf(r)!==-1;}
+  function mi(s){var m=String(s||'').match(/^(\d{4})-(\d{2})/);return m?(+m[1])*12+(+m[2]-1):null;}
+  function mlabel(i){return MN[i%12]+' '+Math.floor(i/12);}
+  function nowIdx(){var d=new Date();return d.getFullYear()*12+d.getMonth();}
+  function opts(list,sel){return '<option value="">— Non renseigné —</option>'+list.map(function(o){return '<option value="'+esc(o)+'"'+(o===sel?' selected':'')+'>'+esc(o)+'</option>';}).join('');}
+
+  // Champs réutilisés par le formulaire de démission et par l'édition
+  window._depFieldsHtml=function(v){
+    v=v||{};
+    return '<div style="margin-bottom:14px"><div class="flabel">Type de départ</div><select id="dem-type" style="width:100%">'+opts(TYPES,v.departType)+'</select></div>'
+      +'<div style="margin-bottom:14px"><div class="flabel">Motif principal</div><select id="dem-motif" style="width:100%">'+opts(MOTIFS,v.departMotif)+'</select></div>'
+      +'<div style="margin-bottom:18px"><div class="flabel">Commentaire (optionnel)</div><textarea id="dem-com" rows="3" style="width:100%;font-family:inherit;padding:8px;border:1px solid var(--border);border-radius:8px">'+esc(v.departCom||'')+'</textarea></div>';
+  };
+
+  function bounds(){
+    var v=document.getElementById('turn-period').value, e=nowIdx(), s;
+    if(v==='last6') s=e-5;
+    else if(v==='ytd') s=Math.floor(e/12)*12;
+    else if(v==='prev'){var y=Math.floor(e/12)-1;s=y*12;e=y*12+11;}
+    else s=e-11;
+    return {s:s,e:e};
+  }
+  function dm(a){return a.active?null:mi(a.dateDemission);}
+  function pool(proj){return ((window.D&&D.agents)||[]).filter(function(a){return (a.active||a.dateDemission)&&(!proj||a.proj===proj);});}
+  function hc(list,idx,atStart){
+    return list.filter(function(a){
+      var en=mi(a.dateEntree), d=dm(a);
+      var enOk=en==null||(atStart?en<idx:en<=idx);
+      var stay=d==null||(atStart?d>=idx:d>idx);
+      return enOk&&stay;
+    }).length;
+  }
+  function departs(list,b){return list.filter(function(a){var d=dm(a);return d!=null&&d>=b.s&&d<=b.e;});}
+  function tenure(a){var en=mi(a.dateEntree),d=dm(a);return (en!=null&&d!=null)?Math.max(0,d-en):null;}
+  function stat(label,val,sub,color){
+    return '<div style="background:var(--surface);border:1px solid var(--border);border-top:3px solid '+color+';border-radius:12px;padding:12px 14px"><div style="font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em">'+label+'</div><div style="font-size:26px;font-weight:800;color:var(--text);margin-top:2px">'+val+'</div>'+(sub?'<div style="font-size:11px;color:var(--muted)">'+sub+'</div>':'')+'</div>';
+  }
+  function title(t,sub){return '<div style="font-weight:800;font-size:14px;color:var(--text)">'+t+'</div>'+(sub?'<div style="font-size:11px;color:var(--muted);margin-bottom:10px">'+sub+'</div>':'<div style="margin-bottom:10px"></div>');}
+  function bar(label,n,max,color,extra){
+    var w=max?Math.round(n/max*100):0;
+    return '<div style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text);margin-bottom:3px"><span>'+label+'</span><strong>'+n+(extra||'')+'</strong></div><div style="height:7px;background:var(--bg);border-radius:99px;overflow:hidden"><div style="height:100%;width:'+w+'%;background:'+color+';border-radius:99px"></div></div></div>';
+  }
+  function pct(n,d){return d?Math.round(n/d*1000)/10:0;}
+
+  window._turnRender=function(){
+    if(!document.getElementById('turn-kpis')) return;
+    var ps=document.getElementById('turn-proj'), cur=ps.value;
+    var allP={};pool('').forEach(function(a){if(a.proj)allP[a.proj]=1;});
+    var plist=Object.keys(allP).sort();
+    ps.innerHTML='<option value="">Tous les projets</option>'+plist.map(function(p){return '<option value="'+esc(p)+'"'+(p===cur?' selected':'')+'>'+esc(p)+'</option>';}).join('');
+    var proj=ps.value, b=bounds();
+    var list=pool(proj), dep=departs(list,b);
+    var hs=hc(list,b.s,true), he=hc(list,b.e,false), avg=(hs+he)/2;
+    var rate=avg?Math.round(dep.length/avg*1000)/10:null;
+    var early=dep.filter(function(a){var t=tenure(a);return t!=null&&t<=3;}).length;
+
+    // Motifs
+    var mc={};dep.forEach(function(a){var k=a.departMotif||'';mc[k]=(mc[k]||0)+1;});
+    var mk=Object.keys(mc).filter(function(k){return k;}).sort(function(x,y){return mc[y]-mc[x];});
+    var top=mk.length?mk[0]:null;
+
+    document.getElementById('turn-kpis').innerHTML=
+      stat('Départs',dep.length,mlabel(b.s)+' → '+mlabel(b.e),'#DC3545')
+      +stat('Taux de turnover',rate==null?'—':rate+' %','effectif moyen : '+(Math.round(avg*10)/10),'#0D1B3E')
+      +stat('Départs précoces',early,dep.length?pct(early,dep.length)+' % des départs (≤ 3 mois)':'ancienneté ≤ 3 mois','#FD7E14')
+      +stat('Motif n°1',top?'<span style="font-size:14px;line-height:1.2;display:block">'+esc(top)+'</span>':'—',top?mc[top]+' départ(s)':'aucun motif renseigné','#D4A017');
+
+    // Évolution mensuelle
+    var months=[];for(var i=b.s;i<=b.e;i++)months.push(i);
+    var perM=months.map(function(m){return dep.filter(function(a){return dm(a)===m;}).length;});
+    var mx=Math.max.apply(null,perM.concat([1]));
+    document.getElementById('turn-monthly').innerHTML=title('Départs par mois','Sur la période sélectionnée')
+      +'<div style="display:flex;align-items:flex-end;gap:6px;height:130px">'+months.map(function(m,k){
+        var h=Math.round(perM[k]/mx*100);
+        return '<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;min-width:0"><div style="font-size:11px;font-weight:700;color:var(--text);margin-bottom:2px">'+(perM[k]||'')+'</div><div style="width:100%;height:'+Math.max(h,perM[k]?4:1)+'%;background:'+(perM[k]?'#DC3545':'var(--border)')+';border-radius:4px 4px 0 0"></div><div style="font-size:9px;color:var(--muted);margin-top:4px;white-space:nowrap">'+MN[m%12]+'</div></div>';
+      }).join('')+'</div>';
+
+    // Motifs
+    var nr=mc['']||0;
+    document.getElementById('turn-motifs').innerHTML=title('Motifs de départ',dep.length?dep.length+' départ(s) analysé(s)':'')
+      +(dep.length?(mk.map(function(k){return bar(esc(k),mc[k],mc[mk[0]],'#D4A017','  ('+pct(mc[k],dep.length)+' %)');}).join('')
+        +(nr?bar('Non renseigné',nr,Math.max(mc[mk[0]]||0,nr),'#B8C2D6','  ('+pct(nr,dep.length)+' %)'):''))
+       :'<div style="font-size:12px;color:var(--muted)">Aucun départ sur cette période.</div>');
+
+    // Ancienneté au départ
+    var buckets=[['0 à 3 mois',0,3],['4 à 6 mois',4,6],['7 à 12 mois',7,12],['13 à 24 mois',13,24],['Plus de 24 mois',25,1e9]];
+    var bc=buckets.map(function(bk){return dep.filter(function(a){var t=tenure(a);return t!=null&&t>=bk[1]&&t<=bk[2];}).length;});
+    var unk=dep.filter(function(a){return tenure(a)==null;}).length;
+    var bmax=Math.max.apply(null,bc.concat([1]));
+    document.getElementById('turn-anc').innerHTML=title('Ancienneté au départ','Quand les agents partent-ils ?')
+      +(dep.length?buckets.map(function(bk,k){return bar(bk[0],bc[k],bmax,k===0?'#DC3545':'#0D1B3E','  ('+pct(bc[k],dep.length)+' %)');}).join('')+(unk?'<div style="font-size:11px;color:var(--muted)">'+unk+' sans date d\'entrée</div>':''):'<div style="font-size:12px;color:var(--muted)">Aucun départ sur cette période.</div>');
+
+    // Par projet
+    var rows=plist.filter(function(p){return !proj||p===proj;}).map(function(p){
+      var l=pool(p), d=departs(l,b), av=(hc(l,b.s,true)+hc(l,b.e,false))/2;
+      return {p:p,n:d.length,av:av,r:av?d.length/av*100:null};
+    }).filter(function(r){return r.n>0||r.av>0;}).sort(function(x,y){return (y.r||0)-(x.r||0);});
+    document.getElementById('turn-projs').innerHTML=title('Par projet','Départs et taux sur la période')
+      +(rows.length?'<table style="width:100%;font-size:12px;border-collapse:collapse"><thead><tr style="color:var(--muted);text-align:left"><th style="padding:4px 0">Projet</th><th style="text-align:right">Départs</th><th style="text-align:right">Eff. moyen</th><th style="text-align:right">Taux</th></tr></thead><tbody>'
+        +rows.map(function(r){return '<tr style="border-top:1px solid var(--border)"><td style="padding:6px 0;color:var(--text)">'+esc(r.p)+'</td><td style="text-align:right;font-weight:700">'+r.n+'</td><td style="text-align:right">'+(Math.round(r.av*10)/10)+'</td><td style="text-align:right;font-weight:700;color:'+(r.r>=25?'#DC3545':'var(--text)')+'">'+(r.r==null?'—':(Math.round(r.r*10)/10)+' %')+'</td></tr>';}).join('')+'</tbody></table>'
+       :'<div style="font-size:12px;color:var(--muted)">Aucune donnée.</div>');
+
+    // Détail
+    var det=dep.slice().sort(function(x,y){return dm(y)-dm(x);});
+    document.getElementById('turn-list').innerHTML=det.length?
+      '<table style="width:100%;font-size:12px;border-collapse:collapse;min-width:640px"><thead><tr style="color:var(--muted);text-align:left"><th style="padding:6px 8px 6px 0">Agent</th><th>Projet</th><th>Entrée</th><th>Départ</th><th>Ancienneté</th><th>Type</th><th>Motif</th>'+(canEdit()?'<th></th>':'')+'</tr></thead><tbody>'
+      +det.map(function(a){
+        var t=tenure(a);
+        return '<tr style="border-top:1px solid var(--border)"><td style="padding:8px 8px 8px 0;font-weight:700;color:var(--text)">'+esc(a.name)+'</td><td>'+esc(a.proj)+(a.operation?' · '+esc(a.operation):'')+'</td><td>'+esc(a.dateEntree?(a.dateEntree.length>7?a.dateEntree.split('-').reverse().join('/'):mlabel(mi(a.dateEntree))):'—')+'</td><td>'+mlabel(dm(a))+'</td><td>'+(t==null?'—':(t<=3?'<span style="color:#DC3545;font-weight:700">'+t+' mois</span>':t+' mois'))+'</td><td>'+esc(a.departType||'—')+'</td><td>'+(a.departMotif?esc(a.departMotif):'<span style="color:var(--muted)">Non renseigné</span>')+(a.departCom?'<div style="font-size:11px;color:var(--muted);font-style:italic">'+esc(a.departCom.length>80?a.departCom.slice(0,80)+'…':a.departCom)+'</div>':'')+'</td>'+(canEdit()?'<td><button class="btn" style="padding:3px 8px;font-size:12px" onclick="window._turnEdit(\''+esc(a.id)+'\')">✏️</button></td>':'')+'</tr>';
+      }).join('')+'</tbody></table>'
+      :'<div style="font-size:12px;color:var(--muted);padding:8px 0">Aucun départ sur cette période.</div>';
+  };
+
+  window._turnEdit=function(id){
+    if(!canEdit()) return;
+    var a=D.agents.find(function(x){return x.id===id;}); if(!a) return;
+    var h='<div class="mhdr"><h3>✏️ Départ — '+esc(a.name)+'</h3><button class="xbtn" onclick="closeM()">x</button></div>'
+      +'<div style="margin-bottom:14px"><div class="flabel">Date de départ</div><input type="month" id="turn-date" value="'+esc((a.dateDemission||'').slice(0,7))+'" style="max-width:200px"></div>'
+      +window._depFieldsHtml(a)
+      +'<div class="frow"><button class="btn" onclick="closeM()">Annuler</button><button class="btn yellow" onclick="window._turnSave(\''+esc(id)+'\')">💾 Enregistrer</button></div>';
+    showModal(h);
+  };
+  window._turnSave=async function(id){
+    var a=D.agents.find(function(x){return x.id===id;}); if(!a) return;
+    var d=document.getElementById('turn-date').value;
+    if(d) a.dateDemission=d;
+    a.departType=document.getElementById('dem-type').value;
+    a.departMotif=document.getElementById('dem-motif').value;
+    a.departCom=document.getElementById('dem-com').value.trim();
+    await saveD();
+    closeM();
+    window._turnRender();
+  };
+
+  var pg=document.getElementById('pg-rh-turnover');
+  if(pg){
+    new MutationObserver(function(){if(pg.classList.contains('on'))window._turnRender();}).observe(pg,{attributes:true,attributeFilter:['class']});
+  }
+})();
+// ══ FIN TURNOVER ═══════════════════════════════════════════════════════════════
 
 // ══ PÉRIODES D'ESSAI (RH) ═════════════════════════════════════════════════════
 (function(){
