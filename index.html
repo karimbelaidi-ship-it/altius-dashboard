@@ -1132,7 +1132,7 @@
   </div>
   <div style="display:flex;align-items:center;gap:10px">
     <!-- Sélecteur d'espace -->
-    <div id="espace-switcher" style="display:none;background:rgba(255,255,255,.08);border-radius:10px;padding:3px;display:flex;gap:2px">
+    <div id="espace-switcher" style="display:none;background:rgba(255,255,255,.08);border-radius:10px;padding:3px;gap:2px">
       <button id="btn-espace-prod" onclick="window._switchEspace('prod')" style="padding:6px 14px;border-radius:8px;border:none;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;background:#F5C800;color:#1a1a18;transition:all .2s">🏭 Production</button>
       <button id="btn-espace-rh" onclick="window._switchEspace('rh')" style="padding:6px 14px;border-radius:8px;border:none;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;background:transparent;color:rgba(255,255,255,.7);transition:all .2s">👥 RH</button>
     </div>
@@ -6480,19 +6480,22 @@ window._showEspaceSwitcher = function(){
     orgRender();
   };
 
-  // Init quand la page organigramme est affichée
+  // Init dès que la page organigramme devient visible (quel que soit le chemin : nav Production ou RH)
   var _orgInited=false;
-  var _origGoPage=window.goPage;
-  window.goPage=function(page, btn){
-    if(_origGoPage) _origGoPage(page, btn);
-    if(page==='organigramme' && !_orgInited){
-      _orgInited=true;
-      orgLoad();
-      orgRender();
-    }
-  };
-  // Init immédiate si déjà sur la page
-  if(document.getElementById('pg-organigramme') && !document.getElementById('pg-organigramme').style.display){ orgLoad(); orgRender(); }
+  function orgEnsure(){
+    if(_orgInited) return;
+    _orgInited=true;
+    orgLoad();
+    orgRender();
+  }
+  document.addEventListener('org-init', orgEnsure);
+  var _orgPg=document.getElementById('pg-organigramme');
+  if(_orgPg){
+    new MutationObserver(function(){
+      if(_orgPg.classList.contains('on')) orgEnsure();
+    }).observe(_orgPg,{attributes:true,attributeFilter:['class']});
+    if(_orgPg.classList.contains('on')) orgEnsure();
+  }
 })();
 // ══ FIN ORGANIGRAMME ══════════════════════════════════════════════════════════
 
@@ -6515,7 +6518,7 @@ window.doLogin = function(){
     window.CURRENT_USER = acc;
     localStorage.setItem('altius_session', JSON.stringify({id:acc.id, password:acc.password}));
     document.getElementById('loginOverlay').style.display = 'none';
-    document.getElementById('main-nav').style.display = '';
+    document.getElementById('main-nav').style.display = ''; if(window._showEspaceSwitcher) window._showEspaceSwitcher();
     err.style.display = 'none';
     applyUserRole(); // Appliquer les restrictions de rôle immédiatement sans attendre Firebase
     if(typeof showMobileNav === 'function') showMobileNav();
@@ -8942,7 +8945,7 @@ onSnapshot(REF,async(snap)=>{
     setSyncBadge('sync-ok','✅ Initialisé');
   }
   if(CURRENT_USER){
-    document.getElementById('main-nav').style.display = '';
+    document.getElementById('main-nav').style.display = ''; if(window._showEspaceSwitcher) window._showEspaceSwitcher();
   }
   renderAll();
 },(err)=>{
@@ -8951,7 +8954,7 @@ onSnapshot(REF,async(snap)=>{
   if(!D){D=JSON.parse(JSON.stringify(DEF));}
   window.D = D;
   if(CURRENT_USER){
-    document.getElementById('main-nav').style.display = '';
+    document.getElementById('main-nav').style.display = ''; if(window._showEspaceSwitcher) window._showEspaceSwitcher();
   }
   renderAll();
 });
