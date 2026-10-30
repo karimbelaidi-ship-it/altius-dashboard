@@ -1667,11 +1667,20 @@
   <!-- Périodes d'essai -->
   <div class="pg" id="pg-rh-essai">
     <div class="stitle">⏱️ Périodes d'essai</div>
-    <div style="margin-top:24px;padding:40px;text-align:center;background:var(--surface);border:1px solid var(--border);border-radius:16px;color:var(--muted)">
-      <div style="font-size:48px;margin-bottom:16px">🚧</div>
-      <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:8px">En cours de développement</div>
-      <div style="font-size:13px">Le suivi J30/J60/J90 avec alertes automatiques sera disponible prochainement.</div>
+    <p style="font-size:13px;color:var(--muted);margin:6px 0 16px">Suivi des bilans à <strong>J30</strong>, <strong>J60</strong> et <strong>J90</strong> pour chaque nouvel agent. L'échéance se calcule à partir de la date d'entrée saisie sur la fiche agent.</p>
+    <div id="essai-stats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px"></div>
+    <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:16px">
+      <select id="essai-filter" onchange="window._essaiRender()" style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:var(--surface);color:var(--text)">
+        <option value="all">Tous les suivis</option>
+        <option value="todo">À traiter</option>
+        <option value="soon">Échéance sous 7 jours</option>
+        <option value="late">En retard</option>
+        <option value="done">Terminés</option>
+      </select>
+      <select id="essai-proj" onchange="window._essaiRender()" style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:var(--surface);color:var(--text)"><option value="">Tous les projets</option></select>
+      <label style="font-size:13px;color:var(--muted);display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="essai-all" onchange="window._essaiRender()" style="width:auto"> Afficher aussi les agents entrés il y a plus de 120 jours</label>
     </div>
+    <div id="essai-list"></div>
   </div>
 
   <!-- Turnover -->
@@ -6286,6 +6295,7 @@ window.goPageRH = function(id, btn){
     var ev = new CustomEvent('org-init');
     document.dispatchEvent(ev);
   }
+  if(window._essaiBadge) window._essaiBadge();
 };
 
 // Afficher le switcher une fois connecté
@@ -6295,6 +6305,193 @@ window._showEspaceSwitcher = function(){
   if(sw) sw.style.display = 'flex';
 };
 // ══ FIN ESPACE ═════════════════════════════════════════════════════════════════
+
+// ══ PÉRIODES D'ESSAI (RH) ═════════════════════════════════════════════════════
+(function(){
+  var JALONS=[30,60,90];
+  var DEC={ok:{l:'Validé',c:'#28A745',i:'✅'},watch:{l:'À surveiller',c:'#FD7E14',i:'⚠️'},ko:{l:'Non concluant',c:'#DC3545',i:'❌'}};
+  function esc(x){return String(x==null?'':x).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+  function today(){var t=new Date();t.setHours(0,0,0,0);return t;}
+  function addDays(d,n){var r=new Date(d.getTime());r.setDate(r.getDate()+n);return r;}
+  function fmt(d){return d.toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'numeric'});}
+  function canEdit(){var r=window.CURRENT_USER?window.CURRENT_USER.role:'';return ['admin','respo','chef'].indexOf(r)!==-1;}
+
+  function analyse(a){
+    var raw=a.dateEntree; if(!raw) return null;
+    var approx=raw.length===7;
+    var start=new Date((approx?raw+'-01':raw)+'T00:00:00');
+    if(isNaN(start.getTime())) return null;
+    var t=today();
+    var elapsed=Math.round((t-start)/86400000);
+    var recs=(window.D&&D.periodesEssai&&D.periodesEssai[a.id])||{};
+    var hasRec=Object.keys(recs).length>0;
+    var jalons=JALONS.map(function(j){
+      var d=addDays(start,j), rec=recs['j'+j]||null;
+      var left=Math.round((d-t)/86400000), st;
+      if(rec) st='done'; else if(left<0) st='late'; else if(left<=7) st='soon'; else st='upcoming';
+      return {j:j,date:d,rec:rec,st:st,left:left};
+    });
+    var finished=jalons.every(function(x){return x.st==='done';});
+    var old=elapsed>120&&!hasRec;
+    if(old) jalons.forEach(function(x){if(x.st==='late')x.st='old';});
+    return {a:a,start:start,approx:approx,elapsed:elapsed,jalons:jalons,finished:finished,old:old};
+  }
+
+  function allRows(){
+    return ((window.D&&D.agents)||[]).filter(function(a){return a.active;}).map(analyse).filter(Boolean);
+  }
+
+  function urgentCount(rows){
+    var n=0;
+    rows.forEach(function(r){ if(r.old) return; r.jalons.forEach(function(j){ if(j.st==='late'||j.st==='soon') n++; }); });
+    return n;
+  }
+
+  // Pastille d'alerte sur le bouton du menu RH
+  window._essaiBadge=function(){
+    var btn=document.querySelector('#rh-nav .nb[data-page="rh-essai"]');
+    if(!btn) return;
+    var n=urgentCount(allRows());
+    btn.innerHTML="⏱️ Périodes d'essai"+(n?' <span style="background:#DC3545;color:#fff;border-radius:99px;padding:1px 7px;font-size:10px;margin-left:4px">'+n+'</span>':'');
+  };
+
+  function statCard(label,val,color){
+    return '<div style="background:var(--surface);border:1px solid var(--border);border-top:3px solid '+color+';border-radius:12px;padding:12px 14px"><div style="font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em">'+label+'</div><div style="font-size:26px;font-weight:800;color:var(--text);margin-top:2px">'+val+'</div></div>';
+  }
+
+  function chip(r,j){
+    var c='var(--border)',bg='var(--bg)',txt='',sub='';
+    var d=(r.approx?'≈ ':'')+fmt(j.date);
+    if(j.st==='done'){var dc=DEC[j.rec.decision]||DEC.ok;c=dc.c;bg=dc.c+'18';txt=dc.i+' '+dc.l;sub='bilan du '+esc(j.rec.date?fmt(new Date(j.rec.date+'T00:00:00')):'—');}
+    else if(j.st==='late'){c='#DC3545';bg='rgba(220,53,69,.08)';txt='🔴 En retard';sub='depuis '+(-j.left)+' j';}
+    else if(j.st==='soon'){c='#FD7E14';bg='rgba(253,126,20,.1)';txt='🟠 Bientôt';sub=j.left===0?"aujourd'hui":'dans '+j.left+' j';}
+    else if(j.st==='old'){txt='—';sub='hors période';}
+    else {txt='À venir';sub='dans '+j.left+' j';}
+    var click=(canEdit()&&j.st!=='old')?' onclick="window._essaiOpen(\''+esc(r.a.id)+'\','+j.j+')" style="cursor:pointer;'
+                                       :' style="cursor:default;';
+    return '<div'+click+'flex:1 1 150px;min-width:140px;border:1px solid '+c+';background:'+bg+';border-radius:10px;padding:8px 10px">'
+      +'<div style="font-size:11px;font-weight:800;color:var(--text)">J'+j.j+' · <span style="font-weight:600;color:var(--muted)">'+d+'</span></div>'
+      +'<div style="font-size:12px;font-weight:700;margin-top:3px;color:var(--text)">'+txt+'</div>'
+      +'<div style="font-size:11px;color:var(--muted)">'+sub+'</div>'
+      +(j.rec&&j.rec.commentaire?'<div style="font-size:11px;color:var(--muted);margin-top:4px;font-style:italic">'+esc(j.rec.commentaire.length>70?j.rec.commentaire.slice(0,70)+'…':j.rec.commentaire)+'</div>':'')
+      +'</div>';
+  }
+
+  window._essaiRender=function(){
+    var host=document.getElementById('essai-list'); if(!host) return;
+    var rows=allRows();
+
+    // Liste des projets
+    var ps=document.getElementById('essai-proj'), cur=ps.value;
+    var projs=((window.D&&D.projects)||[]).slice();
+    ps.innerHTML='<option value="">Tous les projets</option>'+projs.map(function(p){return '<option value="'+esc(p)+'"'+(p===cur?' selected':'')+'>'+esc(p)+'</option>';}).join('');
+
+    var showAll=document.getElementById('essai-all').checked;
+    var filt=document.getElementById('essai-filter').value;
+    var proj=ps.value;
+
+    // Statistiques (agents encore concernés)
+    var rel=rows.filter(function(r){return !r.old;});
+    var nTrial=rel.filter(function(r){return !r.finished;}).length;
+    var nSoon=0,nLate=0;
+    rel.forEach(function(r){r.jalons.forEach(function(j){if(j.st==='soon')nSoon++;if(j.st==='late')nLate++;});});
+    var nDone=rel.filter(function(r){return r.finished;}).length;
+    document.getElementById('essai-stats').innerHTML=
+      statCard('En période d\'essai',nTrial,'#0D1B3E')+statCard('Échéances sous 7 j',nSoon,'#FD7E14')+statCard('Bilans en retard',nLate,'#DC3545')+statCard('Suivis terminés',nDone,'#28A745');
+
+    var list=rows.filter(function(r){
+      if(!showAll&&r.old) return false;
+      if(proj&&r.a.proj!==proj) return false;
+      if(filt==='todo') return !r.finished&&!r.old;
+      if(filt==='soon') return r.jalons.some(function(j){return j.st==='soon';});
+      if(filt==='late') return r.jalons.some(function(j){return j.st==='late';});
+      if(filt==='done') return r.finished;
+      return true;
+    });
+
+    // Tri : le plus urgent d'abord, terminés / hors période en dernier
+    function key(r){
+      if(r.old) return 9e15;
+      var nx=r.jalons.filter(function(j){return j.st==='late'||j.st==='soon'||j.st==='upcoming';})[0];
+      return nx?nx.date.getTime():8e15;
+    }
+    list.sort(function(a,b){return key(a)-key(b);});
+
+    if(!list.length){
+      host.innerHTML='<div style="padding:32px;text-align:center;background:var(--surface);border:1px solid var(--border);border-radius:14px;color:var(--muted);font-size:13px">Aucun agent à afficher pour ce filtre.<br><span style="font-size:12px">Par défaut, seuls les agents entrés il y a moins de 120 jours apparaissent. Cochez « Afficher aussi les agents entrés il y a plus de 120 jours » pour voir les autres.</span></div>';
+      window._essaiBadge();
+      return;
+    }
+
+    host.innerHTML=list.map(function(r){
+      var pct=Math.max(0,Math.min(100,Math.round(r.elapsed/90*100)));
+      var elapsedTxt=r.elapsed<0?'Entrée dans '+(-r.elapsed)+' j':'Jour '+r.elapsed;
+      var op=r.a.operation?' · '+esc(r.a.operation):'';
+      var approxTxt=r.approx?' <span title="Le jour d\'entrée n\'est pas renseigné (date au format mois). Les échéances sont approximatives : modifiez la fiche agent pour saisir la date exacte." style="color:#FD7E14;cursor:help">(jour inconnu ⓘ)</span>':'';
+      return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 16px;margin-bottom:10px">'
+        +'<div style="display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;align-items:center">'
+          +'<div><div style="font-weight:800;font-size:15px;color:var(--text)">'+esc(r.a.name)+'</div>'
+          +'<div style="font-size:12px;color:var(--muted)">'+esc(r.a.proj)+op+' · Entrée le '+fmt(r.start)+approxTxt+'</div></div>'
+          +'<div style="font-size:12px;font-weight:700;color:var(--muted)">'+(r.old?'Hors période d\'essai':elapsedTxt+' / 90')+'</div>'
+        +'</div>'
+        +(r.old?'':'<div style="height:6px;background:var(--bg);border-radius:99px;margin:10px 0;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:'+(r.finished?'#28A745':'#D4A017')+';border-radius:99px"></div></div>')
+        +'<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:'+(r.old?'10':'0')+'px">'+r.jalons.map(function(j){return chip(r,j);}).join('')+'</div>'
+        +'</div>';
+    }).join('');
+    window._essaiBadge();
+  };
+
+  // ── Saisie d'un bilan ────────────────────────────────────────────────────
+  window._essaiOpen=function(id,j){
+    if(!canEdit()) return;
+    var a=D.agents.find(function(x){return x.id===id;}); if(!a) return;
+    var an=analyse(a); if(!an) return;
+    var jal=an.jalons.filter(function(x){return x.j===j;})[0];
+    var rec=jal.rec||{};
+    var dateVal=rec.date||new Date().toISOString().slice(0,10);
+    var opts=Object.keys(DEC).map(function(k){return '<option value="'+k+'"'+(rec.decision===k?' selected':'')+'>'+DEC[k].i+' '+DEC[k].l+'</option>';}).join('');
+    var h='<div class="mhdr"><h3>⏱️ Bilan J'+j+' — '+esc(a.name)+'</h3><button class="xbtn" onclick="closeM()">x</button></div>'
+      +'<p style="font-size:12px;color:var(--muted);margin-bottom:12px">Échéance : '+(an.approx?'≈ ':'')+fmt(jal.date)+' · '+esc(a.proj)+(a.operation?' · '+esc(a.operation):'')+'</p>'
+      +'<div style="margin-bottom:12px"><div class="flabel">Décision</div><select id="essai-dec" style="width:100%">'+opts+'</select></div>'
+      +'<div style="margin-bottom:12px"><div class="flabel">Date du bilan</div><input type="date" id="essai-date" value="'+esc(dateVal)+'"></div>'
+      +'<div style="margin-bottom:12px"><div class="flabel">Commentaire (points forts, axes de progrès, décision prise)</div><textarea id="essai-com" rows="4" style="width:100%;font-family:inherit;padding:8px;border:1px solid var(--border);border-radius:8px">'+esc(rec.commentaire||'')+'</textarea></div>'
+      +'<div class="frow">'
+      +(jal.rec?'<button class="btn" style="color:#c0392b" onclick="window._essaiRemove(\''+esc(id)+'\','+j+')">Supprimer le bilan</button>':'')
+      +'<button class="btn" onclick="closeM()">Annuler</button>'
+      +'<button class="btn yellow" onclick="window._essaiSave(\''+esc(id)+'\','+j+')">💾 Enregistrer</button></div>';
+    showModal(h);
+  };
+
+  window._essaiSave=async function(id,j){
+    var dec=document.getElementById('essai-dec').value;
+    var date=document.getElementById('essai-date').value;
+    var com=document.getElementById('essai-com').value.trim();
+    if(!D.periodesEssai) D.periodesEssai={};
+    if(!D.periodesEssai[id]) D.periodesEssai[id]={};
+    D.periodesEssai[id]['j'+j]={decision:dec,date:date,commentaire:com,auteur:window.CURRENT_USER?window.CURRENT_USER.nom:'',saisiLe:new Date().toISOString().slice(0,10)};
+    await saveD();
+    closeM();
+    window._essaiRender();
+  };
+
+  window._essaiRemove=async function(id,j){
+    if(!confirm('Supprimer ce bilan J'+j+' ?')) return;
+    if(D.periodesEssai&&D.periodesEssai[id]){
+      delete D.periodesEssai[id]['j'+j];
+      if(!Object.keys(D.periodesEssai[id]).length) delete D.periodesEssai[id];
+    }
+    await saveD();
+    closeM();
+    window._essaiRender();
+  };
+
+  // Affichage dès que la page devient visible
+  var pg=document.getElementById('pg-rh-essai');
+  if(pg){
+    new MutationObserver(function(){ if(pg.classList.contains('on')) window._essaiRender(); }).observe(pg,{attributes:true,attributeFilter:['class']});
+  }
+})();
+// ══ FIN PÉRIODES D'ESSAI ═══════════════════════════════════════════════════════
 
 // ══ ORGANIGRAMME ══════════════════════════════════════════════════════════════
 (function(){
