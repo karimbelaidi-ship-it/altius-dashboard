@@ -435,7 +435,7 @@
     .nb-dropdown-item:last-child { border-bottom: none; }
     .nb-dropdown-item:hover { background: var(--light); }
     .nb-dropdown-item.on { color: #1a1a18; font-weight: 600; background: var(--yellow-light); }
-    #admin-nav-btn.admin-active { color: #1a1a18; border-bottom-color: var(--yellow); font-weight: 600; }
+    #admin-nav-btn.admin-active, .nb-group-btn.admin-active { color: #1a1a18; border-bottom-color: var(--yellow); font-weight: 600; }
 
     /* ── DRAWER FICHE AGENT ── */
     .drawer-overlay {
@@ -1157,20 +1157,29 @@
   <button class="nb on" data-page="overview" onclick="goPage('overview',this)">📋 Tableau de bord</button>
   <button class="nb" data-page="ceo" onclick="goPage('ceo',this)">📊 CEO</button>
   <button class="nb" data-page="chef" onclick="goPage('chef',this)">🎯 Mon projet</button>
-  <button class="nb" data-page="agents" onclick="goPage('agents',this)">👥 Agents</button>
-  <button class="nb" data-page="projets" onclick="goPage('projets',this)">🏢 Projets</button>
-  <button class="nb" data-page="cal-dl" onclick="goPage('cal-dl',this)">⏰ Calendrier &amp; Deadlines</button>
-  <button class="nb" data-page="organigramme" onclick="goPage('organigramme',this)">🏗️ Organigramme</button>
-  <div class="nb-dropdown" id="admin-dropdown-wrap">
-    <button class="nb" id="admin-nav-btn" onclick="window.toggleAdminMenu(event)">⚙️ Administration ▾</button>
-    <div class="nb-dropdown-menu" id="admin-nav-menu" style="display:none">
-      <button class="nb-dropdown-item" data-page="mois" onclick="goPage('mois',this);window.closeAdminMenu()">📅 Mois &amp; Scores</button>
-      <button class="nb-dropdown-item" data-page="archives" onclick="goPage('archives',this);window.closeAdminMenu()">🗂 Archives</button>
+  <div class="nb-dropdown" id="equipes-dropdown-wrap">
+    <button class="nb nb-group-btn" onclick="window.toggleNavMenu(event,this)">👥 Équipes ▾</button>
+    <div class="nb-dropdown-menu" id="equipes-nav-menu" style="display:none">
+      <button class="nb-dropdown-item" data-page="agents" onclick="goPage('agents',this);window.closeAdminMenu()">👥 Agents</button>
       <button class="nb-dropdown-item" data-page="teamleaders" onclick="goPage('teamleaders',this);window.closeAdminMenu()">👤 Team Leaders</button>
-      <button class="nb-dropdown-item" data-page="comptes" id="comptes-tab" onclick="goPage('comptes',this);window.closeAdminMenu()">🔑 Comptes</button>
-      <button class="nb-dropdown-item" data-page="historique" onclick="goPage('historique',this);window.closeAdminMenu()">🕓 Historique scores</button>
+      <button class="nb-dropdown-item" data-page="archives" onclick="goPage('archives',this);window.closeAdminMenu()">🗂 Archives</button>
+    </div>
+  </div>
+  <div class="nb-dropdown" id="scoring-dropdown-wrap">
+    <button class="nb nb-group-btn" onclick="window.toggleNavMenu(event,this)">📅 Scoring ▾</button>
+    <div class="nb-dropdown-menu" id="scoring-nav-menu" style="display:none">
+      <button class="nb-dropdown-item" data-page="mois" onclick="goPage('mois',this);window.closeAdminMenu()">📅 Mois &amp; Scores</button>
       <button class="nb-dropdown-item" data-page="comparateur" onclick="goPage('comparateur',this);window.closeAdminMenu()">📊 Comparateur projets</button>
       <button class="nb-dropdown-item" data-page="plans-action" onclick="goPage('plans-action',this);window.closeAdminMenu()">🎯 Plans d'action</button>
+      <button class="nb-dropdown-item" data-page="historique" onclick="goPage('historique',this);window.closeAdminMenu()">🕓 Historique scores</button>
+    </div>
+  </div>
+  <button class="nb" data-page="cal-dl" onclick="goPage('cal-dl',this)">⏰ Calendrier &amp; Deadlines</button>
+  <div class="nb-dropdown" id="admin-dropdown-wrap">
+    <button class="nb nb-group-btn" id="admin-nav-btn" onclick="window.toggleNavMenu(event,this)">⚙️ Administration ▾</button>
+    <div class="nb-dropdown-menu" id="admin-nav-menu" style="display:none">
+      <button class="nb-dropdown-item" data-page="projets" onclick="goPage('projets',this);window.closeAdminMenu()">🏢 Projets</button>
+      <button class="nb-dropdown-item" data-page="comptes" id="comptes-tab" onclick="goPage('comptes',this);window.closeAdminMenu()">🔑 Comptes</button>
     </div>
   </div>
 </div>
@@ -4105,8 +4114,13 @@ window.renderScoreGrid=function(){
   _opKeys = Object.keys(_ops).sort(function(a,b){ if(!a)return 1; if(!b)return -1; return a.localeCompare(b); });
   var _rowsHtml='';
   _opKeys.forEach(function(op){
-    if(_opKeys.length>1){
-      _rowsHtml+='<tr style="background:rgba(245,200,0,.07)"><td colspan="8" style="padding:6px 10px;font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border)">📁 '+(op||'Sans opération')+'</td></tr>';
+    var _opl=(op||'').toLowerCase();
+    var _opHelp = _opl.indexOf('lead')!==-1 ? 'Leads convertis ÷ objectif du mois · ex. 35 / 40 → 87,5 %'
+      : (_opl.indexOf('ret')!==-1||_opl.indexOf('r\u00e9t')!==-1) ? 'Taux de raffut réalisé ÷ objectif du mois · ex. 68 % / 65 % → 104,6 %'
+      : _opl.indexOf('care')!==-1 ? 'Mails répondus ÷ (jours travaillés × 100) · ex. 1 800 / (20 × 100) → 90 %'
+      : _opl.indexOf('polic')!==-1 ? 'CA récupéré ÷ objectif du mois (€) · ex. 12 000 / 15 000 → 80 %' : '';
+    if(_opKeys.length>1 || _opHelp){
+      _rowsHtml+='<tr style="background:rgba(245,200,0,.07)"><td colspan="8" style="padding:8px 10px;border-bottom:1px solid var(--border)"><span style="font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">📁 '+(op||'Sans opération')+'</span>'+(_opHelp?'<span style="font-size:12px;color:var(--muted);margin-left:12px">Performance = '+_opHelp+'</span>':'')+'</td></tr>';
     }
     _ops[op].forEach(function(a){
     const s=a.scores[m]||{perf:'',qual:'',pres:100,eng:{briefs:true,remontees:true,comportement:true},avert:0};
@@ -4152,8 +4166,6 @@ window.renderScoreGrid=function(){
     } else if(_isLead){
       _perfCell = '<input type="hidden" id="p-'+a.id+'" value="'+(s.perf||0)+'">'
         +'<div style="display:flex;flex-direction:column;gap:3px">'
-        +'<span style="font-size:10px;color:#2980b9;font-weight:600">📋 Lead — Leads convertis ÷ Objectif mensuel</span>'
-        +'<span style="font-size:9px;color:var(--muted)">Saisir le nb de leads convertis ce mois + l\'objectif fixé. Ex: 35 leads / obj 40 → 87.5%</span>'
         +'<input type="number" class="score-input" min="0" value="'+(s.realise||'')+'" id="real-'+a.id+'" oninput="window._upJaphyLead(\''+a.id+'\')" placeholder="Nb leads convertis" '+(canPerfF?'':roDisabled)+'>'
         +'<div style="font-size:10px;color:var(--muted);display:flex;align-items:center;gap:4px">'
           +'Obj: <input type="number" min="0" value="'+_objIndiv+'" id="obj-'+a.id+'" oninput="window._upJaphyLead(\''+a.id+'\')" style="width:50px;padding:2px 4px;font-size:10px;border:1px solid var(--border);border-radius:4px" '+(canPerfF?'':roDisabled)+'>'
@@ -4163,8 +4175,6 @@ window.renderScoreGrid=function(){
     } else if(_isRet){
       _perfCell = '<input type="hidden" id="p-'+a.id+'" value="'+(s.perf||0)+'">'
         +'<div style="display:flex;flex-direction:column;gap:3px">'
-        +'<span style="font-size:10px;color:#27ae60;font-weight:600">📞 Rétention — Taux de raffut réalisé ÷ Objectif mensuel</span>'
-        +'<span style="font-size:9px;color:var(--muted)">Saisir le taux de raffut réalisé en % + l\'objectif fixé ce mois. Ex: 68% réalisé / obj 65% → 104.6%</span>'
         +'<input type="number" class="score-input" min="0" max="100" step="0.1" value="'+(s.realise||'')+'" id="real-'+a.id+'" oninput="window._upJaphyRet(\''+a.id+'\')" placeholder="Taux raffut % réalisé" '+(canPerfF?'':roDisabled)+'>'
         +'<div style="font-size:10px;color:var(--muted);display:flex;align-items:center;gap:4px">'
           +'Obj %: <input type="number" min="0" max="100" step="0.1" value="'+_objIndiv+'" id="obj-'+a.id+'" oninput="window._upJaphyRet(\''+a.id+'\')" style="width:50px;padding:2px 4px;font-size:10px;border:1px solid var(--border);border-radius:4px" '+(canPerfF?'':roDisabled)+'>'
@@ -4175,8 +4185,6 @@ window.renderScoreGrid=function(){
       var _careJours = s.joursTravailles||'';
       _perfCell = '<input type="hidden" id="p-'+a.id+'" value="'+(s.perf||0)+'">'
         +'<div style="display:flex;flex-direction:column;gap:3px">'
-        +'<span style="font-size:10px;color:#8e44ad;font-weight:600">📧 Care — Mails répondus ÷ (Jours × 100)</span>'
-        +'<span style="font-size:9px;color:var(--muted)">Objectif : 100 mails/jour. Saisir mails répondus + jours travaillés. Ex: 1800 mails / 20j → obj 2000 → 90%</span>'
         +'<input type="number" class="score-input" min="0" value="'+(s.realise||'')+'" id="real-'+a.id+'" oninput="window._upJaphyCare(\''+a.id+'\')" placeholder="Nb mails répondus" '+(canPerfF?'':roDisabled)+'>'
         +'<div style="font-size:10px;color:var(--muted);display:flex;align-items:center;gap:4px">'
           +'Jours travaillés: <input type="number" min="0" max="31" value="'+_careJours+'" id="jours-'+a.id+'" oninput="window._upJaphyCare(\''+a.id+'\')" style="width:36px;padding:2px 4px;font-size:10px;border:1px solid var(--border);border-radius:4px" '+(canPerfF?'':roDisabled)+'>'
@@ -4186,8 +4194,6 @@ window.renderScoreGrid=function(){
     } else if(_isPoli){
       _perfCell = '<input type="hidden" id="p-'+a.id+'" value="'+(s.perf||0)+'">'
         +'<div style="display:flex;flex-direction:column;gap:3px">'
-        +'<span style="font-size:10px;color:#e67e22;font-weight:600">💶 Policia — CA récupéré ÷ Objectif mensuel €</span>'
-        +'<span style="font-size:9px;color:var(--muted)">Saisir le CA récupéré (impayés régularisés) et l\'objectif fixé ce mois. Ex: 12 000€ / obj 15 000€ → 80%</span>'
         +'<input type="number" class="score-input" min="0" value="'+(s.realise||'')+'" id="real-'+a.id+'" oninput="window._upJaphyPoli(\''+a.id+'\')" placeholder="CA récupéré €" '+(canPerfF?'':roDisabled)+'>'
         +'<div style="font-size:10px;color:var(--muted);display:flex;align-items:center;gap:4px">'
           +'Obj €: <input type="number" min="0" value="'+_objIndiv+'" id="obj-'+a.id+'" oninput="window._upJaphyPoli(\''+a.id+'\')" style="width:70px;padding:2px 4px;font-size:10px;border:1px solid var(--border);border-radius:4px" '+(canPerfF?'':roDisabled)+'>'
@@ -4231,7 +4237,7 @@ window.renderScoreGrid=function(){
       <td><span id="pv-${a.id}" style="font-weight:700;color:${col(parseFloat(preview)||0)}">${preview}</span></td>
       <td>${isConge
         ? '<button onclick="window._openCongeModal(\''+a.id+'\',\''+m+'\')" style="background:rgba(245,200,0,.12);border:1px solid rgba(245,200,0,.4);color:#a08200;border-radius:8px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap">🌴 Congé '+(s.congeDates?'('+s.congeDates+')':'(mois complet)')+' ✎</button>'
-        : '<button onclick="window._openCongeModal(\''+a.id+'\',\''+m+'\')" style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:8px;padding:4px 10px;font-size:11px;cursor:pointer;white-space:nowrap" '+(canPerfF?'':'disabled style="opacity:.4;cursor:not-allowed"')+'>+ Congé</button>'
+        : '<button onclick="window._openCongeModal(\''+a.id+'\',\''+m+'\')" style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:8px;padding:4px 10px;font-size:11px;cursor:pointer;white-space:nowrap" '+(canPerfF?'':'disabled style="opacity:.4;cursor:not-allowed"')+' title="Marquer cet agent en congé">🌴</button>'
       }</td>
     </tr>`;
     });
@@ -6229,14 +6235,14 @@ function applyUserRole(){
   var allowed = tabAccess[role] || ['overview'];
 
   // Onglets principaux
-  var nbs = document.querySelectorAll('.nb[data-page]');
+  var nbs = document.querySelectorAll('#main-nav .nb[data-page]');
   nbs.forEach(function(btn){
     var pageId = btn.getAttribute('data-page');
     btn.style.display = (allowed.indexOf(pageId) !== -1) ? '' : 'none';
   });
 
   // Dropdown items
-  var dropItems = document.querySelectorAll('.nb-dropdown-item[data-page]');
+  var dropItems = document.querySelectorAll('#main-nav .nb-dropdown-item[data-page]');
   var adminVisible = false;
   dropItems.forEach(function(btn){
     var pageId = btn.getAttribute('data-page');
@@ -6245,8 +6251,10 @@ function applyUserRole(){
     if(vis) adminVisible = true;
   });
   // Masquer le bouton Admin si aucun item visible
-  var adminWrap = document.getElementById('admin-dropdown-wrap');
-  if(adminWrap) adminWrap.style.display = adminVisible ? '' : 'none';
+  document.querySelectorAll('#main-nav .nb-dropdown').forEach(function(wrap){
+    var any = Array.prototype.some.call(wrap.querySelectorAll('.nb-dropdown-item[data-page]'), function(it){ return it.style.display !== 'none'; });
+    wrap.style.display = any ? '' : 'none';
+  });
 
   // Update header user info
   var userInfo = document.getElementById('user-info');
@@ -7694,17 +7702,17 @@ document.getElementById('ov').addEventListener('click',e=>{if(e.target===documen
 
 var PAGE_LABELS = {
   'overview':    {section:'', page:'Tableau de bord'},
-  'agents':      {section:'', page:'Agents'},
-  'projets':     {section:'', page:'Projets'},
+  'agents': {section:'Équipes', page:'Agents'},
+  'projets': {section:'Administration', page:'Projets'},
   'cal-dl':      {section:'', page:'Calendrier & Deadlines'},
   'chef':        {section:'', page:'Mon projet'},
-  'mois':        {section:'Administration', page:'Mois & Scores'},
-  'archives':    {section:'Administration', page:'Archives'},
-  'teamleaders': {section:'Administration', page:'Team Leaders'},
-  'comptes':     {section:'Administration', page:'Comptes'},
-  'historique':  {section:'Administration', page:'Historique scores'},
-  'comparateur': {section:'Administration', page:'Comparateur projets'},
-  'plans-action':{section:'Administration', page:"Plans d'action"},
+  'mois': {section:'Scoring', page:'Mois & Scores'},
+  'archives': {section:'Équipes', page:'Archives'},
+  'teamleaders': {section:'Équipes', page:'Team Leaders'},
+  'comptes': {section:'Administration', page:'Comptes'},
+  'historique': {section:'Scoring', page:'Historique scores'},
+  'comparateur': {section:'Scoring', page:'Comparateur projets'},
+  'plans-action':{section:'Scoring', page:"Plans d'action"},
   'ceo':         {section:'', page:'CEO'},
 };
 
@@ -7734,10 +7742,11 @@ window.goPage=function(id,btn){
   document.querySelectorAll('.pg').forEach(p=>p.classList.remove('on'));
   document.querySelectorAll('.nb').forEach(b=>b.classList.remove('on'));
   document.querySelectorAll('.nb-dropdown-item').forEach(b=>b.classList.remove('on'));
-  // Marquer actif le bouton admin si page admin
-  var adminPages = ['mois','archives','teamleaders','comptes'];
-  var adminBtn = document.getElementById('admin-nav-btn');
-  if(adminBtn) adminBtn.classList.toggle('admin-active', adminPages.indexOf(id)!==-1);
+  // Marquer actif le bouton du groupe (Équipes / Scoring / Administration) qui contient la page
+  document.querySelectorAll('#main-nav .nb-dropdown').forEach(function(dd){
+    var gb = dd.querySelector('.nb-group-btn');
+    if(gb) gb.classList.toggle('admin-active', !!dd.querySelector('.nb-dropdown-item[data-page="'+id+'"]'));
+  });
   updateBreadcrumb(id);
   // Page virtuelle cal-dl
   if(id==='cal-dl'){
@@ -7811,15 +7820,17 @@ window._applyReadOnlyLock = function(){
   });
 };
 
-window.toggleAdminMenu = function(e){
+window.toggleNavMenu = function(e, btn){
   e.stopPropagation();
-  var menu = document.getElementById('admin-nav-menu');
+  var menu = btn && btn.parentElement ? btn.parentElement.querySelector('.nb-dropdown-menu') : null;
+  document.querySelectorAll('.nb-dropdown-menu').forEach(function(m){ if(m!==menu) m.style.display='none'; });
   if(menu) menu.style.display = menu.style.display==='none' ? '' : 'none';
 }
-window.closeAdminMenu = function(){
-  var menu = document.getElementById('admin-nav-menu');
-  if(menu) menu.style.display = 'none';
+window.closeNavMenus = function(){
+  document.querySelectorAll('.nb-dropdown-menu').forEach(function(m){ m.style.display='none'; });
 }
+window.toggleAdminMenu = function(e){ window.toggleNavMenu(e, document.getElementById('admin-nav-btn')); }
+window.closeAdminMenu = window.closeNavMenus;
 document.addEventListener('click', function(){
   window.closeAdminMenu();
 });
@@ -10310,7 +10321,7 @@ document.addEventListener('click', function(e){
         results.push({
           type:'agent', icon:'👤', title:a.name,
           subtitle:a.proj+' · '+scoreTxt+(a.active?'':' · Inactif'),
-          action: function(){ window.closeGlobalSearch(); var btn=document.querySelector('.nb[data-page="agents"]'); goPage('agents',btn); setTimeout(function(){ window._openFiche(a.id); }, 150); }
+          action: function(){ window.closeGlobalSearch(); var btn=document.querySelector('.nb-dropdown-item[data-page="agents"]'); goPage('agents',btn); setTimeout(function(){ window._openFiche(a.id); }, 150); }
         });
       }
     });
@@ -10322,7 +10333,7 @@ document.addEventListener('click', function(e){
         results.push({
           type:'projet', icon:'🏢', title:p,
           subtitle:cnt+' agent'+(cnt>1?'s':'')+' actif'+(cnt>1?'s':''),
-          action: function(){ window.closeGlobalSearch(); var btn=document.querySelector('.nb[data-page="projets"]'); goPage('projets',btn); }
+          action: function(){ window.closeGlobalSearch(); var btn=document.querySelector('.nb-dropdown-item[data-page="projets"]'); goPage('projets',btn); }
         });
       }
     });
@@ -10523,7 +10534,8 @@ document.addEventListener('click', function(e){
       gotoPage: 'overview'
     },
     {
-      selector: '.nb[data-page="agents"]',
+      openAdminMenu: true,
+      selector: '.nb-dropdown-item[data-page="agents"]',
       title: 'Onglet Agents',
       desc: 'On y va : cette page liste tous vos agents avec leurs scores, badges et historique.',
       gotoPage: 'overview'
@@ -10535,7 +10547,7 @@ document.addEventListener('click', function(e){
       gotoPage: 'agents'
     },
     {
-      selector: '#admin-nav-menu .nb-dropdown-item[data-page="mois"]',
+      selector: '.nb-dropdown-item[data-page="mois"]',
       title: 'Saisie des scores',
       desc: 'Direction la page de saisie mensuelle des scores, accessible via le menu Administration.',
       gotoPage: 'agents',
@@ -10560,7 +10572,8 @@ document.addEventListener('click', function(e){
       gotoPage: 'mois'
     },
     {
-      selector: '.nb[data-page="projets"]',
+      openAdminMenu: true,
+      selector: '.nb-dropdown-item[data-page="projets"]',
       title: 'Onglet Projets',
       desc: 'Visualisons maintenant la vue par projet, avec les statistiques agrégées.',
       gotoPage: 'mois'
@@ -10579,7 +10592,7 @@ document.addEventListener('click', function(e){
       requiresChefAccess: true
     },
     {
-      selector: '#admin-nav-menu .nb-dropdown-item[data-page="plans-action"]',
+      selector: '.nb-dropdown-item[data-page="plans-action"]',
       title: 'Vue d\'ensemble des Plans d\'action',
       desc: 'Réservé aux Admin/Respo : suivez tous les plans d\'action créés sur tous les agents, sans avoir à ouvrir chaque fiche une par une.',
       gotoPage: 'projets',
@@ -10592,7 +10605,7 @@ document.addEventListener('click', function(e){
       gotoPage: 'plans-action'
     },
     {
-      selector: '#admin-nav-menu .nb-dropdown-item[data-page="historique"]',
+      selector: '.nb-dropdown-item[data-page="historique"]',
       title: 'Historique des scores',
       desc: 'Chaque modification de score est tracée : qui a changé quoi, l\'ancienne et la nouvelle valeur, et à quel moment.',
       gotoPage: 'plans-action',
@@ -10605,7 +10618,7 @@ document.addEventListener('click', function(e){
       gotoPage: 'historique'
     },
     {
-      selector: '#admin-nav-menu .nb-dropdown-item[data-page="comparateur"]',
+      selector: '.nb-dropdown-item[data-page="comparateur"]',
       title: 'Comparateur de projets',
       desc: 'Un outil pratique pour vos présentations : comparez tous vos projets côte à côte.',
       gotoPage: 'historique',
@@ -10747,11 +10760,11 @@ document.addEventListener('click', function(e){
     }).join('');
 
     // Si l'étape nécessite d'ouvrir le menu Administration pour révéler l'élément (ex: lien "Mois & Scores")
-    var menu = document.getElementById('admin-nav-menu');
+    document.querySelectorAll('.nb-dropdown-menu').forEach(function(m){ m.style.display = 'none'; });
     if(step.openAdminMenu){
-      if(menu) menu.style.display = '';
-    } else if(menu){
-      menu.style.display = 'none';
+      var _tgt = step.selector ? document.querySelector(step.selector) : null;
+      var _menu = _tgt ? _tgt.closest('.nb-dropdown-menu') : null;
+      if(_menu) _menu.style.display = '';
     }
 
     navigateToTourPage(step.gotoPage).then(function(){
@@ -10795,10 +10808,7 @@ document.addEventListener('click', function(e){
   window._tourSkip = function(){
     document.getElementById('tour-overlay').style.display = 'none';
     // Fermer le menu admin si la visite l'avait ouvert
-    var menu = document.getElementById('admin-nav-menu');
-    if(menu && menu.classList.contains('on') && typeof window.closeAdminMenu === 'function'){
-      window.closeAdminMenu();
-    }
+    if(typeof window.closeNavMenus === 'function') window.closeNavMenus();
   };
 
   window.addEventListener('resize', function(){
