@@ -1110,6 +1110,7 @@
     .org-er .org-del{color:#DC3545;font-weight:700}
     .org-kids{margin-left:18px;padding-left:10px;border-left:2px dashed var(--border)}
   </style>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 </head>
 <body>
 
@@ -1133,7 +1134,7 @@
   <div style="display:flex;align-items:center;gap:10px">
     <!-- Sélecteur d'espace -->
     <div id="espace-switcher" style="display:none;background:rgba(255,255,255,.08);border-radius:10px;padding:3px;gap:2px">
-      <button id="btn-espace-prod" onclick="window._switchEspace('prod')" style="padding:6px 14px;border-radius:8px;border:none;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;background:#F5C800;color:#1a1a18;transition:all .2s">🏭 Production</button>
+      <button id="btn-espace-prod" onclick="window._switchEspace('prod')" style="padding:6px 14px;border-radius:8px;border:none;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;background:#D4A017;color:#0D1B3E;transition:all .2s">🏭 Production</button>
       <button id="btn-espace-rh" onclick="window._switchEspace('rh')" style="padding:6px 14px;border-radius:8px;border:none;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;background:transparent;color:rgba(255,255,255,.7);transition:all .2s">👥 RH</button>
     </div>
     <button onclick="showOnboarding()" style="background:rgba(245,200,0,.1);border:1px solid rgba(245,200,0,.3);border-radius:8px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;color:#a08200;font-family:inherit;">❓ Aide</button><div style="position:relative">
@@ -1625,30 +1626,25 @@
   <div class="pg" id="pg-rh-home">
     <div class="stitle">👥 Espace Ressources Humaines</div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;margin-top:24px">
-      <div onclick="goPageRH('rh-fiches',document.querySelector('.nb[data-page=rh-fiches]'))" style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;cursor:pointer;transition:all .2s;border-top:4px solid #0D1B3E" onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='0 8px 24px rgba(0,0,0,.12)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
-        <div style="font-size:32px;margin-bottom:12px">📋</div>
-        <div style="font-weight:800;font-size:16px;color:var(--text);margin-bottom:6px">Fiches Employés</div>
-        <div style="font-size:13px;color:var(--muted)">Informations contractuelles, ancienneté, historique de poste</div>
+      <div class="rh-tile" onclick="goPageRH('rh-fiches',document.querySelector('.nb[data-page=rh-fiches]'))">
+        <div class="rh-t">Fiches Employés</div>
+        <div class="rh-d">Informations contractuelles, ancienneté, historique de poste</div>
       </div>
-      <div onclick="goPageRH('rh-conges',document.querySelector('.nb[data-page=rh-conges]'))" style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;cursor:pointer;transition:all .2s;border-top:4px solid #28A745" onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='0 8px 24px rgba(0,0,0,.12)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
-        <div style="font-size:32px;margin-bottom:12px">🌴</div>
-        <div style="font-weight:800;font-size:16px;color:var(--text);margin-bottom:6px">Congés & Absences</div>
-        <div style="font-size:13px;color:var(--muted)">Suivi des congés, absences justifiées et injustifiées par agent</div>
+      <div class="rh-tile" onclick="goPageRH('rh-conges',document.querySelector('.nb[data-page=rh-conges]'))">
+        <div class="rh-t">Congés & Absences</div>
+        <div class="rh-d">Suivi des congés, absences justifiées et injustifiées par agent</div>
       </div>
-      <div onclick="goPageRH('rh-essai',document.querySelector('.nb[data-page=rh-essai]'))" style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;cursor:pointer;transition:all .2s;border-top:4px solid #D4A017" onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='0 8px 24px rgba(0,0,0,.12)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
-        <div style="font-size:32px;margin-bottom:12px">⏱️</div>
-        <div style="font-weight:800;font-size:16px;color:var(--text);margin-bottom:6px">Périodes d'essai</div>
-        <div style="font-size:13px;color:var(--muted)">Suivi J30/J60/J90 avec alertes automatiques pour chaque nouvel agent</div>
+      <div class="rh-tile" onclick="goPageRH('rh-essai',document.querySelector('.nb[data-page=rh-essai]'))">
+        <div class="rh-t">Périodes d'essai</div>
+        <div class="rh-d">Suivi J30/J60/J90 avec alertes automatiques pour chaque nouvel agent</div>
       </div>
-      <div onclick="goPageRH('rh-turnover',document.querySelector('.nb[data-page=rh-turnover]'))" style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;cursor:pointer;transition:all .2s;border-top:4px solid #DC3545" onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='0 8px 24px rgba(0,0,0,.12)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
-        <div style="font-size:32px;margin-bottom:12px">📉</div>
-        <div style="font-weight:800;font-size:16px;color:var(--text);margin-bottom:6px">Turnover</div>
-        <div style="font-size:13px;color:var(--muted)">Suivi des démissions, motifs de départ, taux de turnover par projet</div>
+      <div class="rh-tile" onclick="goPageRH('rh-turnover',document.querySelector('.nb[data-page=rh-turnover]'))">
+        <div class="rh-t">Turnover</div>
+        <div class="rh-d">Suivi des démissions, motifs de départ, taux de turnover par projet</div>
       </div>
-      <div onclick="goPageRH('organigramme',document.querySelector('.nb[data-page=organigramme]'))" style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;cursor:pointer;transition:all .2s;border-top:4px solid #378ADD" onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='0 8px 24px rgba(0,0,0,.12)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
-        <div style="font-size:32px;margin-bottom:12px">🏗️</div>
-        <div style="font-weight:800;font-size:16px;color:var(--text);margin-bottom:6px">Organigramme</div>
-        <div style="font-size:13px;color:var(--muted)">Structure hiérarchique interactive d'Altius Contact</div>
+      <div class="rh-tile" onclick="goPageRH('organigramme',document.querySelector('.nb[data-page=organigramme]'))">
+        <div class="rh-t">Organigramme</div>
+        <div class="rh-d">Structure hiérarchique interactive d'Altius Contact</div>
       </div>
     </div>
   </div>
@@ -1657,7 +1653,7 @@
   <div class="pg" id="pg-rh-fiches">
     <div class="stitle">📋 Fiches Employés</div>
     <div style="margin-top:24px;padding:40px;text-align:center;background:var(--surface);border:1px solid var(--border);border-radius:16px;color:var(--muted)">
-      <div style="font-size:48px;margin-bottom:16px">🚧</div>
+      
       <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:8px">En cours de développement</div>
       <div style="font-size:13px">Les fiches employés complètes (contrat, salaire, ancienneté, historique) seront disponibles prochainement.</div>
     </div>
@@ -1667,7 +1663,7 @@
   <div class="pg" id="pg-rh-conges">
     <div class="stitle">🌴 Congés & Absences</div>
     <div style="margin-top:24px;padding:40px;text-align:center;background:var(--surface);border:1px solid var(--border);border-radius:16px;color:var(--muted)">
-      <div style="font-size:48px;margin-bottom:16px">🚧</div>
+      
       <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:8px">En cours de développement</div>
       <div style="font-size:13px">Le suivi des congés et absences par agent et par projet sera disponible prochainement.</div>
     </div>
@@ -6299,13 +6295,13 @@ window._switchEspace = function(espace){
   if(espace === 'prod'){
     if(mainNav) mainNav.style.display = '';
     if(rhNav)   rhNav.style.display   = 'none';
-    if(btnProd){ btnProd.style.background='#F5C800'; btnProd.style.color='#1a1a18'; }
+    if(btnProd){ btnProd.style.background='#D4A017'; btnProd.style.color='#0D1B3E'; }
     if(btnRH){   btnRH.style.background='transparent'; btnRH.style.color='rgba(255,255,255,.7)'; }
     goPage('overview', document.querySelector('.nb[data-page="overview"]'));
   } else {
     if(mainNav) mainNav.style.display = 'none';
     if(rhNav)   rhNav.style.display   = '';
-    if(btnRH){   btnRH.style.background='#F5C800'; btnRH.style.color='#1a1a18'; }
+    if(btnRH){   btnRH.style.background='#D4A017'; btnRH.style.color='#0D1B3E'; }
     if(btnProd){ btnProd.style.background='transparent'; btnProd.style.color='rgba(255,255,255,.7)'; }
     goPageRH('rh-home', document.querySelector('#rh-nav .nb[data-page="rh-home"]'));
   }
@@ -6377,7 +6373,7 @@ window._showEspaceSwitcher = function(){
   function departs(list,b){return list.filter(function(a){var d=dm(a);return d!=null&&d>=b.s&&d<=b.e;});}
   function tenure(a){var en=mi(a.dateEntree),d=dm(a);return (en!=null&&d!=null)?Math.max(0,d-en):null;}
   function stat(label,val,sub,color){
-    return '<div style="background:var(--surface);border:1px solid var(--border);border-top:3px solid '+color+';border-radius:12px;padding:12px 14px"><div style="font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em">'+label+'</div><div style="font-size:26px;font-weight:800;color:var(--text);margin-top:2px">'+val+'</div>'+(sub?'<div style="font-size:11px;color:var(--muted)">'+sub+'</div>':'')+'</div>';
+    return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 14px"><div style="font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em">'+label+'</div><div style="font-size:26px;font-weight:700;color:'+(color==='#DC3545'?color:'var(--navy)')+';margin-top:2px">'+val+'</div>'+(sub?'<div style="font-size:11px;color:var(--muted)">'+sub+'</div>':'')+'</div>';
   }
   function title(t,sub){return '<div style="font-weight:800;font-size:14px;color:var(--text)">'+t+'</div>'+(sub?'<div style="font-size:11px;color:var(--muted);margin-bottom:10px">'+sub+'</div>':'<div style="margin-bottom:10px"></div>');}
   function bar(label,n,max,color,extra){
@@ -6529,11 +6525,11 @@ window._showEspaceSwitcher = function(){
     var btn=document.querySelector('#rh-nav .nb[data-page="rh-essai"]');
     if(!btn) return;
     var n=urgentCount(allRows());
-    btn.innerHTML="⏱️ Périodes d'essai"+(n?' <span style="background:#DC3545;color:#fff;border-radius:99px;padding:1px 7px;font-size:10px;margin-left:4px">'+n+'</span>':'');
+    btn.innerHTML="Périodes d'essai"+(n?' <span style="background:#DC3545;color:#fff;border-radius:99px;padding:1px 7px;font-size:10px;margin-left:4px">'+n+'</span>':'');
   };
 
   function statCard(label,val,color){
-    return '<div style="background:var(--surface);border:1px solid var(--border);border-top:3px solid '+color+';border-radius:12px;padding:12px 14px"><div style="font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em">'+label+'</div><div style="font-size:26px;font-weight:800;color:var(--text);margin-top:2px">'+val+'</div></div>';
+    return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 14px"><div style="font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em">'+label+'</div><div style="font-size:26px;font-weight:700;color:'+(color==='#DC3545'?color:'var(--navy)')+';margin-top:2px">'+val+'</div></div>';
   }
 
   function chip(r,j){
@@ -10815,6 +10811,81 @@ document.addEventListener('click', function(e){
     var overlay = document.getElementById('tour-overlay');
     if(overlay && overlay.style.display === 'block') positionTourStep();
   });
+})();
+</script>
+<style id="skin-altius">
+/* ═══ Identité visuelle Altius — base unifiée ═══ */
+:root{
+  --navy:#0D1B3E;
+  --yellow:#D4A017; --yellow-light:#FBF4DF; --yellow-dark:#8A6A0A;
+  --green:#28A745; --red:#DC3545;
+  --bg:#F5F6F8; --surface:#FFFFFF; --border:#E2E5EB;
+  --text:#17213A; --muted:#5F6B80; --light:#EEF0F4;
+}
+body{font-family:'IBM Plex Sans','Segoe UI',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+
+/* En-tête et navigation */
+.header{background:var(--navy);box-shadow:none;border-bottom:1px solid rgba(255,255,255,.08)}
+.nav{background:var(--surface);border-bottom:1px solid var(--border)}
+.nb{font-weight:500;letter-spacing:0}
+.nb.on,.nb-group-btn.admin-active,#admin-nav-btn.admin-active{color:var(--navy);border-bottom-color:var(--yellow);font-weight:600}
+.nb-dropdown-menu{border-radius:0 0 8px 8px;box-shadow:0 6px 20px rgba(13,27,62,.10)}
+.nb-dropdown-item.on{background:var(--yellow-light);color:var(--navy)}
+
+/* Titres de page : un vrai titre, pas une étiquette */
+.pg>.stitle:first-child{font-size:20px;font-weight:600;color:var(--navy);text-transform:none;letter-spacing:-.01em;margin-bottom:16px}
+
+/* Cartes : à plat, une bordure fine, un seul arrondi */
+.card,.kcard,.kcard-v2,.pcard,.qa-card,.chef-agent-card{border-radius:10px;box-shadow:none}
+.kcard:hover,.kcard-v2:hover,.pcard:hover,.top3-card:hover,.qa-card:hover,.chef-agent-card:hover,.dir-heat-tile:hover,.org-card:hover{
+  transform:none!important;box-shadow:none!important;border-color:#C5CAD5}
+.modal{border-radius:12px;box-shadow:0 12px 40px rgba(13,27,62,.18)}
+
+/* Boutons : l'action principale en bleu marine, le reste discret */
+.btn{border-radius:6px;font-weight:500}
+.btn:hover{background:var(--light);border-color:#C5CAD5}
+.btn.yellow{background:var(--navy);border-color:var(--navy);color:#fff;font-weight:600}
+.btn.yellow:hover{background:#1A2D5A;border-color:#1A2D5A}
+
+/* Champs de saisie */
+input[type=text]:not(.login-input),input[type=number],input[type=date],input[type=month],input[type=search],select,textarea{
+  border:1px solid var(--border);border-radius:6px;background:#fff;color:var(--text);font-family:inherit}
+input:not(.login-input):focus,select:focus,textarea:focus{outline:none;border-color:var(--yellow);box-shadow:0 0 0 3px rgba(212,160,23,.18)}
+
+/* Tableaux : lecture des chiffres */
+.tbl th{font-weight:600;color:var(--muted)}
+.tbl td{font-variant-numeric:tabular-nums}
+.tbl tbody tr:hover td{background:#F8F9FB}
+.pill{border-radius:6px}
+
+/* Tuiles de l'espace RH */
+.rh-tile{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px;cursor:pointer;transition:border-color .15s}
+.rh-tile:hover{border-color:var(--yellow)}
+.rh-tile .rh-t{font-weight:600;font-size:15px;color:var(--navy);margin-bottom:4px}
+.rh-tile .rh-d{font-size:13px;color:var(--muted);line-height:1.45}
+</style>
+<script>
+/* Retire l'emoji décoratif placé devant un libellé ; les boutons-icônes (emoji seul) sont conservés. */
+(function(){
+  var RE=/^\s*(?:\p{Extended_Pictographic}[\uFE0F\u200D]*)+\s*(?=[\p{L}\p{N}])/u;
+  var SEL='button, .nb, .nb-dropdown-item, .stitle, .mhdr h3, .tip-title, h1, h2, h3, h4';
+  function clean(el){
+    var n=el.firstChild;
+    if(n && n.nodeType===3 && RE.test(n.nodeValue)) n.nodeValue=n.nodeValue.replace(RE,'');
+  }
+  function sweep(root){
+    if(root.nodeType!==1) return;
+    if(root.matches && root.matches(SEL)) clean(root);
+    var l=root.querySelectorAll?root.querySelectorAll(SEL):[];
+    for(var i=0;i<l.length;i++) clean(l[i]);
+  }
+  var pending=false, queue=[];
+  function flush(){ pending=false; var q=queue; queue=[]; q.forEach(sweep); }
+  new MutationObserver(function(muts){
+    muts.forEach(function(m){ m.addedNodes.forEach(function(nd){ queue.push(nd); }); });
+    if(!pending){ pending=true; requestAnimationFrame(flush); }
+  }).observe(document.body,{childList:true,subtree:true});
+  sweep(document.body);
 })();
 </script>
 </body>
